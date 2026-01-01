@@ -1,0 +1,11 @@
+# Claude Proxy v3 - Optimized
+# Core dependencies
+fastapi>=0.104.0
+uvicorn>=0.24.0
+anthropic>=0.18.0
+
+# Optimization dependencies
+httpx>=0.25.0  # Async HTTP client for parallel image fetching
+
+# Optional but recommended
+yfinance>=0.2.0  # For real-time spot prices
