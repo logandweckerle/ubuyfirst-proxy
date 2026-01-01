@@ -8,6 +8,18 @@ from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Dict
 
+# Load .env file if it exists
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"[CONFIG] Loaded .env from {env_path}")
+    else:
+        print(f"[CONFIG] No .env file found at {env_path}")
+except ImportError:
+    print("[CONFIG] python-dotenv not installed. Run: pip install python-dotenv")
+
 # ============================================================
 # PATHS
 # ============================================================
@@ -24,7 +36,12 @@ PORT = 8000
 # ============================================================
 # API SETTINGS
 # ============================================================
-CLAUDE_API_KEY = os.getenv("ANTHROPIC_API_KEY", "YOUR_API_KEY_HERE")
+CLAUDE_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+if not CLAUDE_API_KEY or CLAUDE_API_KEY == "YOUR_API_KEY_HERE":
+    print("[CONFIG] WARNING: ANTHROPIC_API_KEY not set! Check your .env file.")
+else:
+    print(f"[CONFIG] API key loaded ({CLAUDE_API_KEY[:8]}...)")
+
 MODEL_FAST = "claude-3-5-haiku-20241022"  # For quick pre-filters
 MODEL_FULL = "claude-3-5-haiku-20241022"  # For full analysis (can upgrade to Sonnet)
 

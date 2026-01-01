@@ -1,12 +1,14 @@
 """
 Async Image Fetcher - Parallel image downloading with httpx
 Reduces image fetch time from 10-15 seconds (sequential) to 2-3 seconds (parallel)
+Includes automatic compression for images exceeding API limits
 """
 
 import asyncio
 import base64
 import logging
-from typing import List, Dict, Optional, Any
+import io
+from typing import List, Dict, Optional, Any, Tuple
 from dataclasses import dataclass
 
 try:
@@ -16,9 +18,20 @@ except ImportError:
     HTTPX_AVAILABLE = False
     print("[IMAGES] httpx not installed. Run: pip install httpx")
 
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+    print("[IMAGES] Pillow not installed. Large images won't be compressed. Run: pip install Pillow")
+
 from config import IMAGES
 
 logger = logging.getLogger(__name__)
+
+# Anthropic API limit is 5MB (5,242,880 bytes)
+# We target 4.5MB to leave some headroom
+MAX_IMAGE_BYTES = 4_500_000
 
 
 @dataclass
@@ -31,12 +44,71 @@ class FetchedImage:
     error: Optional[str] = None
 
 
+def compress_image(image_data: bytes, media_type: str, max_bytes: int = MAX_IMAGE_BYTES) -> Tuple[bytes, str]:
+    """
+    Compress image if it exceeds max_bytes.
+    Returns (compressed_data, media_type)
+    """
+    if len(image_data) <= max_bytes:
+        return image_data, media_type
+    
+    if not PIL_AVAILABLE:
+        logger.warning(f"Image too large ({len(image_data)} bytes) but PIL not available for compression")
+        return image_data, media_type
+    
+    try:
+        original_size = len(image_data)
+        img = Image.open(io.BytesIO(image_data))
+        
+        # Convert RGBA to RGB if necessary (for JPEG)
+        if img.mode == 'RGBA':
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[3])
+            img = background
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Try progressively smaller sizes and quality levels
+        for scale in [0.75, 0.5, 0.4, 0.3, 0.25]:
+            for quality in [85, 70, 55, 40]:
+                # Resize
+                new_width = int(img.width * scale)
+                new_height = int(img.height * scale)
+                
+                # Don't go smaller than 800px on longest side
+                if max(new_width, new_height) < 800:
+                    continue
+                
+                resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                
+                # Compress to JPEG
+                buffer = io.BytesIO()
+                resized.save(buffer, format='JPEG', quality=quality, optimize=True)
+                compressed_data = buffer.getvalue()
+                
+                if len(compressed_data) <= max_bytes:
+                    print(f"[IMAGES] Compressed {original_size/1024/1024:.1f}MB -> {len(compressed_data)/1024/1024:.1f}MB ({new_width}x{new_height}, q={quality})")
+                    return compressed_data, 'image/jpeg'
+        
+        # Last resort: very small
+        resized = img.resize((800, int(800 * img.height / img.width)), Image.Resampling.LANCZOS)
+        buffer = io.BytesIO()
+        resized.save(buffer, format='JPEG', quality=30, optimize=True)
+        compressed_data = buffer.getvalue()
+        print(f"[IMAGES] Compressed {original_size/1024/1024:.1f}MB -> {len(compressed_data)/1024/1024:.1f}MB (last resort)")
+        return compressed_data, 'image/jpeg'
+        
+    except Exception as e:
+        logger.error(f"Image compression failed: {e}")
+        return image_data, media_type
+
+
 async def fetch_single_image(
     client: "httpx.AsyncClient",
     url: str,
     timeout: float = 5.0
 ) -> FetchedImage:
-    """Fetch a single image asynchronously"""
+    """Fetch a single image asynchronously, compressing if too large"""
     try:
         response = await client.get(url, timeout=timeout)
         response.raise_for_status()
@@ -50,8 +122,15 @@ async def fetch_single_image(
         if not content_type.startswith('image/'):
             content_type = 'image/jpeg'  # Default fallback
         
+        # Get raw image data
+        image_data = response.content
+        
+        # Compress if too large
+        if len(image_data) > MAX_IMAGE_BYTES:
+            image_data, content_type = compress_image(image_data, content_type)
+        
         # Encode to base64
-        img_data = base64.b64encode(response.content).decode('utf-8')
+        img_data = base64.b64encode(image_data).decode('utf-8')
         
         return FetchedImage(
             url=url,
@@ -164,10 +243,16 @@ async def _fallback_sync_fetch(urls: List[str], max_images: int) -> List[Dict[st
                 headers={'User-Agent': IMAGES.user_agent}
             )
             with urllib.request.urlopen(req, timeout=5) as resp:
-                data = base64.b64encode(resp.read()).decode('utf-8')
+                image_data = resp.read()
                 content_type = resp.headers.get('Content-Type', 'image/jpeg')
                 if ';' in content_type:
                     content_type = content_type.split(';')[0]
+                
+                # Compress if too large
+                if len(image_data) > MAX_IMAGE_BYTES:
+                    image_data, content_type = compress_image(image_data, content_type)
+                
+                data = base64.b64encode(image_data).decode('utf-8')
                     
                 images.append({
                     "type": "image",
