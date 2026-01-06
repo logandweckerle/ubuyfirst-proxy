@@ -1,11 +1,23 @@
-# Claude Proxy v3 - Optimized
-# Core dependencies
+# ShadowSnipe - eBay Arbitrage Proxy Dependencies
+# Install with: pip install -r requirements.txt
+
+# Web Framework
 fastapi>=0.104.0
 uvicorn>=0.24.0
+
+# HTTP Clients
+httpx>=0.25.0
+requests>=2.31.0
+
+# AI APIs
 anthropic>=0.18.0
+openai>=1.12.0
 
-# Optimization dependencies
-httpx>=0.25.0  # Async HTTP client for parallel image fetching
+# Image Processing
+Pillow>=10.0.0
 
-# Optional but recommended
-yfinance>=0.2.0  # For real-time spot prices
+# Spot Price Fetching
+yfinance>=0.2.36
+
+# WebSocket support
+websockets>=12.0
