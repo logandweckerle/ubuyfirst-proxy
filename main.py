@@ -91,7 +91,10 @@ from utils import (
     import_blocked_sellers,
     get_blocked_sellers,
     get_blocked_count,
+    save_blocked_sellers,
     BLOCKED_SELLERS,
+    SELLER_SPAM_WINDOW,
+    SELLER_SPAM_THRESHOLD,
     # Rate constants
     GOLD_SELL_RATE,
     GOLD_MAX_BUY_RATE,
@@ -130,6 +133,7 @@ from pipeline.validation import (
 from routes.analysis import router as analysis_router, configure_analysis
 from routes.ebay import router as ebay_router, configure_ebay, log_race_item as ebay_log_race_item
 from routes.pricecharting import router as pricecharting_router, configure_pricecharting
+from routes.sellers import router as sellers_router, configure_sellers
 
 # Training data log path
 
@@ -320,6 +324,21 @@ if PRICECHARTING_AVAILABLE:
         PRICECHARTING_AVAILABLE=PRICECHARTING_AVAILABLE,
     )
 
+# Configure Sellers routes module
+configure_sellers(
+    get_all_seller_profiles=get_all_seller_profiles,
+    get_seller_profile_stats=get_seller_profile_stats,
+    get_high_value_sellers=get_high_value_sellers,
+    calculate_seller_score=calculate_seller_score,
+    analyze_new_seller=analyze_new_seller,
+    populate_seller_profiles_from_purchases=populate_seller_profiles_from_purchases,
+    get_seller_profile=get_seller_profile,
+    BLOCKED_SELLERS=BLOCKED_SELLERS,
+    save_blocked_sellers=save_blocked_sellers,
+    SELLER_SPAM_WINDOW=SELLER_SPAM_WINDOW,
+    SELLER_SPAM_THRESHOLD=SELLER_SPAM_THRESHOLD,
+)
+
 # Bricklink API for Designer Program sets (910xxx)
 
 try:
@@ -505,6 +524,7 @@ async def favicon():
 app.include_router(analysis_router)
 app.include_router(ebay_router)
 app.include_router(pricecharting_router)
+app.include_router(sellers_router)
 
 # Claude client - using AsyncAnthropic for parallel request processing
 
@@ -8766,245 +8786,6 @@ async def pc_upc_lookup(upc: str, price: float = 100):
     except Exception as e:
 
         return {"error": str(e)}
-
-
-# ============================================================
-# SELLER PROFILE API ENDPOINTS
-# ============================================================
-
-@app.get("/api/sellers")
-async def api_sellers_list(min_score: int = 0, limit: int = 100):
-    """
-    Get all seller profiles, optionally filtered by minimum score.
-    Usage: /api/sellers?min_score=60&limit=50
-    """
-    try:
-        profiles = get_all_seller_profiles(min_score=min_score, limit=limit)
-        return {
-            "count": len(profiles),
-            "min_score_filter": min_score,
-            "profiles": profiles
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/sellers/stats")
-async def api_sellers_stats():
-    """Get aggregate statistics about seller profiles."""
-    try:
-        return get_seller_profile_stats()
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/sellers/high-value")
-async def api_sellers_high_value(min_score: int = 70, limit: int = 50):
-    """
-    Get high-value sellers (likely to misprice).
-    Usage: /api/sellers/high-value?min_score=65&limit=25
-    """
-    try:
-        profiles = get_high_value_sellers(min_score=min_score, limit=limit)
-        return {
-            "count": len(profiles),
-            "min_score": min_score,
-            "sellers": profiles
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/sellers/score")
-async def api_seller_score(seller_id: str, title: str = "", category: str = ""):
-    """
-    Quick score lookup for a seller.
-    Usage: /api/sellers/score?seller_id=someuser123&category=gold
-    """
-    try:
-        # Calculate score with full analysis
-        analysis = calculate_seller_score(
-            seller=seller_id,
-            titles=[title] if title else None,
-            category=category
-        )
-        return {
-            "seller_id": seller_id,
-            "score": analysis['final_score'],
-            "avatar": analysis.get('avatar', 'UNKNOWN'),
-            "avatar_color": analysis.get('avatar_color', ''),
-            "avatar_description": analysis.get('avatar_description', ''),
-            "all_avatars": analysis.get('all_avatars', []),
-            "type": analysis['estimated_type'],
-            "patterns": analysis['username_analysis']['pattern_names'],
-            "breakdown": analysis['score_breakdown'],
-            "recommendation": "HIGH_PRIORITY" if analysis['final_score'] >= 70 else
-                             "MEDIUM_PRIORITY" if analysis['final_score'] >= 55 else "NORMAL"
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.post("/api/sellers/analyze")
-async def api_seller_analyze(seller_id: str, title: str = "", category: str = ""):
-    """
-    Analyze a seller and get their profile score.
-    Usage: POST /api/sellers/analyze?seller_id=someuser123&title=14k+gold+ring&category=gold
-    """
-    try:
-        analysis = analyze_new_seller(seller=seller_id, title=title, category=category)
-        return analysis
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.post("/api/sellers/populate")
-async def api_sellers_populate():
-    """
-    Populate seller profiles from purchase history database.
-    This will analyze all sellers you've bought from and score them.
-    """
-    try:
-        import asyncio
-        import concurrent.futures
-
-        logger.info("[SELLERS] Populating profiles from purchase history...")
-
-        # Run in thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-
-        result = await loop.run_in_executor(executor, populate_seller_profiles_from_purchases)
-
-        return result
-    except Exception as e:
-        logger.error(f"[SELLERS] Populate error: {e}")
-        return {"error": str(e)}
-
-
-@app.get("/api/sellers/{seller_id}")
-async def api_seller_profile(seller_id: str):
-    """Get a specific seller's profile."""
-    try:
-        profile = get_seller_profile(seller_id)
-        if profile:
-            return profile
-        return {"error": f"Seller '{seller_id}' not found", "seller_id": seller_id}
-    except Exception as e:
-        return {"error": str(e)}
-
-
-# ============================================================
-# BLOCKED SELLERS API
-# ============================================================
-
-@app.get("/api/blocked-sellers")
-async def api_blocked_sellers():
-    """Get list of blocked (spam) sellers."""
-    return {
-        "count": len(BLOCKED_SELLERS),
-        "sellers": sorted(list(BLOCKED_SELLERS)),
-        "spam_window_seconds": SELLER_SPAM_WINDOW,
-        "spam_threshold": SELLER_SPAM_THRESHOLD
-    }
-
-
-@app.post("/api/blocked-sellers/add")
-async def api_add_blocked_seller(seller: str):
-    """Manually add a seller to the block list."""
-    seller_key = seller.lower().strip()
-    if seller_key in BLOCKED_SELLERS:
-        return {"status": "already_blocked", "seller": seller}
-
-    BLOCKED_SELLERS.add(seller_key)
-    save_blocked_sellers(BLOCKED_SELLERS)
-    logger.info(f"[BLOCKED] Manually added seller: {seller}")
-    return {
-        "status": "blocked",
-        "seller": seller,
-        "total_blocked": len(BLOCKED_SELLERS)
-    }
-
-
-@app.post("/api/blocked-sellers/remove")
-async def api_remove_blocked_seller(seller: str):
-    """Remove a seller from the block list."""
-    seller_key = seller.lower().strip()
-    if seller_key not in BLOCKED_SELLERS:
-        return {"status": "not_found", "seller": seller}
-
-    BLOCKED_SELLERS.discard(seller_key)
-    save_blocked_sellers(BLOCKED_SELLERS)
-    logger.info(f"[BLOCKED] Removed seller from block list: {seller}")
-    return {
-        "status": "unblocked",
-        "seller": seller,
-        "total_blocked": len(BLOCKED_SELLERS)
-    }
-
-
-@app.post("/api/blocked-sellers/clear")
-async def api_clear_blocked_sellers():
-    """Clear all blocked sellers (use with caution)."""
-    count = len(BLOCKED_SELLERS)
-    BLOCKED_SELLERS.clear()
-    save_blocked_sellers(BLOCKED_SELLERS)
-    logger.warning(f"[BLOCKED] Cleared all {count} blocked sellers")
-    return {
-        "status": "cleared",
-        "removed_count": count
-    }
-
-
-@app.post("/api/blocked-sellers/import")
-async def api_import_blocked_sellers(request: Request):
-    """
-    Import blocked sellers from JSON body.
-    Accepts: {"sellers": ["seller1", "seller2", ...]}
-    Or just a list: ["seller1", "seller2", ...]
-    """
-    try:
-        body = await request.json()
-
-        # Handle both formats
-        if isinstance(body, list):
-            sellers = body
-        elif isinstance(body, dict):
-            sellers = body.get('sellers', [])
-        else:
-            return {"error": "Invalid format. Send {sellers: [...]} or [...]"}
-
-        added = 0
-        skipped = 0
-        for seller in sellers:
-            seller_key = str(seller).lower().strip()
-            if seller_key and seller_key not in BLOCKED_SELLERS:
-                BLOCKED_SELLERS.add(seller_key)
-                added += 1
-            else:
-                skipped += 1
-
-        save_blocked_sellers(BLOCKED_SELLERS)
-        logger.info(f"[BLOCKED] Imported {added} sellers ({skipped} already blocked)")
-
-        return {
-            "status": "imported",
-            "added": added,
-            "skipped": skipped,
-            "total_blocked": len(BLOCKED_SELLERS)
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-
-@app.get("/api/blocked-sellers/export")
-async def api_export_blocked_sellers():
-    """Export blocked sellers as a simple list (for backup/import elsewhere)."""
-    return {
-        "sellers": sorted(list(BLOCKED_SELLERS)),
-        "count": len(BLOCKED_SELLERS),
-        "exported_at": datetime.now().isoformat()
-    }
 
 
 @app.get("/api/debug-prompts")
