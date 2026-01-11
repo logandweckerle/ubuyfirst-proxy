@@ -15,8 +15,8 @@ from dataclasses import dataclass
 
 # Get spot prices from config (will be imported in main)
 # These are FALLBACKS if live fetch fails - update periodically to stay close to market
-DEFAULT_GOLD_OZ = 4450   # Fallback ~Jan 2025 prices
-DEFAULT_SILVER_OZ = 78   # Fallback ~Jan 2025 prices
+DEFAULT_GOLD_OZ = 4500   # Fallback ~Jan 2026 prices
+DEFAULT_SILVER_OZ = 82   # Fallback ~Jan 2026 prices
 
 
 @dataclass
@@ -49,8 +49,8 @@ NON_METAL_INDICATORS = [
     'pearl', 'diamond', 'turquoise', 'jade', 'coral', 'opal', 'onyx',
     'amethyst', 'ruby', 'sapphire', 'emerald', 'garnet', 'topaz', 'aquamarine',
     'peridot', 'citrine', 'tanzanite', 'morganite', 'alexandrite',
-    # Stone indicators
-    'stone', 'gemstone', 'gem', 'cttw', 'ctw', 'carat', 'ct ',
+    # Stone indicators (but NOT 'ct ' alone - too many false positives)
+    'stone', 'gemstone', 'gem', 'cttw', 'ctw', 'carat',
     # Watches (have movement/crystal weight)
     'watch', 'movement',
     # Cord/fabric necklaces
@@ -59,7 +59,14 @@ NON_METAL_INDICATORS = [
     'murano', 'glass', 'millefiori', 'crystal',
     # Beaded jewelry
     'bead', 'beaded', 'strand',
+    # Weighted/filled items (cement, pitch, plaster inside)
+    'weighted', 'cement', 'reinforced', 'filled base',
+    # Stainless blade/composite items (only handle is silver)
+    'stainless', 'sterling handle', 'silver handle',
 ]
+
+# Pattern for carat weight (e.g., "0.5 ct", "1ct", ".25 ct") - requires digit before ct
+CARAT_WEIGHT_PATTERN = re.compile(r'\d+\.?\d*\s*ct\b', re.IGNORECASE)
 
 
 def detect_non_metal(title: str, description: str = "") -> Tuple[bool, str]:
@@ -70,9 +77,14 @@ def detect_non_metal(title: str, description: str = "") -> Tuple[bool, str]:
     """
     text = f"{title} {description}".lower()
 
+    # Check simple substring indicators first
     for indicator in NON_METAL_INDICATORS:
         if indicator in text:
             return True, indicator
+
+    # Check for carat weight pattern (e.g., "0.5 ct diamond")
+    if CARAT_WEIGHT_PATTERN.search(text):
+        return True, "carat weight"
 
     return False, ""
     
@@ -172,18 +184,32 @@ def extract_karat(title: str, description: str = "") -> Tuple[Optional[int], str
 # ============================================================
 
 # Pre-compile weight patterns
-WEIGHT_GRAM_PATTERN = re.compile(r'(\d+\.?\d*)\s*(?:g(?:ram)?s?)\b', re.IGNORECASE)
+WEIGHT_GRAM_PATTERN = re.compile(r'(\d*\.?\d+)\s*(?:g(?:ram)?s?)\b', re.IGNORECASE)
 WEIGHT_DWT_PATTERN = re.compile(r'(\d+\.?\d*)\s*dwt\b', re.IGNORECASE)
-WEIGHT_OZ_PATTERN = re.compile(r'(\d+\.?\d*)\s*(?:oz|ounce)s?\b', re.IGNORECASE)
+# Troy oz pattern: matches "6.19 oz", "6.19 troy oz", "6.19 TROY OZ", etc.
+WEIGHT_OZ_PATTERN = re.compile(r'(\d+\.?\d*)\s*(?:troy\s+)?(?:oz|ounce)s?\b', re.IGNORECASE)
+# Fractional oz pattern: matches "1/2 oz", "1/4 troy oz", "1/10 oz", etc.
+WEIGHT_FRAC_OZ_PATTERN = re.compile(r'(\d+)/(\d+)\s*(?:troy\s+)?(?:oz|ounce)s?\b', re.IGNORECASE)
+# Word fraction patterns: "one half oz", "half ounce", "quarter oz"
+WEIGHT_WORD_FRAC_PATTERN = re.compile(
+    r'\b(?:one\s+)?(?P<frac>half|quarter|tenth)\s+(?:troy\s+)?(?:oz|ounce)s?\b',
+    re.IGNORECASE
+)
+WORD_FRAC_MAP = {'half': 0.5, 'quarter': 0.25, 'tenth': 0.1}
 
 
-def extract_weight(title: str, description: str = "") -> Tuple[Optional[float], str]:
+def extract_weight(title: str, description: str = "", max_weight: float = 3000) -> Tuple[Optional[float], str]:
     """
     Extract weight from title/description.
     Returns (weight_grams, source)
 
     Handles: grams, dwt (pennyweight), oz
     Uses pre-compiled patterns for speed.
+
+    Args:
+        title: Item title
+        description: Item description
+        max_weight: Maximum valid weight in grams (default 3000g for large silver pieces)
     """
     text_sources = [
         (title, "title"),
@@ -201,21 +227,42 @@ def extract_weight(title: str, description: str = "") -> Tuple[Optional[float], 
         gram_match = WEIGHT_GRAM_PATTERN.search(text_lower)
         if gram_match:
             weight = float(gram_match.group(1))
-            if 0.1 <= weight <= 500:  # Sanity check
+            if 0.1 <= weight <= max_weight:  # Allow up to max_weight for large silver
                 return weight, source
 
         # Pattern: "X.X dwt" (pennyweight) - multiply by 1.555
         dwt_match = WEIGHT_DWT_PATTERN.search(text_lower)
         if dwt_match:
             weight = float(dwt_match.group(1)) * 1.555
-            if 0.1 <= weight <= 500:
+            if 0.1 <= weight <= max_weight:
                 return weight, source
 
+        # Check fractional patterns FIRST (before regular oz pattern)
+        # Pattern: "1/2 oz", "1/4 oz", "1/10 oz" (fractional ounces)
+        frac_oz_match = WEIGHT_FRAC_OZ_PATTERN.search(text_lower)
+        if frac_oz_match:
+            numerator = float(frac_oz_match.group(1))
+            denominator = float(frac_oz_match.group(2))
+            if denominator > 0:
+                weight = (numerator / denominator) * 31.1035
+                if 0.1 <= weight <= max_weight:
+                    return weight, source
+
+        # Pattern: "one half oz", "half ounce", "quarter oz"
+        word_frac_match = WEIGHT_WORD_FRAC_PATTERN.search(text_lower)
+        if word_frac_match:
+            frac_word = word_frac_match.group('frac').lower()
+            if frac_word in WORD_FRAC_MAP:
+                weight = WORD_FRAC_MAP[frac_word] * 31.1035
+                if 0.1 <= weight <= max_weight:
+                    return weight, source
+
         # Pattern: "X.X oz" (ounces) - multiply by 31.1
+        # Check AFTER fractional patterns to avoid matching "2" from "1/2 oz"
         oz_match = WEIGHT_OZ_PATTERN.search(text_lower)
         if oz_match:
             weight = float(oz_match.group(1)) * 31.1035
-            if 0.1 <= weight <= 500:
+            if 0.1 <= weight <= max_weight:
                 return weight, source
 
     return None, "none"
@@ -316,8 +363,8 @@ def fast_extract_gold(
         result.karat_source = karat_source
         result.confidence += 30
 
-    # Step 4: Extract weight
-    weight, weight_source = extract_weight(title, description)
+    # Step 4: Extract weight (gold rarely exceeds 500g)
+    weight, weight_source = extract_weight(title, description, max_weight=500)
     if weight:
         result.weight_grams = weight
         result.weight_source = weight_source
@@ -418,8 +465,8 @@ def fast_extract_silver(
     if is_sterling:
         result.confidence += 30
 
-    # Step 4: Extract weight
-    weight, weight_source = extract_weight(title, description)
+    # Step 4: Extract weight (silver can be heavy - up to 3kg for flatware/serving sets)
+    weight, weight_source = extract_weight(title, description, max_weight=3000)
     if weight:
         result.weight_grams = weight
         result.weight_source = weight_source
