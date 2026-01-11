@@ -128,6 +128,7 @@ from pipeline.validation import (
 
 # Analysis route module (main /match_mydata endpoint)
 from routes.analysis import router as analysis_router, configure_analysis
+from routes.ebay import router as ebay_router, configure_ebay, log_race_item as ebay_log_race_item
 
 # Training data log path
 
@@ -494,6 +495,7 @@ async def favicon():
 # Include analysis router (main /match_mydata endpoint)
 # NOTE: Router included but routes won't work until configure_analysis() is called
 app.include_router(analysis_router)
+app.include_router(ebay_router)
 
 # Claude client - using AsyncAnthropic for parallel request processing
 
@@ -13492,7 +13494,26 @@ except ImportError as e:
 
     print(f"[EBAY] eBay poller not available: {e}")
 
+# Configure eBay routes module
+if EBAY_POLLER_AVAILABLE:
+    configure_ebay(
+        search_ebay=search_ebay,
+        ebay_get_stats=ebay_get_stats,
+        ebay_start_polling=ebay_start_polling,
+        ebay_stop_polling=ebay_stop_polling,
+        ebay_clear_seen=ebay_clear_seen,
+        get_item_description=get_item_description,
+        get_item_details=get_item_details,
+        browse_api_available=browse_api_available,
+        EBAY_SEARCH_CONFIGS=EBAY_SEARCH_CONFIGS,
+        get_spot_prices=get_spot_prices,
+        send_discord_alert=send_discord_alert,
+        EBAY_POLLER_AVAILABLE=EBAY_POLLER_AVAILABLE,
+    )
 
+
+# OLD EBAY ENDPOINTS - Now in routes/ebay.py
+# TODO: Remove once routes/ebay.py is fully tested
 
 @app.get("/ebay/stats")
 
