@@ -190,13 +190,18 @@ SERVERS WITH STAINLESS BLADES (cake server, pie server, cheese server):
 
 === FLATWARE WEIGHT ESTIMATION ===
 | Piece Type | Weight |
-| Dinner fork | 40-50g |
-| Salad fork | 30-40g |
-| Teaspoon | 25-35g |
-| Tablespoon | 45-55g |
-| Dinner knife | 15-25g SILVER (hollow!) |
+| Dinner fork | 45g |
+| Salad fork | 35g |
+| Dinner spoon/Tablespoon | 45g |
+| Soup spoon | 35g |
+| Teaspoon | 20g |
+| Iced tea spoon | 18g |
+| Flat butter knife | 20g |
+| Dinner knife (filled handle) | 15-20g SILVER ONLY |
+| Serving fork/spoon | 50-60g |
+| Small pickle fork | 10g |
 
-Average per piece: ~38g (knives drag down average)
+Average per piece: ~30-35g (knives and teaspoons drag down average)
 
 === HOLLOWWARE WEIGHT (SOLID BOWLS) ===
 | Size | Weight |
