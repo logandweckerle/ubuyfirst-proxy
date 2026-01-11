@@ -129,6 +129,7 @@ from pipeline.validation import (
 # Analysis route module (main /match_mydata endpoint)
 from routes.analysis import router as analysis_router, configure_analysis
 from routes.ebay import router as ebay_router, configure_ebay, log_race_item as ebay_log_race_item
+from routes.pricecharting import router as pricecharting_router, configure_pricecharting
 
 # Training data log path
 
@@ -310,7 +311,14 @@ except ImportError as e:
 
     print("[PC]   To enable: place pricecharting_db.py in this folder")
 
-
+# Configure PriceCharting routes module
+if PRICECHARTING_AVAILABLE:
+    configure_pricecharting(
+        pc_lookup=pc_lookup,
+        pc_get_stats=pc_get_stats,
+        pc_refresh=pc_refresh,
+        PRICECHARTING_AVAILABLE=PRICECHARTING_AVAILABLE,
+    )
 
 # Bricklink API for Designer Program sets (910xxx)
 
@@ -496,6 +504,7 @@ async def favicon():
 # NOTE: Router included but routes won't work until configure_analysis() is called
 app.include_router(analysis_router)
 app.include_router(ebay_router)
+app.include_router(pricecharting_router)
 
 # Claude client - using AsyncAnthropic for parallel request processing
 
