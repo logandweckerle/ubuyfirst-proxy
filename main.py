@@ -134,6 +134,7 @@ from routes.analysis import router as analysis_router, configure_analysis
 from routes.ebay import router as ebay_router, configure_ebay, log_race_item as ebay_log_race_item
 from routes.pricecharting import router as pricecharting_router, configure_pricecharting
 from routes.sellers import router as sellers_router, configure_sellers
+from routes.dashboard import router as dashboard_router, configure_dashboard
 
 # Training data log path
 
@@ -525,6 +526,7 @@ app.include_router(analysis_router)
 app.include_router(ebay_router)
 app.include_router(pricecharting_router)
 app.include_router(sellers_router)
+app.include_router(dashboard_router)
 
 # Claude client - using AsyncAnthropic for parallel request processing
 
@@ -7781,128 +7783,7 @@ async def analyze_now(listing_id: str):
 
 
 
-# ============================================================
-
-# TOGGLE ENDPOINTS
-
-# ============================================================
-
-@app.post("/toggle")
-
-async def toggle_proxy():
-
-    global ENABLED
-
-    ENABLED = not ENABLED
-
-    logger.info(f"Proxy {'ENABLED' if ENABLED else 'DISABLED'}")
-
-    return RedirectResponse(url="/", status_code=303)
-
-
-
-
-
-@app.post("/toggle-debug")
-
-async def toggle_debug():
-
-    global DEBUG_MODE
-
-    DEBUG_MODE = not DEBUG_MODE
-
-    return RedirectResponse(url="/", status_code=303)
-
-
-
-
-
-@app.post("/toggle-queue")
-
-async def toggle_queue():
-
-    global QUEUE_MODE
-
-    QUEUE_MODE = not QUEUE_MODE
-
-    logger.info(f"Queue mode {'ENABLED' if QUEUE_MODE else 'DISABLED'}")
-
-    return RedirectResponse(url="/", status_code=303)
-
-
-
-
-
-@app.post("/clear-queue")
-
-async def clear_queue():
-
-    global LISTING_QUEUE
-
-    LISTING_QUEUE = {}
-
-    return RedirectResponse(url="/", status_code=303)
-
-
-
-
-
-@app.post("/clear-cache")
-
-async def clear_cache():
-
-    """Clear the response cache"""
-
-    count = cache.clear()
-
-    logger.info(f"[CACHE] Cleared {count} cached items")
-
-    return {"status": "Cache cleared", "items_removed": count}
-
-
-
-
-
-@app.get("/clear-cache")
-
-async def clear_cache_get():
-
-    """Clear cache via GET for easy browser access"""
-
-    count = cache.clear()
-
-    logger.info(f"[CACHE] Cleared {count} cached items")
-
-    return {"status": "Cache cleared", "items_removed": count}
-
-
-
-
-
-@app.post("/reset-stats")
-
-async def reset_stats():
-
-    global STATS
-
-    STATS = {
-
-        "total_requests": 0, "api_calls": 0, "skipped": 0,
-
-        "buy_count": 0, "pass_count": 0, "research_count": 0,
-
-        "cache_hits": 0, "session_cost": 0.0,
-
-        "session_start": datetime.now().isoformat(),
-
-        "listings": {}
-
-    }
-
-    return RedirectResponse(url="/", status_code=303)
-
-
-
+# Toggle/Control endpoints moved to routes/dashboard.py
 
 
 # ============================================================
@@ -8097,36 +7978,7 @@ async def reload_page():
 
 # ============================================================
 
-# API ENDPOINTS
-
-# ============================================================
-
-@app.get("/health")
-
-async def health():
-
-    return {"status": "ok", "enabled": ENABLED, "queue_mode": QUEUE_MODE}
-
-
-
-
-
-@app.get("/queue")
-
-async def get_queue():
-
-    return {"queue": list(LISTING_QUEUE.values()), "count": len(LISTING_QUEUE)}
-
-
-
-
-
-@app.get("/api/spot-prices")
-
-async def api_spot_prices():
-
-    return get_spot_prices()
-
+# API ENDPOINTS - /health, /queue, /api/spot-prices moved to routes/dashboard.py
 
 # ============================================================
 # USER PRICE DATABASE API
@@ -8455,12 +8307,7 @@ def calculate_costume_summary():
 
 
 
-@app.get("/api/cache-stats")
-
-async def api_cache_stats():
-
-    return cache.get_stats()
-
+# /api/cache-stats moved to routes/dashboard.py
 
 @app.get("/api/budget")
 async def api_budget_status():
@@ -10253,448 +10100,7 @@ window.speechSynthesis.getVoices();
 
 
 
-# ============================================================
-
-# DASHBOARD
-
-# ============================================================
-
-@app.get("/", response_class=HTMLResponse)
-
-async def dashboard():
-
-    """Main dashboard"""
-
-    status = "ENABLED" if ENABLED else "DISABLED"
-
-    status_class = "active" if ENABLED else "inactive"
-
-    queue_status = "ON" if QUEUE_MODE else "OFF"
-
-    
-
-    # Get spot prices
-
-    spots = get_spot_prices()
-
-    
-
-    # Get cache stats
-
-    cache_stats = cache.get_stats()
-
-    
-
-    # Build recent listings HTML from database
-
-    recent_html = ""
-
-    analytics_data = get_analytics()
-
-    recent_from_db = analytics_data.get('recent', [])[:15]
-
-    
-
-    for listing in recent_from_db:
-
-        rec = listing.get("recommendation", "UNKNOWN")
-
-        rec_class = rec.lower()
-
-        title = listing.get("title", "")[:55]
-
-        margin = listing.get("margin", "--")
-
-        if margin and isinstance(margin, (int, float)):
-
-            margin = f"${margin:,.0f}" if margin >= 0 else f"-${abs(margin):,.0f}"
-
-        lid = listing.get("id", "")
-
-        
-
-        recent_html += f'''
-
-        <a href="/detail/{lid}" class="listing-item {rec_class}" style="text-decoration:none;color:inherit;">
-
-            <span class="listing-rec">{rec}</span>
-
-            <span class="listing-title">{title}</span>
-
-            <span class="listing-margin">{margin}</span>
-
-        </a>'''
-
-    
-
-    if not recent_html:
-
-        recent_html = '<div style="text-align:center;color:#666;padding:20px;">No listings analyzed yet</div>'
-
-    
-
-    # Build queue HTML
-
-    queue_html = ""
-
-    for lid, q in list(LISTING_QUEUE.items())[:10]:
-
-        queue_html += f'''
-
-        <div class="queue-item">
-
-            <div class="queue-title">{q["title"][:45]}...</div>
-
-            <div class="queue-meta">{q["category"].upper()} | ${q["total_price"]}</div>
-
-            <form action="/analyze-queued/{lid}" method="post" style="margin:0;">
-
-                <button type="submit" class="analyze-btn">Analyze</button>
-
-            </form>
-
-        </div>'''
-
-    
-
-    if not queue_html:
-
-        queue_html = '<div style="text-align:center;color:#666;padding:20px;">Queue empty</div>'
-
-    
-
-    return f"""<!DOCTYPE html>
-
-<html><head>
-
-<title>Claude Proxy v3 - Dashboard</title>
-
-<meta http-equiv="refresh" content="5">
-
-<style>
-
-* {{ margin: 0; padding: 0; box-sizing: border-box; }}
-
-body {{ font-family: -apple-system, system-ui, sans-serif; background: #0f0f1a; color: #e0e0e0; min-height: 100vh; }}
-
-.header {{ background: #1a1a2e; padding: 20px 30px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }}
-
-.logo {{ font-size: 20px; font-weight: 700; color: #fff; }}
-
-.logo span {{ color: #6366f1; }}
-
-.nav {{ display: flex; gap: 15px; }}
-
-.nav a {{ color: #888; text-decoration: none; padding: 8px 16px; border-radius: 6px; }}
-
-.nav a:hover {{ color: #fff; background: rgba(255,255,255,0.1); }}
-
-.container {{ max-width: 1200px; margin: 0 auto; padding: 20px; }}
-
-.stats-row {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }}
-
-.stat-card {{ background: #1a1a2e; border-radius: 10px; padding: 20px; text-align: center; }}
-
-.stat-value {{ font-size: 28px; font-weight: 700; color: #fff; }}
-
-.stat-label {{ font-size: 12px; color: #888; margin-top: 5px; }}
-
-.stat-value.buy {{ color: #22c55e; }}
-
-.stat-value.pass {{ color: #ef4444; }}
-
-.controls {{ display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }}
-
-.btn {{ padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }}
-
-.btn-primary {{ background: #6366f1; color: #fff; }}
-
-.btn-danger {{ background: #ef4444; color: #fff; }}
-
-.btn-secondary {{ background: #333; color: #fff; }}
-
-.status-dot {{ display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }}
-
-.status-dot.active {{ background: #22c55e; }}
-
-.status-dot.inactive {{ background: #ef4444; }}
-
-.section {{ background: #1a1a2e; border-radius: 12px; margin-bottom: 20px; overflow: hidden; }}
-
-.section-header {{ padding: 15px 20px; border-bottom: 1px solid #333; font-weight: 600; }}
-
-.section-content {{ padding: 15px; max-height: 400px; overflow-y: auto; }}
-
-.listing-item {{ display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 8px; margin-bottom: 8px; background: #252540; cursor: pointer; transition: background 0.2s; }}
-
-.listing-item:hover {{ background: #303055; }}
-
-.listing-item.buy {{ border-left: 4px solid #22c55e; }}
-
-.listing-item.pass {{ border-left: 4px solid #ef4444; }}
-
-.listing-item.research {{ border-left: 4px solid #f59e0b; }}
-
-.listing-rec {{ font-weight: 700; width: 80px; }}
-
-.listing-title {{ flex: 1; font-size: 14px; }}
-
-.listing-margin {{ font-weight: 600; color: #888; }}
-
-.queue-item {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; background: #252540; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #2196f3; }}
-
-.queue-title {{ flex: 1 1 100%; font-weight: 500; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-
-.queue-meta {{ color: #888; font-size: 12px; flex: 1; }}
-
-.analyze-btn {{ background: #2196f3; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }}
-
-.spot-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; }}
-
-.spot-item {{ background: #252540; padding: 10px; border-radius: 8px; text-align: center; }}
-
-.spot-value {{ font-size: 18px; font-weight: 700; color: #22c55e; }}
-
-.spot-label {{ font-size: 11px; color: #888; }}
-
-</style>
-
-</head><body>
-
-<div class="header">
-
-    <div class="logo">Claude <span>Proxy v3</span></div>
-
-    <div class="nav">
-
-        <a href="/">Dashboard</a>
-
-        <a href="/live" style="background: linear-gradient(135deg, #00ff88, #00cc6a); color: #000; font-weight: bold;">ShadowSnipe Live</a>
-
-        <a href="/purchases" style="background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; font-weight: bold;">Purchases</a>
-
-        <a href="/training">Training</a>
-
-        <a href="/patterns">Patterns</a>
-
-        <a href="/keepa">Keepa</a>
-
-        <a href="/analytics">Analytics</a>
-
-    </div>
-
-</div>
-
-<div class="container">
-
-    <div class="controls">
-
-        <form action="/toggle" method="post" style="display:inline;">
-
-            <button type="submit" class="btn {'btn-danger' if ENABLED else 'btn-primary'}">
-
-                <span class="status-dot {status_class}"></span>{status} - Click to {'Disable' if ENABLED else 'Enable'}
-
-            </button>
-
-        </form>
-
-        <form action="/toggle-queue" method="post" style="display:inline;">
-
-            <button type="submit" class="btn btn-secondary">Queue Mode: {queue_status}</button>
-
-        </form>
-
-        <form action="/reset-stats" method="post" style="display:inline;">
-
-            <button type="submit" class="btn btn-secondary">Reset Stats</button>
-
-        </form>
-
-        <form action="/reload" method="post" style="display:inline;">
-
-            <button type="submit" class="btn btn-secondary" style="background:#8b5cf6;">Reload Prompts</button>
-
-        </form>
-
-    </div>
-
-    
-
-    <div class="stats-row">
-
-        <div class="stat-card">
-
-            <div class="stat-value">{STATS['total_requests']}</div>
-
-            <div class="stat-label">Total Requests</div>
-
-        </div>
-
-        <div class="stat-card">
-
-            <div class="stat-value">{STATS['api_calls']}</div>
-
-            <div class="stat-label">API Calls</div>
-
-        </div>
-
-        <div class="stat-card">
-
-            <div class="stat-value buy">{STATS['buy_count']}</div>
-
-            <div class="stat-label">BUY</div>
-
-        </div>
-
-        <div class="stat-card">
-
-            <div class="stat-value pass">{STATS['pass_count']}</div>
-
-            <div class="stat-label">PASS</div>
-
-        </div>
-
-        <div class="stat-card">
-
-            <div class="stat-value">{STATS['cache_hits']}</div>
-
-            <div class="stat-label">Cache Hits</div>
-
-        </div>
-
-        <div class="stat-card">
-
-            <div class="stat-value">{cache_stats['hit_rate']}</div>
-
-            <div class="stat-label">Cache Hit Rate</div>
-
-        </div>
-
-        <div class="stat-card">
-
-            <div class="stat-value" style="color:#f59e0b">${STATS['session_cost']:.3f}</div>
-
-            <div class="stat-label">Session Cost</div>
-
-        </div>
-
-        </div>
-
-    </div>
-
-    <!-- RACE STATS -->
-    <div class="stats-row" style="margin-top:10px;">
-        <div class="stat-card" style="border: 2px solid #ff4444;">
-            <div class="stat-value" style="color:#ff4444">{RACE_STATS['total']}</div>
-            <div class="stat-label">Race Matches</div>
-        </div>
-        <div class="stat-card" style="border: 2px solid #22c55e;">
-            <div class="stat-value" style="color:#22c55e">{RACE_STATS['api_wins']}</div>
-            <div class="stat-label">API Wins</div>
-        </div>
-        <div class="stat-card" style="border: 2px solid #ffd700;">
-            <div class="stat-value" style="color:#ffd700">{RACE_STATS['ubuyfirst_wins']}</div>
-            <div class="stat-label">uBuyFirst Wins</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value" style="color:#888">{len(RACE_FEED_API)}</div>
-            <div class="stat-label">API Feed</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value" style="color:#888">{len(RACE_FEED_UBUYFIRST)}</div>
-            <div class="stat-label">uBF Feed</div>
-        </div>
-        <div class="stat-card">
-            <a href="/ebay/race/gold" style="color:#ffd700;text-decoration:none;">
-                <div class="stat-value" style="color:#ffd700">RACE</div>
-                <div class="stat-label">Open Dashboard</div>
-            </a>
-        </div>
-    </div>
-
-    <div class="section">
-
-        <div class="section-header">Spot Prices ({spots.get('source', 'default')})</div>
-
-        <div class="section-content">
-
-            <div class="spot-grid">
-
-                <div class="spot-item">
-
-                    <div class="spot-value">${spots.get('gold_oz', 0):,.0f}</div>
-
-                    <div class="spot-label">Gold/oz</div>
-
-                </div>
-
-                <div class="spot-item">
-
-                    <div class="spot-value">${spots.get('silver_oz', 0):.2f}</div>
-
-                    <div class="spot-label">Silver/oz</div>
-
-                </div>
-
-                <div class="spot-item">
-
-                    <div class="spot-value">${spots.get('14K', 0):.2f}</div>
-
-                    <div class="spot-label">14K/gram</div>
-
-                </div>
-
-                <div class="spot-item">
-
-                    <div class="spot-value">${spots.get('18K', 0):.2f}</div>
-
-                    <div class="spot-label">18K/gram</div>
-
-                </div>
-
-                <div class="spot-item">
-
-                    <div class="spot-value">${spots.get('sterling', 0):.3f}</div>
-
-                    <div class="spot-label">Sterling/gram</div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-    
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-
-        <div class="section">
-
-            <div class="section-header">Queue ({len(LISTING_QUEUE)})</div>
-
-            <div class="section-content">{queue_html}</div>
-
-        </div>
-
-        <div class="section">
-
-            <div class="section-header">Recent Listings</div>
-
-            <div class="section-content">{recent_html}</div>
-
-        </div>
-
-    </div>
-
-</div>
-
-</body></html>"""
-
-
-
+# Main dashboard (/) moved to routes/dashboard.py
 
 
 # ============================================================
@@ -14205,6 +13611,52 @@ RACE_FEED_UBUYFIRST = []  # Last 30 items from uBuyFirst
 
 RACE_FEED_API = []  # Last 30 items from API
 
+
+# Configure Dashboard routes module (must be after all state variables are defined)
+def _set_enabled(val):
+    global ENABLED
+    ENABLED = val
+
+def _set_debug_mode(val):
+    global DEBUG_MODE
+    DEBUG_MODE = val
+
+def _set_queue_mode(val):
+    global QUEUE_MODE
+    QUEUE_MODE = val
+
+def _reset_stats():
+    global STATS
+    STATS = {
+        "total_requests": 0, "api_calls": 0, "skipped": 0,
+        "buy_count": 0, "pass_count": 0, "research_count": 0,
+        "cache_hits": 0, "session_cost": 0.0,
+        "session_start": datetime.now().isoformat(),
+        "listings": {}
+    }
+
+def _clear_listing_queue():
+    global LISTING_QUEUE
+    LISTING_QUEUE = {}
+
+configure_dashboard(
+    get_enabled=lambda: ENABLED,
+    get_debug_mode=lambda: DEBUG_MODE,
+    get_queue_mode=lambda: QUEUE_MODE,
+    get_stats=lambda: STATS,
+    get_listing_queue=lambda: LISTING_QUEUE,
+    get_race_stats=lambda: RACE_STATS,
+    get_race_feed_api=lambda: RACE_FEED_API,
+    get_race_feed_ubuyfirst=lambda: RACE_FEED_UBUYFIRST,
+    set_enabled=_set_enabled,
+    set_debug_mode=_set_debug_mode,
+    set_queue_mode=_set_queue_mode,
+    reset_stats=_reset_stats,
+    clear_listing_queue=_clear_listing_queue,
+    cache=cache,
+    get_spot_prices=get_spot_prices,
+    get_analytics=get_analytics,
+)
 
 
 def normalize_title(title: str) -> str:
