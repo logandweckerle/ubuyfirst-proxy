@@ -266,32 +266,25 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
                 if ai_weight and title_weight:
                     ratio = ai_weight / title_weight if title_weight > 0 else 999
 
-                    # If AI weight is more than 2x or less than 0.5x the title weight, it's wrong
-                    if ratio > 2.0 or ratio < 0.5:
-                        logger.warning(f"[CALC] WEIGHT HALLUCINATION DETECTED: AI={ai_weight}g, Title={title_weight}g (ratio={ratio:.1f}x)")
-                        logger.warning(f"[CALC] Overriding AI weight with title weight: {title_weight}g")
-
-                        # Override the weight
-                        if category == 'gold':
-                            result['goldweight'] = str(title_weight)
-                            result['weight'] = f"{title_weight}g"
-                        else:
-                            result['silverweight'] = str(title_weight)
-                            result['weight'] = f"{title_weight}g"
-
-                        result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Corrected hallucinated weight from {ai_weight}g to {title_weight}g per title]"
+                    # ALWAYS use title/description weight over AI weight - seller stated weight is authoritative
+                    # AI often hallucinates higher weights (e.g., 110g vs stated 62g)
+                    if ratio > 1.3 or ratio < 0.7:
+                        # AI weight differs by more than 30% from stated - clear hallucination
+                        logger.warning(f"[CALC] WEIGHT HALLUCINATION: AI={ai_weight}g vs stated={title_weight}g (ratio={ratio:.1f}x) - using stated weight")
                     else:
-                        # AI weight is close to title weight - ALWAYS use title weight as authoritative
-                        # Title weight is seller-stated and more reliable than AI estimate
-                        logger.info(f"[CALC] AI weight {ai_weight}g close to title weight {title_weight}g - using title weight")
-                        if category == 'gold':
-                            result['goldweight'] = str(title_weight)
-                            result['weight'] = f"{title_weight}g"
-                        else:
-                            result['silverweight'] = str(title_weight)
-                            result['weight'] = f"{title_weight}g"
+                        logger.info(f"[CALC] AI weight {ai_weight}g ~= stated weight {title_weight}g - using stated weight")
 
-                    # ALWAYS mark as 'stated' since weight is explicitly in title
+                    # ALWAYS use stated weight - it's authoritative
+                    if category == 'gold':
+                        result['goldweight'] = str(title_weight)
+                        result['weight'] = f"{title_weight}g"
+                    else:
+                        result['silverweight'] = str(title_weight)
+                        result['weight'] = f"{title_weight}g"
+
+                    result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Using stated weight {title_weight}g from {title_weight_source}]"
+
+                    # ALWAYS mark as 'stated' since weight is explicitly in title/description
                     result['weightSource'] = 'stated'
 
                 # Even if AI didn't provide weight, if title has it, use it

@@ -301,7 +301,8 @@ SEARCH_CONFIGS = {
             "830 silver", "900 silver", "coin silver", "mexican silver",
             "navajo sterling", "native sterling", "sterling turquoise",
         ],
-        "category_ids": ["20081", "1", "281", "20096", "262022", "262025"],
+        # 163271 = Sterling Silver Mixed Lots (under Antiques), 20081 = Fine Silver
+        "category_ids": ["163271", "20081", "1", "281", "20096", "262022", "262025"],
         "price_min": 30,
         "price_max": 10000,
         "poll_interval": POLL_INTERVAL_SILVER,
@@ -1095,10 +1096,17 @@ async def get_new_listings(category: str, enrich_sellers: bool = True, immediate
         logger.info(f"[EBAY API] {category}: searching {len(keywords_to_search)} keywords (rotation)")
 
     # Search each keyword in the subset
+    # For priority keywords, search ALL categories to avoid missing items
+    is_priority_keyword = category in PRIORITY_KEYWORDS
+
     for keyword in keywords_to_search:
+        # Priority keywords: NO category filter (catches items in any category)
+        # Regular keywords: Use category filter from config
+        search_categories = None if (is_priority_keyword and keyword in PRIORITY_KEYWORDS.get(category, [])) else config["category_ids"]
+
         listings = await search_ebay(
             keywords=keyword,
-            category_ids=config["category_ids"],
+            category_ids=search_categories,
             price_min=config["price_min"],
             price_max=config["price_max"],
             entries_per_page=50,  # Get more per call since we make fewer calls
