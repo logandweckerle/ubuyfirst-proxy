@@ -179,11 +179,12 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
             
 
-            # Pattern: "1.5 oz"
+            # Pattern: "1.5 oz", ".8 oz", "0.8 oz"
+            # Use (\d*\.?\d+) to support leading decimal like ".8"
 
             if not title_weight:
 
-                oz_match = re.search(r'(\d+\.?\d*)\s*(?:oz|ounce)s?\b', title_clean)
+                oz_match = re.search(r'(\d*\.?\d+)\s*(?:oz|ounce)s?\b', title_clean)
 
                 if oz_match:
 
@@ -191,7 +192,27 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
                     title_weight_source = "title (oz)"
 
-            
+            # If no weight in title, check description
+            if not title_weight and data:
+                desc = str(data.get('Description', data.get('description', ''))).lower()
+                if desc:
+                    # Try grams in description
+                    desc_gram = re.search(r'(\d*\.?\d+)\s*(?:g(?:ram)?s?)\b', desc)
+                    if desc_gram:
+                        title_weight = float(desc_gram.group(1))
+                        title_weight_source = "description (grams)"
+                    # Try oz in description
+                    if not title_weight:
+                        desc_oz = re.search(r'(\d*\.?\d+)\s*(?:oz|ounce)s?\b', desc)
+                        if desc_oz:
+                            title_weight = float(desc_oz.group(1)) * 31.1035
+                            title_weight_source = "description (oz)"
+                    # Try dwt in description
+                    if not title_weight:
+                        desc_dwt = re.search(r'(\d*\.?\d+)\s*dwt\b', desc)
+                        if desc_dwt:
+                            title_weight = float(desc_dwt.group(1)) * 1.555
+                            title_weight_source = "description (dwt)"
 
             # Gold rarely exceeds 500g, but silver flatware can be 1-3kg+
             max_weight = 3000 if category == 'silver' else 500
@@ -257,8 +278,15 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
                         result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Corrected hallucinated weight from {ai_weight}g to {title_weight}g per title]"
                     else:
-                        # AI weight is close to title weight - use title weight as authoritative
-                        logger.info(f"[CALC] AI weight {ai_weight}g matches title weight {title_weight}g - using title as source")
+                        # AI weight is close to title weight - ALWAYS use title weight as authoritative
+                        # Title weight is seller-stated and more reliable than AI estimate
+                        logger.info(f"[CALC] AI weight {ai_weight}g close to title weight {title_weight}g - using title weight")
+                        if category == 'gold':
+                            result['goldweight'] = str(title_weight)
+                            result['weight'] = f"{title_weight}g"
+                        else:
+                            result['silverweight'] = str(title_weight)
+                            result['weight'] = f"{title_weight}g"
 
                     # ALWAYS mark as 'stated' since weight is explicitly in title
                     result['weightSource'] = 'stated'

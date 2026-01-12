@@ -285,4 +285,23 @@ OUTPUT ONLY VALID JSON. NO OTHER TEXT.
         except:
             pass
 
+        # SANITY CHECK: If high-priced item gets PASS with estimated weight,
+        # flag as RESEARCH since the weight estimate might be wrong
+        # This catches cases where scale was hard to read and AI defaulted to low estimate
+        try:
+            if response.get("Recommendation") == "PASS" and response.get("weightSource") == "estimate":
+                # Get the listing price from context (stored during analysis)
+                melt_value = float(str(response.get("meltvalue", "0")).replace("$", "").replace(",", ""))
+                # If calculated melt is very low compared to what we'd expect from the item type,
+                # and this isn't an obvious plated/fashion item, flag for review
+                if melt_value > 0 and melt_value < 500:
+                    # Item type check - chains and bracelets can be heavy
+                    item_type = response.get("itemtype", "").lower()
+                    heavy_types = ["chain", "bracelet", "necklace", "scrap", "lot"]
+                    if any(ht in item_type for ht in heavy_types):
+                        response["Recommendation"] = "RESEARCH"
+                        response["reasoning"] = response.get("reasoning", "") + " | OVERRIDE: High-value item type with estimated weight - verify weight manually"
+        except:
+            pass
+
         return response
