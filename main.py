@@ -3680,7 +3680,59 @@ def validate_videogame_result(result: dict, pc_result: dict, total_price: float,
                     result['Recommendation'] = 'PASS'
                     result['reasoning'] += " | PASS (negative margin after itemization)"
 
+        # === FALLBACK LOT VALUATION ===
+        # If we have a lot count but no/few itemized games, apply minimum per-game estimate
+        is_lot = str(result.get('isLot', '')).lower() == 'yes'
+        lot_count = 0
+        try:
+            lot_count = int(result.get('lotCount', 0))
+        except:
+            pass
 
+        lot_items_found = result.get('lotItemsFound', 0)
+
+        if is_lot and lot_count >= 5 and lot_items_found < lot_count * 0.3:
+            # Less than 30% of games identified - apply conservative floor estimate
+            console = str(result.get('console', '')).lower()
+
+            # Conservative per-game minimums by console
+            per_game_min = {
+                'ds': 3, 'nintendo ds': 3, '3ds': 4, 'nintendo 3ds': 4,
+                'gba': 5, 'game boy advance': 5, 'game boy': 4,
+                'snes': 8, 'super nintendo': 8, 'nes': 5,
+                'n64': 10, 'nintendo 64': 10,
+                'gamecube': 12, 'gcn': 12,
+                'wii': 3, 'wii u': 5,
+                'ps1': 3, 'ps2': 3, 'ps3': 4,
+                'xbox': 3, 'xbox 360': 3,
+                'genesis': 4, 'sega genesis': 4,
+            }.get(console, 4)  # Default $4/game if console unknown
+
+            floor_value = lot_count * per_game_min
+            current_market = 0
+            try:
+                current_market = float(str(result.get('marketprice', '0')).replace('$', '').replace(',', ''))
+            except:
+                pass
+
+            # Only apply floor if current estimate is less than floor
+            if floor_value > current_market:
+                logger.warning(f"[VG-LOT] Floor estimate: {lot_count} games x ${per_game_min} = ${floor_value} (was ${current_market:.0f})")
+                result['marketprice'] = str(int(floor_value))
+                result['lotValueMethod'] = 'floor_estimate'
+
+                # Recalculate margin with floor value
+                cat_threshold = get_category_threshold(category)
+                floor_maxbuy = floor_value * cat_threshold
+                floor_margin = floor_maxbuy - total_price
+                result['maxBuy'] = str(int(floor_maxbuy))
+                result['Margin'] = str(int(floor_margin))
+                result['reasoning'] = result.get('reasoning', '') + f" | SERVER: Floor estimate {lot_count} games x ${per_game_min} = ${floor_value}, maxBuy ${floor_maxbuy:.0f}"
+
+                # Update recommendation if now profitable
+                if floor_margin >= 30:
+                    result['Recommendation'] = 'RESEARCH'
+                    result['reasoning'] += " | Needs verification but floor value suggests profitable"
 
         # === LOW CONFIDENCE CHECK ===
 
