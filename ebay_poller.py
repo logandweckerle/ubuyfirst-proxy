@@ -173,10 +173,10 @@ def browse_api_available() -> bool:
 # Polling intervals (seconds) - OPTIMIZED for 2 keywords only
 # With RATE_LIMIT_MIN_INTERVAL=10s and 2 keywords:
 #   - Gold polls, waits 10s, Silver polls, waits 10s = 20s cycle
-#   - Each keyword refreshes every 20 seconds
-# Poll interval just needs to be >= cycle time (20s)
-POLL_INTERVAL_GOLD = 20      # Gold "14k scrap" - refreshes every 20s
-POLL_INTERVAL_SILVER = 20    # Silver "sterling scrap" - refreshes every 20s
+#   - Each keyword refreshes every ~13 seconds
+# Optimized for 5,000 calls/12 hours = 417 calls/hour
+POLL_INTERVAL_GOLD = 13      # Gold keywords - refreshes every 13s
+POLL_INTERVAL_SILVER = 13    # Silver keywords - refreshes every 13s
 POLL_INTERVAL_TCG = 600      # TCG - disabled, 10 min placeholder
 POLL_INTERVAL_LEGO = 600     # LEGO - disabled, 10 min placeholder
 
