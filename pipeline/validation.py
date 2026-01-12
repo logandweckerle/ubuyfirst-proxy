@@ -33,6 +33,9 @@ class ValidationConfig:
     SILVER_SELL_RATE: float = 0.82
     SILVER_MAX_BUY_RATE: float = 0.75
 
+    # Native American jewelry max multiplier (4x melt value cap)
+    NATIVE_MAX_MELT_MULTIPLIER: float = 4.0
+
 
 # Global config instance
 config = ValidationConfig()
@@ -1584,7 +1587,7 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
                 # HARD CAP: Native American jewelry max 4x melt value
                 # Even with collector value, we don't pay more than 4x base melt
-                max_native_price = original_melt * NATIVE_MAX_MELT_MULTIPLIER
+                max_native_price = original_melt * config.NATIVE_MAX_MELT_MULTIPLIER
                 if listing_price > max_native_price:
                     result['Recommendation'] = 'PASS'
                     result['reasoning'] = result.get('reasoning', '') + f" [NATIVE CAP: Price ${listing_price:.0f} > 4x melt ${max_native_price:.0f} - TOO EXPENSIVE]"
