@@ -50,10 +50,93 @@ ALERTED_ASINS_FILE = "alerted_asins.json"
 MIN_MONTHLY_SALES = 50  # Minimum estimated monthly sales (lowered from 100)
 MIN_PRICE_STABILITY_DAYS = 90  # Days of price history to analyze
 MIN_FBA_SELLERS = 1  # Minimum FBA sellers on listing
+MIN_SELLERS_FOR_3P_DEALS = 3  # Require 3+ sellers when Amazon isn't selling (avoid private label)
 
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("keepa_v2")
+
+
+# ============================================================
+# BRAND VALIDATION
+# ============================================================
+
+def is_private_label_brand(brand: str) -> bool:
+    """
+    Detect if a brand name looks like a private label / gibberish.
+
+    Signs of private label:
+    - Ends with "Store", "Shop", "Direct", "Official"
+    - Contains random consonant clusters
+    - Very short (1-2 chars) or very long brand names
+    - All uppercase gibberish
+    """
+    if not brand:
+        return True  # No brand = suspicious
+
+    brand_lower = brand.lower().strip()
+
+    # Skip obvious private label suffixes
+    private_label_suffixes = ['store', 'shop', 'direct', 'official', 'deals', 'mart', 'depot']
+    for suffix in private_label_suffixes:
+        if brand_lower.endswith(suffix) and len(brand_lower) > len(suffix) + 2:
+            return True
+
+    # Too short or too long
+    if len(brand_lower) < 2 or len(brand_lower) > 30:
+        return True
+
+    # Check for gibberish (consonant clusters with no vowels)
+    vowels = set('aeiou')
+    consonant_streak = 0
+    for char in brand_lower:
+        if char.isalpha():
+            if char in vowels:
+                consonant_streak = 0
+            else:
+                consonant_streak += 1
+                if consonant_streak >= 4:  # 4+ consonants in a row = gibberish
+                    return True
+
+    # Check if it looks like random characters (high consonant ratio)
+    alpha_chars = [c for c in brand_lower if c.isalpha()]
+    if len(alpha_chars) >= 5:
+        vowel_count = sum(1 for c in alpha_chars if c in vowels)
+        vowel_ratio = vowel_count / len(alpha_chars)
+        if vowel_ratio < 0.15:  # Less than 15% vowels = likely gibberish
+            return True
+
+    return False
+
+
+# Known good brands (loaded from tracked_brands.txt if exists)
+KNOWN_GOOD_BRANDS = set()
+
+def load_known_brands():
+    """Load known good brands from tracked_brands.txt"""
+    global KNOWN_GOOD_BRANDS
+    brands_file = Path(__file__).parent / "tracked_brands.txt"
+    if brands_file.exists():
+        try:
+            with open(brands_file, 'r') as f:
+                for line in f:
+                    # Format: "brand (N products)"
+                    brand = line.split('(')[0].strip().lower()
+                    if brand:
+                        KNOWN_GOOD_BRANDS.add(brand)
+            logger.info(f"[BRANDS] Loaded {len(KNOWN_GOOD_BRANDS)} known good brands")
+        except Exception as e:
+            logger.error(f"[BRANDS] Error loading brands: {e}")
+
+# Load brands on module import
+load_known_brands()
+
+
+def is_known_brand(brand: str) -> bool:
+    """Check if brand is in our known good brands list"""
+    if not brand:
+        return False
+    return brand.lower().strip() in KNOWN_GOOD_BRANDS
 
 
 # ============================================================
@@ -179,6 +262,10 @@ class ProductAnalysis:
     amazon_on_listing: bool = False
     buy_box_price: float = 0.0
 
+    # Brand info
+    brand: str = ""
+    is_private_label_brand: bool = False  # True if brand looks like gibberish
+
     # Overall Score
     flip_score: int = 0  # 0-100, composite score
     recommendation: str = ""  # "STRONG BUY", "BUY", "RESEARCH", "PASS"
@@ -228,6 +315,21 @@ class ProductAnalysis:
         if self.amazon_on_listing:
             score -= 15
             self.flags.append("AMAZON_COMPETING")
+        else:
+            # If Amazon ISN'T selling, require minimum sellers to avoid private label
+            if total_sellers < MIN_SELLERS_FOR_3P_DEALS:
+                score -= 30  # Heavy penalty for private label risk
+                self.flags.append("PRIVATE_LABEL_RISK")
+
+        # Brand check - penalize gibberish/private label brands
+        if self.brand:
+            self.is_private_label_brand = is_private_label_brand(self.brand)
+            if self.is_private_label_brand and not is_known_brand(self.brand):
+                score -= 25  # Heavy penalty for unknown private label brand
+                self.flags.append("UNKNOWN_BRAND")
+            elif is_known_brand(self.brand):
+                score += 10  # Bonus for known good brand
+                self.flags.append("KNOWN_BRAND")
 
         # Clamp score
         self.flip_score = max(0, min(100, score))
@@ -1470,6 +1572,11 @@ class KeepaClientV2:
                 if bb and bb > 0:
                     analysis.buy_box_price = bb / 100.0
 
+            # Brand extraction
+            brand = product.get("brand", "")
+            if brand:
+                analysis.brand = brand
+
         except Exception as e:
             logger.error(f"[KEEPA] Error analyzing product {asin}: {e}")
             analysis.flags.append(f"PARSE_ERROR: {str(e)[:50]}")
@@ -1852,15 +1959,40 @@ async def send_smart_deal_alert(score: 'DealScore', skip_dedup: bool = False) ->
         flags_str = ", ".join([f"⚠️ {f}" for f in score.flags])
         fields.append({"name": "🚩 Flags", "value": flags_str, "inline": False})
 
+    # Truncate title for embed (Discord limit)
+    title_text = score.title[:100] if score.title else f"ASIN: {score.asin}"
+
     embed = {
-        "title": f"{emoji} {score.recommendation}: ${score.current_price:.2f}",
-        "description": f"**{score.title[:150]}**" if score.title else f"ASIN: {score.asin}",
+        "title": f"{emoji} {title_text}",
+        "description": f"**{score.recommendation}** - ${score.current_price:.2f} | Score: {score.total_score}/100",
         "url": f"https://www.amazon.com/dp/{score.asin}",
         "color": color,
         "fields": fields,
         "footer": {"text": f"ASIN: {score.asin} | Smart Deal Analyzer"},
         "timestamp": datetime.now().isoformat(),
     }
+
+    # Fetch Keepa graph image
+    graph_image = None
+    try:
+        graph_url = (
+            f"https://api.keepa.com/graphimage"
+            f"?key={KEEPA_API_KEY}"
+            f"&domain=1"
+            f"&asin={score.asin}"
+            f"&amazon=1&new=1&salesrank=1&bb=1"
+            f"&range=90&width=600&height=300"
+        )
+        async with httpx.AsyncClient() as client:
+            graph_resp = await client.get(graph_url, timeout=10.0)
+            if graph_resp.status_code == 200:
+                graph_image = graph_resp.content
+    except Exception as e:
+        logger.warning(f"[SMART] Could not fetch Keepa graph: {e}")
+
+    # If we have graph image, attach it
+    if graph_image:
+        embed["image"] = {"url": "attachment://keepa_graph.png"}
 
     payload = {
         "username": "Smart Deal Analyzer",
@@ -1869,7 +2001,19 @@ async def send_smart_deal_alert(score: 'DealScore', skip_dedup: bool = False) ->
 
     try:
         async with httpx.AsyncClient() as client:
-            response = await client.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10.0)
+            if graph_image:
+                # Multipart form with image attachment
+                import io
+                files = {
+                    "file": ("keepa_graph.png", io.BytesIO(graph_image), "image/png"),
+                }
+                data = {
+                    "payload_json": json.dumps(payload),
+                }
+                response = await client.post(DISCORD_WEBHOOK_URL, data=data, files=files, timeout=15.0)
+            else:
+                response = await client.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10.0)
+
             if response.status_code in (200, 204):
                 dedup.mark_alerted(score.asin)
                 logger.info(f"[SMART] Discord alert sent for {score.asin} (Score: {score.total_score})")
