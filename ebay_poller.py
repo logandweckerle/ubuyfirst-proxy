@@ -170,13 +170,17 @@ def browse_api_available() -> bool:
     return bool(EBAY_APP_ID and EBAY_CERT_ID)
 
 
-# Polling intervals (seconds) - OPTIMIZED for 2 keywords only
-# With RATE_LIMIT_MIN_INTERVAL=10s and 2 keywords:
-#   - Gold polls, waits 10s, Silver polls, waits 10s = 20s cycle
-#   - Each keyword refreshes every ~13 seconds
-# Optimized for 5,000 calls/12 hours = 417 calls/hour
-POLL_INTERVAL_GOLD = 13      # Gold keywords - refreshes every 13s
-POLL_INTERVAL_SILVER = 13    # Silver keywords - refreshes every 13s
+# ============================================================
+# STAGGERED POLLING CONFIGURATION
+# ============================================================
+# Round-robin polling: one keyword at a time, cycling through all
+# Target: 5,000 calls / 12 hours = 417 calls/hour = 1 call every 8.6 seconds
+# With 3 keywords, each keyword refreshes every 8.6s * 3 = ~26 seconds
+STAGGERED_POLL_INTERVAL = 8.6  # Seconds between each API call (round-robin)
+
+# Legacy intervals (kept for reference/fallback)
+POLL_INTERVAL_GOLD = 26      # Each gold keyword refreshes every ~26s
+POLL_INTERVAL_SILVER = 26    # Each silver keyword refreshes every ~26s
 POLL_INTERVAL_TCG = 600      # TCG - disabled, 10 min placeholder
 POLL_INTERVAL_LEGO = 600     # LEGO - disabled, 10 min placeholder
 
@@ -1275,28 +1279,174 @@ async def analyze_listing_callback(listing: EbayListing):
 
 
 # ============================================================
+# STAGGERED ROUND-ROBIN POLLING
+# ============================================================
+# Single polling loop that cycles through all keywords one at a time
+# More efficient than independent polling - consistent API usage rate
+
+def build_staggered_keyword_list() -> List[Dict]:
+    """
+    Build a unified list of all keywords to poll in round-robin order.
+    Returns list of dicts with keyword, category, and config info.
+    """
+    keywords = []
+
+    # Add priority keywords from all enabled categories
+    for category, kw_list in PRIORITY_KEYWORDS.items():
+        config = SEARCH_CONFIGS.get(category, {})
+        for kw in kw_list:
+            keywords.append({
+                "keyword": kw,
+                "category": category,
+                "price_min": config.get("price_min", 50),
+                "price_max": config.get("price_max", 10000),
+                "category_ids": None,  # Priority keywords search all categories
+            })
+
+    return keywords
+
+
+async def poll_single_keyword(kw_info: Dict, callback=None) -> List[EbayListing]:
+    """
+    Poll a single keyword and process new listings.
+    Returns list of new listings found.
+    """
+    keyword = kw_info["keyword"]
+    category = kw_info["category"]
+
+    new_listings = []
+
+    try:
+        listings = await search_ebay(
+            keywords=keyword,
+            category_ids=kw_info.get("category_ids"),
+            price_min=kw_info.get("price_min", 50),
+            price_max=kw_info.get("price_max", 10000),
+            entries_per_page=50,
+        )
+
+        for listing in listings:
+            if is_new_listing(listing.item_id):
+                # Freshness check - only items from last 5 minutes
+                if listing.start_time:
+                    try:
+                        from datetime import timezone
+                        now = datetime.now(timezone.utc) if listing.start_time.tzinfo else datetime.now()
+                        age_minutes = (now - listing.start_time).total_seconds() / 60
+                        if age_minutes > 5:
+                            continue
+                    except:
+                        pass
+
+                # Check blocked sellers
+                if BLOCKED_SELLERS_ENABLED:
+                    seller_key = listing.seller_id.lower().strip()
+                    if seller_key in BLOCKED_SELLERS:
+                        continue
+
+                # Check instant pass keywords
+                title_lower = listing.title.lower()
+                skip = False
+                for kw in INSTANT_PASS_KEYWORDS:
+                    if kw in title_lower:
+                        skip = True
+                        break
+                if skip:
+                    continue
+
+                # Enrich with seller profile
+                if SELLER_PROFILING_ENABLED:
+                    listing = enrich_listing_with_seller_profile(listing, category)
+
+                new_listings.append(listing)
+
+                priority_tag = f"[{listing.seller_priority}]" if listing.seller_score >= 60 else ""
+                logger.info(f"[EBAY API] NEW{priority_tag}: ${listing.price:.0f} - {listing.title[:50]}...")
+
+                # Fire callback immediately
+                if callback:
+                    asyncio.create_task(_safe_callback(callback, listing))
+
+    except Exception as e:
+        logger.error(f"[EBAY API] Error polling '{keyword}': {e}")
+
+    return new_listings
+
+
+async def poll_staggered(callback=None):
+    """
+    Staggered round-robin polling loop.
+    Cycles through all priority keywords one at a time with consistent intervals.
+
+    This is MORE EFFICIENT than independent polling because:
+    1. Consistent API call rate (no bursts)
+    2. Even distribution of calls over time
+    3. Better rate limit handling
+    4. Same per-keyword refresh rate (26s each with 3 keywords at 8.6s interval)
+    """
+    keywords = build_staggered_keyword_list()
+
+    if not keywords:
+        logger.error("[EBAY API] No keywords configured for staggered polling!")
+        return
+
+    logger.info(f"[STAGGERED] Starting round-robin polling: {len(keywords)} keywords, {STAGGERED_POLL_INTERVAL}s interval")
+    logger.info(f"[STAGGERED] Each keyword refreshes every {STAGGERED_POLL_INTERVAL * len(keywords):.1f}s")
+    logger.info(f"[STAGGERED] Keywords: {[k['keyword'] for k in keywords]}")
+
+    keyword_index = 0
+
+    while True:
+        kw_info = keywords[keyword_index]
+
+        # Poll this keyword
+        new_items = await poll_single_keyword(kw_info, callback)
+
+        logger.info(f"[STAGGERED] {kw_info['keyword']}: {len(new_items)} new items | next in {STAGGERED_POLL_INTERVAL}s")
+
+        # Move to next keyword
+        keyword_index = (keyword_index + 1) % len(keywords)
+
+        # Wait for next poll
+        await asyncio.sleep(STAGGERED_POLL_INTERVAL)
+
+
+# ============================================================
 # BACKGROUND POLLING
 # ============================================================
 
 POLL_TASKS: Dict[str, asyncio.Task] = {}
+_STAGGERED_TASK: Optional[asyncio.Task] = None
 
-async def start_polling(categories: List[str] = None, callback=None):
+async def start_polling(categories: List[str] = None, callback=None, use_staggered: bool = True):
     """
     Start background polling for specified categories
-    
+
     categories: List of category names, or None for all
     callback: async function to call for each new listing
+    use_staggered: If True (default), use efficient round-robin polling
     """
-    global POLL_TASKS
-    
+    global POLL_TASKS, _STAGGERED_TASK
+
+    if use_staggered:
+        # Use new staggered polling (recommended)
+        if _STAGGERED_TASK is not None:
+            logger.warning("[EBAY API] Staggered polling already running")
+            return
+
+        _STAGGERED_TASK = asyncio.create_task(poll_staggered(callback))
+        logger.info("[EBAY API] Started staggered round-robin polling")
+        return
+
+    # Legacy: independent polling per category
     if categories is None:
         categories = list(SEARCH_CONFIGS.keys())
-    
+
     for category in categories:
         if category in POLL_TASKS:
             logger.warning(f"[EBAY API] Already polling {category}")
             continue
-        
+
         task = asyncio.create_task(poll_category(category, callback))
         POLL_TASKS[category] = task
         logger.info(f"[EBAY API] Started polling: {category}")
@@ -1304,11 +1454,18 @@ async def start_polling(categories: List[str] = None, callback=None):
 
 async def stop_polling(categories: List[str] = None):
     """Stop polling for specified categories"""
-    global POLL_TASKS
-    
+    global POLL_TASKS, _STAGGERED_TASK
+
+    # Stop staggered polling if running
+    if _STAGGERED_TASK is not None:
+        _STAGGERED_TASK.cancel()
+        _STAGGERED_TASK = None
+        logger.info("[EBAY API] Stopped staggered polling")
+
+    # Stop legacy per-category polling
     if categories is None:
         categories = list(POLL_TASKS.keys())
-    
+
     for category in categories:
         if category in POLL_TASKS:
             POLL_TASKS[category].cancel()
