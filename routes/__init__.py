@@ -5,6 +5,7 @@ from .pricecharting import router as pricecharting_router, configure_pricecharti
 from .sellers import router as sellers_router, configure_sellers
 from .dashboard import router as dashboard_router, configure_dashboard
 from .keepa import router as keepa_router, configure_keepa
+from .ebay_race import router as ebay_race_router, configure_ebay_race, UBUYFIRST_PRESETS
 
 __all__ = [
     'analysis_router', 'configure_analysis',
@@ -13,4 +14,5 @@ __all__ = [
     'sellers_router', 'configure_sellers',
     'dashboard_router', 'configure_dashboard',
     'keepa_router', 'configure_keepa',
+    'ebay_race_router', 'configure_ebay_race', 'UBUYFIRST_PRESETS',
 ]
