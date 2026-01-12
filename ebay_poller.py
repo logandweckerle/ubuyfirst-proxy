@@ -24,7 +24,7 @@ import json
 import threading
 import time as _time
 import base64
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -180,15 +180,55 @@ POLL_INTERVAL_SILVER = 20    # Silver "sterling scrap" - refreshes every 20s
 POLL_INTERVAL_TCG = 600      # TCG - disabled, 10 min placeholder
 POLL_INTERVAL_LEGO = 600     # LEGO - disabled, 10 min placeholder
 
-# Track API usage
-API_STATS = {
-    "total_calls": 0,
-    "calls_today": 0,
-    "last_reset": datetime.now().date(),
-    "calls_by_category": {},
-    "errors": 0,
-    "last_call": None,
-}
+# Track API usage - persisted to file for survival across restarts
+API_STATS_FILE = Path(__file__).parent / "api_stats.json"
+
+def _load_api_stats() -> dict:
+    """Load API stats from file, reset if new day"""
+    default_stats = {
+        "total_calls": 0,
+        "calls_today": 0,
+        "last_reset": datetime.now().date().isoformat(),
+        "calls_by_category": {},
+        "errors": 0,
+        "last_call": None,
+    }
+
+    if API_STATS_FILE.exists():
+        try:
+            with open(API_STATS_FILE, 'r') as f:
+                saved = json.load(f)
+                # Check if it's a new day - reset if so
+                saved_date = saved.get("last_reset", "")
+                today = datetime.now().date().isoformat()
+                if saved_date != today:
+                    logger.info(f"[EBAY API] New day - resetting stats (yesterday: {saved.get('calls_today', 0)} calls)")
+                    saved["calls_today"] = 0
+                    saved["calls_by_category"] = {}
+                    saved["errors"] = 0
+                    saved["last_reset"] = today
+                return saved
+        except Exception as e:
+            logger.warning(f"[EBAY API] Could not load stats: {e}")
+    return default_stats
+
+def _save_api_stats():
+    """Save API stats to file"""
+    try:
+        # Convert date objects to strings for JSON
+        stats_to_save = API_STATS.copy()
+        if isinstance(stats_to_save.get("last_reset"), date):
+            stats_to_save["last_reset"] = stats_to_save["last_reset"].isoformat()
+        if stats_to_save.get("last_call"):
+            stats_to_save["last_call"] = stats_to_save["last_call"].isoformat() if hasattr(stats_to_save["last_call"], 'isoformat') else str(stats_to_save["last_call"])
+
+        with open(API_STATS_FILE, 'w') as f:
+            json.dump(stats_to_save, f, indent=2)
+    except Exception as e:
+        logger.warning(f"[EBAY API] Could not save stats: {e}")
+
+# Load stats on module import
+API_STATS = _load_api_stats()
 
 # Track seen listings to avoid duplicates
 SEEN_LISTINGS: Dict[str, datetime] = {}
@@ -508,24 +548,33 @@ def get_seller_score_quick(seller_id: str, title: str = "", category: str = "") 
 def update_api_stats(category: str, success: bool = True):
     """Track API usage for rate limit application"""
     global API_STATS
-    
+
     # Reset daily counter if new day
-    today = datetime.now().date()
-    if API_STATS["last_reset"] != today:
+    today = datetime.now().date().isoformat()
+    last_reset = API_STATS.get("last_reset", "")
+    # Handle both string and date object for comparison
+    if isinstance(last_reset, date):
+        last_reset = last_reset.isoformat()
+
+    if last_reset != today:
         logger.info(f"[EBAY API] Daily reset - yesterday's calls: {API_STATS['calls_today']}")
         API_STATS["calls_today"] = 0
+        API_STATS["calls_by_category"] = {}
         API_STATS["last_reset"] = today
-    
+
     API_STATS["total_calls"] += 1
     API_STATS["calls_today"] += 1
     API_STATS["last_call"] = datetime.now()
-    
+
     if category not in API_STATS["calls_by_category"]:
         API_STATS["calls_by_category"][category] = 0
     API_STATS["calls_by_category"][category] += 1
-    
+
     if not success:
         API_STATS["errors"] += 1
+
+    # Persist stats to file after each update
+    _save_api_stats()
 
 
 def get_api_stats() -> Dict:
