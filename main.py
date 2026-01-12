@@ -113,7 +113,7 @@ from utils import (
     LEGO_KNOCKOFF_TERMS,
 )
 # Source comparison logging (Direct API vs uBuyFirst speed comparison)
-from utils.source_comparison import log_listing_received, get_comparison_stats, get_race_log, reset_stats as reset_source_stats
+from utils.source_comparison import log_listing_received, get_comparison_stats, get_race_log, reset_stats as reset_source_stats, log_api_buy_win, get_api_buy_wins_stats
 
 # Tier 2 verification module
 from pipeline.tier2 import (
@@ -12809,6 +12809,14 @@ async def ebay_stats():
     })
 
 
+@app.get("/ebay/api-wins")
+async def ebay_api_wins():
+    """Get Direct API BUY wins - items found by API before uBuyFirst"""
+    stats = get_api_buy_wins_stats()
+    return JSONResponse({
+        "status": "ok",
+        "api_buy_wins": stats
+    })
 
 
 
@@ -15081,6 +15089,18 @@ async def race_callback(listing):
                         listing_info=api_listing_info
                     )
                     logger.info(f"[API] Discord alert sent for {rec} - URL: {direct_ebay_url}")
+
+                    # Log Direct API BUY wins for tracking
+                    if rec == "BUY":
+                        log_api_buy_win(
+                            item_id=listing.item_id,
+                            title=listing.title,
+                            price=listing.price,
+                            profit=profit_val,
+                            category=cat,
+                            melt_value=float(str(analysis.get('meltvalue', '0')).replace('$', '').replace(',', '') or 0),
+                            weight=analysis.get('weight', '')
+                        )
                 except Exception as e:
                     logger.warning(f"[API] Discord alert failed: {e}")
                     import traceback
