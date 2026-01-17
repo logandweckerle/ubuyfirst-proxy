@@ -116,7 +116,7 @@ from utils import (
 from utils.source_comparison import log_listing_received, get_comparison_stats, get_race_log, reset_stats as reset_source_stats, log_api_buy_win, get_api_buy_wins_stats
 
 # NEW: Centralized state management (Phase 1.1 refactoring)
-from services.app_state import AppState
+from services.app_state import AppState, get_app_state_from_request
 from services.error_handler import setup_error_handlers
 
 # Tier 2 verification module
@@ -549,6 +549,10 @@ async def lifespan(app_instance: FastAPI):
     # Start cache cleanup (every 60 seconds)
     start_cache_cleanup(interval=60)
 
+    # Start AppState memory cleanup (Phase 3 improvement)
+    app_state.start_cleanup_task()
+    logger.info(f"[INIT] AppState cleanup task started (TTL={app_state.IN_FLIGHT_TTL}s)")
+
     # Log database path
     logger.info(f"[DB] Database path: {db.path}")
     db_info = get_db_debug_info()
@@ -618,6 +622,10 @@ async def lifespan(app_instance: FastAPI):
     if hasattr(app_instance.state, 'http_client'):
         await app_instance.state.http_client.aclose()
         logger.info("[SHUTDOWN] HTTP client pool closed")
+
+    # Stop AppState cleanup task
+    app_state.stop_cleanup_task()
+    logger.info("[SHUTDOWN] AppState cleanup task stopped")
 
 # ============================================================
 
@@ -5038,6 +5046,12 @@ async def api_set_budget(hourly_limit: float = 10.0):
     logger.info(f"[BUDGET] Hourly limit set to ${hourly_limit:.2f}")
     return {"success": True, "hourly_budget": hourly_limit}
 
+
+@app.get("/api/memory-stats")
+async def api_memory_stats(request: Request):
+    """Get AppState memory usage statistics for monitoring"""
+    app_state = get_app_state_from_request(request)
+    return app_state.get_memory_stats()
 
 
 @app.get("/api/pricecharting")

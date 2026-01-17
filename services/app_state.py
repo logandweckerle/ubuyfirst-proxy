@@ -6,10 +6,14 @@ with a proper dataclass that can be dependency-injected.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Callable
 from datetime import datetime
 import asyncio
 import threading
+import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -31,8 +35,15 @@ class AppState:
     listing_queue: Dict[str, Dict] = field(default_factory=dict)
     in_flight: Dict[str, asyncio.Event] = field(default_factory=dict)
     in_flight_results: Dict[str, tuple] = field(default_factory=dict)
+    _in_flight_timestamps: Dict[str, float] = field(default_factory=dict, repr=False)
     _in_flight_lock: Optional[asyncio.Lock] = field(default=None, repr=False)
     _lock_creation_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _cleanup_task: Optional[asyncio.Task] = field(default=None, repr=False)
+
+    # Cleanup configuration
+    IN_FLIGHT_TTL: float = field(default=300.0, repr=False)  # 5 minutes TTL
+    CLEANUP_INTERVAL: float = field(default=60.0, repr=False)  # Check every 60 seconds
+    MAX_LISTINGS: int = field(default=100, repr=False)  # Max listings to keep in stats
 
     # Session statistics
     stats: Dict[str, Any] = field(default_factory=lambda: {
@@ -130,6 +141,7 @@ class AppState:
             if key in self.in_flight:
                 return False
             self.in_flight[key] = asyncio.Event()
+            self._in_flight_timestamps[key] = time.time()
             return True
 
     async def complete_in_flight(self, key: str, result: tuple) -> None:
@@ -145,6 +157,96 @@ class AppState:
         async with self.in_flight_lock:
             self.in_flight.pop(key, None)
             self.in_flight_results.pop(key, None)
+            self._in_flight_timestamps.pop(key, None)
+
+    # ============================================================
+    # Automatic Memory Cleanup
+    # ============================================================
+
+    async def cleanup_expired_entries(self) -> int:
+        """
+        Remove in-flight entries older than IN_FLIGHT_TTL.
+        Returns the number of entries cleaned up.
+        """
+        current_time = time.time()
+        expired_keys = []
+
+        async with self.in_flight_lock:
+            for key, created_at in list(self._in_flight_timestamps.items()):
+                if current_time - created_at > self.IN_FLIGHT_TTL:
+                    expired_keys.append(key)
+
+            for key in expired_keys:
+                self.in_flight.pop(key, None)
+                self.in_flight_results.pop(key, None)
+                self._in_flight_timestamps.pop(key, None)
+
+        if expired_keys:
+            logger.info(f"[CLEANUP] Removed {len(expired_keys)} expired in-flight entries")
+
+        return len(expired_keys)
+
+    def cleanup_old_listings(self) -> int:
+        """
+        Trim listings dict to MAX_LISTINGS most recent entries.
+        Returns the number of entries removed.
+        """
+        listings = self.stats.get("listings", {})
+        if len(listings) <= self.MAX_LISTINGS:
+            return 0
+
+        # Sort by timestamp (assuming listing_id contains timestamp info or use order)
+        sorted_keys = sorted(listings.keys())
+        keys_to_remove = sorted_keys[:-self.MAX_LISTINGS]
+
+        for key in keys_to_remove:
+            listings.pop(key, None)
+
+        if keys_to_remove:
+            logger.debug(f"[CLEANUP] Trimmed {len(keys_to_remove)} old listings")
+
+        return len(keys_to_remove)
+
+    async def _cleanup_loop(self) -> None:
+        """Background task that periodically cleans up expired entries."""
+        logger.info(f"[CLEANUP] Background cleanup started (interval={self.CLEANUP_INTERVAL}s, TTL={self.IN_FLIGHT_TTL}s)")
+        while True:
+            try:
+                await asyncio.sleep(self.CLEANUP_INTERVAL)
+                expired_count = await self.cleanup_expired_entries()
+                listings_count = self.cleanup_old_listings()
+
+                if expired_count > 0 or listings_count > 0:
+                    logger.debug(f"[CLEANUP] Cycle complete: {expired_count} in-flight, {listings_count} listings removed")
+
+            except asyncio.CancelledError:
+                logger.info("[CLEANUP] Background cleanup stopped")
+                break
+            except Exception as e:
+                logger.error(f"[CLEANUP] Error in cleanup loop: {e}")
+
+    def start_cleanup_task(self) -> None:
+        """Start the background cleanup task."""
+        if self._cleanup_task is None or self._cleanup_task.done():
+            self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+            logger.info("[CLEANUP] Cleanup task started")
+
+    def stop_cleanup_task(self) -> None:
+        """Stop the background cleanup task."""
+        if self._cleanup_task and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
+            logger.info("[CLEANUP] Cleanup task stopped")
+
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """Get memory usage statistics for monitoring."""
+        return {
+            "in_flight_count": len(self.in_flight),
+            "in_flight_results_count": len(self.in_flight_results),
+            "listings_count": len(self.stats.get("listings", {})),
+            "listing_queue_count": len(self.listing_queue),
+            "session_duration_seconds": self.get_session_duration(),
+            "cleanup_task_running": self._cleanup_task is not None and not self._cleanup_task.done(),
+        }
 
 
 # ============================================================
