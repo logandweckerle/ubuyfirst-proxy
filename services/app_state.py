@@ -119,14 +119,16 @@ class AppState:
         Check if a request is already in flight.
         Returns cached result if available, None otherwise.
         """
+        event = None
         async with self.in_flight_lock:
             if key in self.in_flight_results:
                 return self.in_flight_results[key]
             if key in self.in_flight:
-                # Wait for existing request to complete
+                # Store event reference inside lock to avoid race condition
                 event = self.in_flight[key]
 
-        if key in self.in_flight:
+        # Check event reference (not dict) to avoid race with cleanup task
+        if event is not None:
             await event.wait()
             return self.in_flight_results.get(key)
 
