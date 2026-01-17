@@ -6,14 +6,19 @@ This module contains:
 - Control endpoints: /toggle*, /clear-*, /reset-stats
 - Status endpoints: /health, /queue
 - Main dashboard: /
+
+Phase 2 Refactoring: Routes now support direct AppState access via request.
 """
 
 import logging
 from datetime import datetime
-from typing import Callable, Dict, Any
+from typing import Callable, Dict, Any, Optional, TYPE_CHECKING
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+
+if TYPE_CHECKING:
+    from services.app_state import AppState
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +29,10 @@ router = APIRouter(tags=["dashboard"])
 # MODULE-LEVEL DEPENDENCIES (Set via configure_dashboard)
 # ============================================================
 
-# State getters (return current value)
+# NEW: Direct AppState reference (Phase 2 refactoring)
+_app_state: Optional["AppState"] = None
+
+# State getters (return current value) - LEGACY, kept for backwards compat
 _get_enabled = None
 _get_debug_mode = None
 _get_queue_mode = None
@@ -34,7 +42,7 @@ _get_race_stats = None
 _get_race_feed_api = None
 _get_race_feed_ubuyfirst = None
 
-# State setters (modify state)
+# State setters (modify state) - LEGACY, kept for backwards compat
 _set_enabled = None
 _set_debug_mode = None
 _set_queue_mode = None
@@ -45,6 +53,16 @@ _clear_listing_queue = None
 _cache = None
 _get_spot_prices = None
 _get_analytics = None
+
+
+def _get_state(request: Optional[Request] = None) -> Optional["AppState"]:
+    """
+    Get AppState from request or module-level reference.
+    Provides backwards compatibility during migration.
+    """
+    if request and hasattr(request.app.state, 'app_state'):
+        return request.app.state.app_state
+    return _app_state
 
 
 def configure_dashboard(
@@ -64,12 +82,22 @@ def configure_dashboard(
     cache: Any,
     get_spot_prices: Callable,
     get_analytics: Callable,
+    app_state: Optional["AppState"] = None,
 ):
-    """Configure the dashboard module with required dependencies."""
+    """
+    Configure the dashboard module with required dependencies.
+
+    Args:
+        app_state: Optional AppState instance. When provided, routes will use
+                   this directly instead of the legacy getter/setter callbacks.
+    """
     global _get_enabled, _get_debug_mode, _get_queue_mode, _get_stats
     global _get_listing_queue, _get_race_stats, _get_race_feed_api, _get_race_feed_ubuyfirst
     global _set_enabled, _set_debug_mode, _set_queue_mode, _reset_stats, _clear_listing_queue
-    global _cache, _get_spot_prices, _get_analytics
+    global _cache, _get_spot_prices, _get_analytics, _app_state
+
+    # NEW: Store direct AppState reference if provided
+    _app_state = app_state
 
     _get_enabled = get_enabled
     _get_debug_mode = get_debug_mode
@@ -88,7 +116,7 @@ def configure_dashboard(
     _get_spot_prices = get_spot_prices
     _get_analytics = get_analytics
 
-    logger.info("[DASHBOARD ROUTES] Module configured")
+    logger.info(f"[DASHBOARD ROUTES] Module configured (app_state={'provided' if app_state else 'legacy mode'})")
 
 
 # ============================================================
@@ -96,31 +124,50 @@ def configure_dashboard(
 # ============================================================
 
 @router.post("/toggle")
-async def toggle_proxy():
-    ENABLED = _get_enabled()
-    _set_enabled(not ENABLED)
-    logger.info(f"Proxy {'ENABLED' if not ENABLED else 'DISABLED'}")
+async def toggle_proxy(request: Request):
+    state = _get_state(request)
+    if state:
+        state.enabled = not state.enabled
+        logger.info(f"Proxy {'ENABLED' if state.enabled else 'DISABLED'}")
+    else:
+        # Legacy fallback
+        ENABLED = _get_enabled()
+        _set_enabled(not ENABLED)
+        logger.info(f"Proxy {'ENABLED' if not ENABLED else 'DISABLED'}")
     return RedirectResponse(url="/", status_code=303)
 
 
 @router.post("/toggle-debug")
-async def toggle_debug():
-    DEBUG_MODE = _get_debug_mode()
-    _set_debug_mode(not DEBUG_MODE)
+async def toggle_debug(request: Request):
+    state = _get_state(request)
+    if state:
+        state.debug_mode = not state.debug_mode
+    else:
+        DEBUG_MODE = _get_debug_mode()
+        _set_debug_mode(not DEBUG_MODE)
     return RedirectResponse(url="/", status_code=303)
 
 
 @router.post("/toggle-queue")
-async def toggle_queue():
-    QUEUE_MODE = _get_queue_mode()
-    _set_queue_mode(not QUEUE_MODE)
-    logger.info(f"Queue mode {'ENABLED' if not QUEUE_MODE else 'DISABLED'}")
+async def toggle_queue(request: Request):
+    state = _get_state(request)
+    if state:
+        state.queue_mode = not state.queue_mode
+        logger.info(f"Queue mode {'ENABLED' if state.queue_mode else 'DISABLED'}")
+    else:
+        QUEUE_MODE = _get_queue_mode()
+        _set_queue_mode(not QUEUE_MODE)
+        logger.info(f"Queue mode {'ENABLED' if not QUEUE_MODE else 'DISABLED'}")
     return RedirectResponse(url="/", status_code=303)
 
 
 @router.post("/clear-queue")
-async def clear_queue():
-    _clear_listing_queue()
+async def clear_queue(request: Request):
+    state = _get_state(request)
+    if state:
+        state.listing_queue.clear()
+    else:
+        _clear_listing_queue()
     return RedirectResponse(url="/", status_code=303)
 
 
@@ -141,8 +188,12 @@ async def clear_cache_get():
 
 
 @router.post("/reset-stats")
-async def reset_stats():
-    _reset_stats()
+async def reset_stats(request: Request):
+    state = _get_state(request)
+    if state:
+        state.reset_stats()
+    else:
+        _reset_stats()
     return RedirectResponse(url="/", status_code=303)
 
 
@@ -151,13 +202,20 @@ async def reset_stats():
 # ============================================================
 
 @router.get("/health")
-async def health():
+async def health(request: Request):
+    state = _get_state(request)
+    if state:
+        return {"status": "ok", "enabled": state.enabled, "queue_mode": state.queue_mode}
     return {"status": "ok", "enabled": _get_enabled(), "queue_mode": _get_queue_mode()}
 
 
 @router.get("/queue")
-async def get_queue():
-    queue = _get_listing_queue()
+async def get_queue(request: Request):
+    state = _get_state(request)
+    if state:
+        queue = state.listing_queue
+    else:
+        queue = _get_listing_queue()
     return {"queue": list(queue.values()), "count": len(queue)}
 
 
@@ -176,12 +234,23 @@ async def api_cache_stats():
 # ============================================================
 
 @router.get("/", response_class=HTMLResponse)
-async def dashboard():
+async def dashboard(request: Request):
     """Main dashboard"""
-    ENABLED = _get_enabled()
-    QUEUE_MODE = _get_queue_mode()
-    STATS = _get_stats()
-    LISTING_QUEUE = _get_listing_queue()
+    state = _get_state(request)
+
+    # Use AppState if available, otherwise fallback to legacy getters
+    if state:
+        ENABLED = state.enabled
+        QUEUE_MODE = state.queue_mode
+        STATS = state.stats
+        LISTING_QUEUE = state.listing_queue
+    else:
+        ENABLED = _get_enabled()
+        QUEUE_MODE = _get_queue_mode()
+        STATS = _get_stats()
+        LISTING_QUEUE = _get_listing_queue()
+
+    # These still use legacy getters (not part of AppState yet)
     RACE_STATS = _get_race_stats()
     RACE_FEED_API = _get_race_feed_api()
     RACE_FEED_UBUYFIRST = _get_race_feed_ubuyfirst()

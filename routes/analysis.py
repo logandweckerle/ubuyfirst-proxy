@@ -4,6 +4,8 @@ Extracted from main.py for modularity
 
 This module contains the /match_mydata endpoint which processes
 eBay listings through the AI analysis pipeline.
+
+Phase 2 Refactoring: Routes now support direct AppState access via request.
 """
 
 import json
@@ -15,10 +17,13 @@ import re
 import time as _time
 from datetime import datetime
 from urllib.parse import parse_qs, unquote
-from typing import Dict, Any, Optional, List, Callable, Tuple
+from typing import Dict, Any, Optional, List, Callable, Tuple, TYPE_CHECKING
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+
+if TYPE_CHECKING:
+    from services.app_state import AppState
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +38,64 @@ router = APIRouter()
 _client = None  # Anthropic client
 _openai_client = None  # OpenAI client
 
-# State & Config
+# NEW: Direct AppState reference (Phase 2 refactoring)
+_app_state: Optional["AppState"] = None
+
+
+def _get_state(request: Optional[Request] = None) -> Optional["AppState"]:
+    """
+    Get AppState from request or module-level reference.
+    Provides backwards compatibility during migration.
+    """
+    if request and hasattr(request.app.state, 'app_state'):
+        return request.app.state.app_state
+    return _app_state
+
+
+def _increment_stat(key: str, amount: int = 1, request: Optional[Request] = None) -> None:
+    """
+    Increment a stat counter using AppState if available, else legacy _STATS.
+    """
+    state = _get_state(request)
+    if state:
+        state.increment_stat(key, amount)
+    elif _STATS is not None:
+        if key in _STATS:
+            _STATS[key] += amount
+
+
+def _add_session_cost(cost: float, request: Optional[Request] = None) -> None:
+    """
+    Add to session cost using AppState if available, else legacy _STATS.
+    """
+    state = _get_state(request)
+    if state:
+        state.add_cost(cost)
+    elif _STATS is not None:
+        _STATS["session_cost"] += cost
+
+
+def _is_enabled(request: Optional[Request] = None) -> bool:
+    """
+    Check if proxy is enabled using AppState if available, else legacy callback.
+    """
+    state = _get_state(request)
+    if state:
+        return state.enabled
+    return _ENABLED() if _ENABLED else True
+
+
+def _get_stats_dict(request: Optional[Request] = None) -> Dict:
+    """
+    Get the stats dictionary for direct access (e.g., for listings).
+    """
+    state = _get_state(request)
+    if state:
+        return state.stats
+    return _STATS if _STATS else {}
+
+
+# State & Config (LEGACY - kept for backwards compat)
 _STATS = None
 _ENABLED = None
 _QUEUE_MODE = None
@@ -180,9 +242,17 @@ def configure_analysis(
     record_openai_cost: Callable,
     log_incoming_listing: Callable,
     render_queued_html: Callable,
+    # NEW: Direct AppState (Phase 2)
+    app_state: Optional["AppState"] = None,
 ):
-    """Configure the analysis module with all required dependencies."""
-    global _client, _openai_client
+    """
+    Configure the analysis module with all required dependencies.
+
+    Args:
+        app_state: Optional AppState instance. When provided, routes will use
+                   this directly instead of the legacy getter/setter callbacks.
+    """
+    global _client, _openai_client, _app_state
     global _STATS, _ENABLED, _QUEUE_MODE, _LISTING_QUEUE, _cache
     global _IN_FLIGHT, _IN_FLIGHT_LOCK, _IN_FLIGHT_RESULTS
     global _MODEL_FAST, _TIER1_MODEL_GOLD_SILVER, _TIER1_MODEL_DEFAULT
@@ -209,7 +279,10 @@ def configure_analysis(
     _client = client
     _openai_client = openai_client
 
-    # State & Config
+    # NEW: Direct AppState reference
+    _app_state = app_state
+
+    # State & Config (legacy - kept for backwards compat)
     _STATS = STATS
     _ENABLED = ENABLED_ref
     _QUEUE_MODE = QUEUE_MODE_ref
@@ -283,7 +356,7 @@ def configure_analysis(
     _log_incoming_listing = log_incoming_listing
     _render_queued_html = render_queued_html
 
-    logger.info("[ANALYSIS] Module configured with all dependencies")
+    logger.info(f"[ANALYSIS] Module configured (app_state={'provided' if app_state else 'legacy mode'})")
 
 
 # ============================================================
@@ -372,7 +445,7 @@ async def analyze_listing(request: Request):
         if not item_id:
             url_param = data.get('URL', '')
             if '/itm/' in url_param:
-                import re
+                # re is already imported at module level
                 match = re.search(r'/itm/(\d+)', url_param)
                 if match:
                     item_id = match.group(1)
@@ -558,11 +631,21 @@ async def analyze_listing(request: Request):
                     'FeedbackRating': data.get('FeedbackRating', ''),
                     'SellerRegistration': data.get('SellerRegistration', ''),
                 }
+                # Pass listing data for data-driven scoring (24K+ listings analysis)
+                listing_scoring_data = {
+                    'Condition': data.get('Condition', ''),
+                    'Title': title,
+                    'Description': data.get('Description', ''),
+                    'BestOffer': data.get('BestOffer', ''),
+                    'UPC': data.get('UPC', ''),
+                    'ConditionDescription': data.get('ConditionDescription', ''),
+                }
                 seller_analysis = _analyze_new_seller(
                     seller=seller_name,
                     title=title,
                     category=category if category else '',
-                    ebay_data=ebay_seller_data
+                    ebay_data=ebay_seller_data,
+                    listing_data=listing_scoring_data
                 )
                 seller_score = seller_analysis.get('score', 50)
                 seller_type = seller_analysis.get('type', 'unknown')
@@ -574,6 +657,47 @@ async def analyze_listing(request: Request):
                     logger.info(f"[SELLER] LOW VALUE (dealer): {seller_name} (score:{seller_score})")
             except Exception as e:
                 logger.debug(f"[SELLER] Could not analyze seller: {e}")
+
+        # === PROFESSIONAL DEALER AUTO-PASS ===
+        # For precious metals and watches, professional dealers know exact values - no arbitrage opportunity
+        feedback_score = 0
+        try:
+            feedback_score = int(data.get('FeedbackScore', 0) or 0)
+        except:
+            pass
+
+        seller_name_lower = seller_name.lower()
+        # Strong dealer indicators - seller name explicitly contains these = instant dealer
+        strong_dealer_keywords = ['watches', 'jewelry', 'jeweler', 'coins', 'numismatic', 'bullion', 'precious metals']
+        # Weak indicators - need high feedback to confirm
+        weak_dealer_keywords = ['gold', 'silver', 'pawn', 'dealer', 'metals']
+
+        is_strong_dealer_name = any(kw in seller_name_lower for kw in strong_dealer_keywords)
+        is_weak_dealer_name = any(kw in seller_name_lower for kw in weak_dealer_keywords)
+        is_high_feedback = feedback_score >= 500  # Lowered threshold
+
+        if category in ['gold', 'silver', 'watch', 'platinum', 'palladium']:
+            # Strong dealer name = instant PASS (e.g., "atlantiswatches", "Piece Unique Watches")
+            # Weak dealer name + high feedback = PASS
+            # seller_type == 'dealer' from database analysis = PASS
+            if is_strong_dealer_name or seller_type == 'dealer' or (is_weak_dealer_name and is_high_feedback):
+                logger.warning(f"[DEALER PASS] {seller_name} (feedback:{feedback_score}, type:{seller_type}) - professional dealer")
+                quick_result = {
+                    'Qualify': 'No',
+                    'Recommendation': 'PASS',
+                    'reasoning': f"PROFESSIONAL DEALER: '{seller_name}' with {feedback_score} feedback - knows exact values, no arbitrage opportunity",
+                    'confidence': 99,
+                    'itemtype': category.title(),
+                    'seller_score': seller_score,
+                    'seller_type': seller_type,
+                }
+                html = _render_result_html(quick_result, category, title)
+                _cache.set(title, total_price, quick_result, html)
+                _increment_stat("pass_count", request=request)
+                if response_type == 'json':
+                    quick_result["html"] = html
+                    return JSONResponse(content=quick_result)
+                return HTMLResponse(content=html)
 
         # Store enhancement data for response
         listing_enhancements = {
@@ -648,7 +772,7 @@ async def analyze_listing(request: Request):
         _start_time = _time.time()
         _timing = {}
 
-        _STATS["total_requests"] += 1
+        _increment_stat("total_requests", request=request)
 
         # ============================================================
         # CHECK SMART CACHE FIRST
@@ -678,7 +802,7 @@ async def analyze_listing(request: Request):
                             logger.warning(f"[CACHE] SUSPICIOUS: market=${cached_market:.0f}, profit=${cached_profit:.0f} - re-verifying")
                             # Fall through to re-analyze instead of trusting cache
                         else:
-                            _STATS["cache_hits"] += 1
+                            _increment_stat("cache_hits", request=request)
                             logger.info(f"[CACHE HIT] Returning cached {result.get('Recommendation', 'UNKNOWN')} (PC verified)")
                             if response_type == 'json':
                                 result["html"] = html  # Include HTML for uBuyFirst display
@@ -687,7 +811,7 @@ async def analyze_listing(request: Request):
                                 return HTMLResponse(content=html)
                     except:
                         # If we can't parse prices, trust the cache
-                        _STATS["cache_hits"] += 1
+                        _increment_stat("cache_hits", request=request)
                         logger.info(f"[CACHE HIT] Returning cached {result.get('Recommendation', 'UNKNOWN')} (PC verified)")
                         if response_type == 'json':
                             result["html"] = html  # Include HTML for uBuyFirst display
@@ -695,7 +819,7 @@ async def analyze_listing(request: Request):
                         else:
                             return HTMLResponse(content=html)
             else:
-                _STATS["cache_hits"] += 1
+                _increment_stat("cache_hits", request=request)
                 logger.info(f"[CACHE HIT] Returning cached {result.get('Recommendation', 'UNKNOWN')}")
                 # Return based on response_type
                 if response_type == 'json':
@@ -751,9 +875,9 @@ async def analyze_listing(request: Request):
         # ============================================================
         # DISABLED CHECK
         # ============================================================
-        if not _ENABLED():
+        if not _is_enabled(request):
             logger.info("DISABLED - Returning placeholder")
-            _STATS["skipped"] += 1
+            _increment_stat("skipped", request=request)
             disabled_result = {
                 "Qualify": "No",
                 "Recommendation": "DISABLED",
@@ -793,8 +917,8 @@ async def analyze_listing(request: Request):
         # ============================================================
         # FULL ANALYSIS
         # ============================================================
-        _STATS["api_calls"] += 1
-        _STATS["session_cost"] += _COST_PER_CALL_HAIKU
+        _increment_stat("api_calls", request=request)
+        _add_session_cost(_COST_PER_CALL_HAIKU, request=request)
 
         # Category already detected above
         logger.info(f"Category: {category}")
@@ -941,7 +1065,7 @@ async def analyze_listing(request: Request):
             html = _render_result_html(result, category, title)
             _cache.set(title, total_price, result, html, "PASS")
 
-            _STATS["pass_count"] += 1
+            _increment_stat("pass_count", request=request)
             logger.info(f"[INSTANT PASS] Saved ~8 seconds by skipping AI!")
 
             if response_type == 'json':
@@ -989,9 +1113,9 @@ async def analyze_listing(request: Request):
                 _cache.set(title, total_price, textbook_result, html)
 
                 if textbook_result.get("Recommendation") == "BUY":
-                    _STATS["buy_count"] += 1
+                    _increment_stat("buy_count", request=request)
                 else:
-                    _STATS["pass_count"] += 1
+                    _increment_stat("pass_count", request=request)
 
                 if response_type == 'json':
                     textbook_result["html"] = html  # Include HTML for uBuyFirst display
@@ -1106,7 +1230,7 @@ async def analyze_listing(request: Request):
                         html = _render_result_html(quick_result, category, title)
                         _cache.set(title, total_price, quick_result, html)
 
-                        _STATS["pass_count"] += 1
+                        _increment_stat("pass_count", request=request)
                         logger.info(f"[QUICK PASS] Saved {30}+ seconds by skipping images!")
 
                         if response_type == 'json':
@@ -1138,13 +1262,50 @@ async def analyze_listing(request: Request):
                     }
                     html = _render_result_html(quick_result, category, title)
                     _cache.set(title, total_price, quick_result, html)
-                    _STATS["pass_count"] += 1
+                    _increment_stat("pass_count", request=request)
                     if response_type == 'json':
                         quick_result["html"] = html  # Include HTML for uBuyFirst display
                         return JSONResponse(content=quick_result)
                     return HTMLResponse(content=html)
         except Exception as e:
             logger.error(f"[AGENT QUICK PASS] Error: {e}")
+
+        # === TCG GRADED CARD ENRICHMENT - Look up actual PriceCharting prices ===
+        if category == 'tcg' and data.get('_grade_info', {}).get('is_graded'):
+            try:
+                from agents.tcg import TCGAgent
+                tcg_agent = TCGAgent()
+                price_float = float(str(total_price).replace('$', '').replace(',', ''))
+                pc_graded_data = tcg_agent.enrich_graded_data(data, price_float)
+                if pc_graded_data.get('pc_found'):
+                    logger.info(f"[TCG-GRADED] PriceCharting found: {pc_graded_data.get('pc_card_name')} @ ${pc_graded_data.get('pc_market_price', 0):.2f}")
+            except Exception as e:
+                logger.error(f"[TCG-GRADED] Enrichment error: {e}")
+
+        # === ITEM SPECIFICS DANGER CHECK - Use eBay item specifics to catch fakes ===
+        # This catches items where title says "18K Gold" but item specifics say "Stainless Steel"
+        if category in ['gold', 'silver', 'watch']:
+            try:
+                from fast_extract import check_item_specifics_danger
+                is_danger, danger_reason = check_item_specifics_danger(data)
+                if is_danger:
+                    logger.warning(f"[ITEM SPECIFICS] DANGER: {danger_reason}")
+                    quick_result = {
+                        'Qualify': 'No',
+                        'Recommendation': 'PASS',
+                        'reasoning': f"ITEM SPECIFICS MISMATCH: {danger_reason}",
+                        'confidence': 99,
+                        'itemtype': 'Fake/Plated',
+                    }
+                    html = _render_result_html(quick_result, category, title)
+                    _cache.set(title, total_price, quick_result, html)
+                    _increment_stat("pass_count", request=request)
+                    if response_type == 'json':
+                        quick_result["html"] = html
+                        return JSONResponse(content=quick_result)
+                    return HTMLResponse(content=html)
+            except Exception as e:
+                logger.debug(f"[ITEM SPECIFICS] Check error: {e}")
 
         # === GOLD QUICK PASS CHECK - Skip images if price/gram is clearly too high ===
         # Only applies to 10K/14K gold - higher karats (18K+) have higher melt values
@@ -1198,7 +1359,7 @@ async def analyze_listing(request: Request):
                                 html = _render_result_html(quick_result, category, title)
                                 _cache.set(title, total_price, quick_result, html)
 
-                                _STATS["pass_count"] += 1
+                                _increment_stat("pass_count", request=request)
                                 logger.info(f"[QUICK PASS] Saved time by skipping images!")
 
                                 if response_type == 'json':
@@ -1312,7 +1473,7 @@ async def analyze_listing(request: Request):
                     html = _render_result_html(quick_result, category, title)
                     _cache.set(title, total_price, quick_result, html, "PASS")
 
-                    _STATS["pass_count"] += 1
+                    _increment_stat("pass_count", request=request)
                     logger.info(f"[FAST] Saved ALL AI time with instant PASS!")
 
                     if response_type == 'json':
@@ -1383,7 +1544,7 @@ async def analyze_listing(request: Request):
 
                 html = _render_result_html(quick_result, category, title)
                 _cache.set(title, total_price, quick_result, html, "PASS")
-                _STATS["pass_count"] += 1
+                _increment_stat("pass_count", request=request)
 
                 _timing['total'] = _time.time() - _start_time
                 logger.info(f"[LAZY] Saved {2 + 4:.0f}+ seconds (no images, no AI) - PASS in {_timing['total']*1000:.0f}ms")
@@ -1393,9 +1554,10 @@ async def analyze_listing(request: Request):
                     return JSONResponse(content=quick_result)
                 return HTMLResponse(content=html)
             else:
-                # Have verified weight, price is close - need AI to verify
-                needs_images_for_tier1 = True
-                logger.info(f"[LAZY] Need images: price ${price_float:.0f} near maxBuy ${fast_result.max_buy:.0f}, need AI verification")
+                # Have verified weight from title - run Tier 1 WITHOUT images
+                # Images are a LAST RESORT - only fetch for Tier 2 verification on uncertain BUYs
+                needs_images_for_tier1 = False
+                logger.info(f"[LAZY] SKIP images for Tier 1: verified weight {fast_result.weight_grams}g from title - AI has enough data")
 
         if needs_images_for_tier1 and raw_image_urls:
             _img_start = _time.time()
@@ -1496,10 +1658,24 @@ async def analyze_listing(request: Request):
         # Other categories: GPT-4o-mini (cheaper, still effective)
         # Falls back to Haiku if OpenAI client unavailable
         # ============================================================
-        # OPTIMIZATION: Pre-fetch Tier 2 images during Tier 1 (saves 500ms-4s)
-        # Images will be ready when Tier 2 starts, instead of fetching after Tier 1
+        # OPTIMIZATION: Pre-fetch Tier 2 images ONLY if item might need them
+        # Images are LAST RESORT - only for uncertain BUYs needing visual verification
         tier2_images_task = None
+        should_prefetch_images = False
         if raw_image_urls and category in ['gold', 'silver']:
+            # Only pre-fetch if:
+            # 1. No verified weight (AI might need to read scale photos)
+            # 2. OR price is close enough that it could be a BUY (worth verifying)
+            if fast_result is None or fast_result.weight_grams is None:
+                should_prefetch_images = True
+                logger.debug(f"[IMAGES] Pre-fetch: no verified weight - might need scale photos")
+            elif fast_result.max_buy and price_float < fast_result.max_buy * 1.3:
+                should_prefetch_images = True
+                logger.debug(f"[IMAGES] Pre-fetch: potential BUY territory (price ${price_float:.0f} < maxBuy ${fast_result.max_buy:.0f} * 1.3)")
+            else:
+                logger.info(f"[IMAGES] SKIP pre-fetch: clear PASS territory (price ${price_float:.0f} >> maxBuy ${fast_result.max_buy:.0f})")
+
+        if should_prefetch_images:
             tier2_images_task = asyncio.create_task(
                 _process_image_list(raw_image_urls, max_size=_IMAGES.resize_for_tier2, selection="first_last")
             )
@@ -1569,7 +1745,7 @@ async def analyze_listing(request: Request):
                 else:
                     logger.error(f"[TIER1] GPT-4o returned empty response!")
                     raw_response = '{"Recommendation": "RESEARCH", "reasoning": "Empty AI response"}'
-                _STATS["session_cost"] += tier1_cost
+                _add_session_cost(tier1_cost, request=request)
                 _record_openai_cost(tier1_cost)  # Track hourly budget
                 tier1_model_used = tier1_model.upper()
             except Exception as e:
@@ -1582,7 +1758,7 @@ async def analyze_listing(request: Request):
                     messages=[{"role": "user", "content": message_content}]
                 )
                 raw_response = response.content[0].text.strip()
-                _STATS["session_cost"] += _COST_PER_CALL_HAIKU
+                _add_session_cost(_COST_PER_CALL_HAIKU, request=request)
                 tier1_model_used = "Haiku (fallback)"
         else:
             # Fallback to Haiku if OpenAI client not available
@@ -1594,7 +1770,7 @@ async def analyze_listing(request: Request):
                 messages=[{"role": "user", "content": message_content}]
             )
             raw_response = response.content[0].text.strip()
-            _STATS["session_cost"] += _COST_PER_CALL_HAIKU
+            _add_session_cost(_COST_PER_CALL_HAIKU, request=request)
             tier1_model_used = "Haiku"
 
         _timing['tier1'] = _time.time() - _tier1_start
@@ -1612,7 +1788,11 @@ async def analyze_listing(request: Request):
             agent_class = _get_agent(category)
             if agent_class:
                 agent = agent_class()
-                result = agent.validate_response(result)
+                # TCG agent needs data for PriceCharting override of graded cards
+                if category == 'tcg':
+                    result = agent.validate_response(result, data)
+                else:
+                    result = agent.validate_response(result)
 
             # Add listing price to result for display
             result['listingPrice'] = total_price
@@ -1862,11 +2042,11 @@ async def analyze_listing(request: Request):
 
             # Update stats
             if recommendation == "BUY":
-                _STATS["buy_count"] += 1
+                _increment_stat("buy_count", request=request)
             elif recommendation == "PASS":
-                _STATS["pass_count"] += 1
+                _increment_stat("pass_count", request=request)
             else:
-                _STATS["research_count"] += 1
+                _increment_stat("research_count", request=request)
 
             # Create listing record
             # Include image URLs but not full base64 data
@@ -1918,7 +2098,7 @@ async def analyze_listing(request: Request):
                 "input_data": input_data_clean
             }
 
-            _STATS["listings"][listing_id] = listing_record
+            _get_stats_dict(request)["listings"][listing_id] = listing_record
             _trim_listings()
 
             # Save to database

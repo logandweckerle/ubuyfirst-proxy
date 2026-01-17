@@ -115,6 +115,10 @@ from utils import (
 # Source comparison logging (Direct API vs uBuyFirst speed comparison)
 from utils.source_comparison import log_listing_received, get_comparison_stats, get_race_log, reset_stats as reset_source_stats, log_api_buy_win, get_api_buy_wins_stats
 
+# NEW: Centralized state management (Phase 1.1 refactoring)
+from services.app_state import AppState
+from services.error_handler import setup_error_handlers
+
 # Tier 2 verification module
 from pipeline.tier2 import (
     configure_tier2,
@@ -506,7 +510,12 @@ async def lifespan(app_instance: FastAPI):
     logger.info("Claude Proxy v3 - Optimized Starting...")
     logger.info("=" * 60)
 
+    # Store app_state in app.state for access by routes (Phase 1.1 refactoring)
+    app_instance.state.app_state = app_state
+    logger.info("[INIT] AppState attached to app.state")
+
     # FIX: Initialize asyncio Lock here (not at module level) to avoid loop issues
+    # Note: app_state.in_flight_lock is lazy-initialized, but we also keep global for compat
     IN_FLIGHT_LOCK = asyncio.Lock()
     logger.info("[INIT] Asyncio Lock initialized")
 
@@ -684,75 +693,35 @@ TIER1_MODEL_FALLBACK = MODEL_FAST   # Haiku fallback if OpenAI fails
 
 
 # ============================================================
-
-# STATE MANAGEMENT
-
+# STATE MANAGEMENT (Refactored with AppState - Phase 1.1)
 # ============================================================
 
-ENABLED = True  # Start enabled for testing
+# Create centralized application state instance
+app_state = AppState()
 
-DEBUG_MODE = False
+# Backwards compatibility aliases - these reference the AppState instance
+# TODO: Gradually migrate code to use app_state directly
+ENABLED = app_state.enabled
+DEBUG_MODE = app_state.debug_mode
+QUEUE_MODE = app_state.queue_mode
+EBAY_POLLER_ENABLED = app_state.ebay_poller_enabled
+LISTING_QUEUE = app_state.listing_queue
+IN_FLIGHT = app_state.in_flight
+IN_FLIGHT_RESULTS = app_state.in_flight_results
+STATS = app_state.stats
 
-QUEUE_MODE = False  # Queue mode OFF - auto-analyze immediately
+# Setup error handling middleware (Phase 3 refactoring)
+# Must be after DEBUG_MODE is defined
+setup_error_handlers(app, debug=DEBUG_MODE)
 
-# eBay Direct API Poller toggle - set to False to disable
-EBAY_POLLER_ENABLED = False  # DISABLED - using race mode instead for head-to-head comparison
-
-
-
-# Queue for manual review mode
-
-LISTING_QUEUE: Dict[str, Dict] = {}
-
-
-
-# In-flight request tracking - prevents duplicate processing
-
-# Key: (title, price) -> asyncio.Event that signals when processing is complete
-
-IN_FLIGHT: Dict[str, asyncio.Event] = {}
-
-IN_FLIGHT_RESULTS: Dict[str, tuple] = {}  # (result, html)
-
-IN_FLIGHT_LOCK = None  # FIX: Initialize in startup_event to avoid loop issues
-
-
+# Note: IN_FLIGHT_LOCK is now a property on app_state (lazy initialized)
+# Access via app_state.in_flight_lock instead of global IN_FLIGHT_LOCK
+IN_FLIGHT_LOCK = None  # Keep for backwards compat, but use app_state.in_flight_lock
 
 # Concurrency controls - allow parallel processing
-
 # Semaphore limits concurrent AI API calls to prevent rate limiting
-
 MAX_CONCURRENT_AI_CALLS = 10  # Allow 10 parallel AI calls
-
 AI_SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENT_AI_CALLS)
-
-
-
-# Stats tracking
-
-STATS = {
-
-    "total_requests": 0,
-
-    "api_calls": 0,
-
-    "skipped": 0,
-
-    "buy_count": 0,
-
-    "pass_count": 0,
-
-    "research_count": 0,
-
-    "cache_hits": 0,
-
-    "session_cost": 0.0,
-
-    "session_start": datetime.now().isoformat(),
-
-    "listings": {}  # Recent listings for dashboard
-
-}
 
 # NOTE: Budget tracking functions imported from utils.budget
 # NOTE: Spam detection functions imported from utils.spam_detection
@@ -7091,6 +7060,97 @@ async def purchases_page():
         return HTMLResponse(content=f"<h1>Error</h1><p>{str(e)}</p>")
 
 
+@app.get("/architecture", response_class=HTMLResponse)
+async def architecture_page():
+    """System architecture and understanding dashboard"""
+    import os
+    from templates.pages import render_system_architecture
+    from agents import AGENTS
+    from config.settings import CATEGORY_THRESHOLDS
+
+    # Gather system data
+    system_data = {}
+
+    # Get agent info
+    agents_info = {}
+    agent_descriptions = {
+        'gold': 'Precious metal scrap - analyzes gold jewelry by weight/karat for melt value',
+        'silver': 'Sterling silver analysis - 925/800 purity, flatware, scrap lots',
+        'platinum': 'Platinum jewelry - 950/900 purity melt value calculations',
+        'palladium': 'Palladium items - rare precious metal analysis',
+        'tcg': 'Trading cards - Pokemon, MTG sealed products and graded cards',
+        'lego': 'LEGO sets - sealed/retired sets with PriceCharting lookup',
+        'videogames': 'Video games - retro/collectible games with market pricing',
+        'watch': 'Watches - luxury/vintage watches, NOT gold scrap',
+        'knives': 'Collectible knives - Chris Reeve, Strider, Benchmade, vintage',
+        'pens': 'Fountain pens - Montblanc, Pelikan, vintage collectibles',
+        'costume': 'Costume jewelry - Trifari, Eisenberg, vintage signed pieces',
+        'coral': 'Coral & Amber - antique/vintage natural materials',
+        'textbook': 'College textbooks - ISBN lookup for buyback value',
+        'industrial': 'Industrial equipment - PLCs, automation gear',
+    }
+    for name, agent_class in AGENTS.items():
+        threshold = CATEGORY_THRESHOLDS.get(name, CATEGORY_THRESHOLDS.get('default', 0.65))
+        agents_info[name.title()] = {
+            'active': True,
+            'description': agent_descriptions.get(name, f'{name} category analysis'),
+            'threshold': f'{threshold:.0%}' if isinstance(threshold, float) else str(threshold),
+        }
+    system_data['agents'] = agents_info
+
+    # Get database sizes
+    dbs = []
+    db_files = [
+        ('arbitrage_data.db', 'Historical listings, seller patterns, dedup cache'),
+        ('pricecharting_prices.db', '117K+ video game/collectible market prices'),
+        ('purchase_history.db', 'Logged purchases for learning/tracking'),
+        ('price_data.db', 'Cached price lookups'),
+    ]
+    for db_name, purpose in db_files:
+        db_path = Path(db_name)
+        if db_path.exists():
+            size_mb = db_path.stat().st_size / (1024 * 1024)
+            dbs.append({'name': db_name, 'purpose': purpose, 'size_mb': size_mb, 'records': '--'})
+    system_data['databases'] = dbs
+
+    # Get live stats
+    system_data['stats'] = {
+        'Listings Analyzed': STATS.get('total_count', 0),
+        'BUY Signals': STATS.get('buy_count', 0),
+        'PASS': STATS.get('pass_count', 0),
+        'RESEARCH': STATS.get('research_count', 0),
+        'Blocked Sellers': len(BLOCKED_SELLERS),
+        'Cache Hits': STATS.get('cache_hits', 0),
+    }
+
+    # Get config
+    from config import SPOT_PRICES
+    system_data['config'] = {
+        'Gold Spot': f"${SPOT_PRICES.get('gold_oz', 0):,.2f}/oz",
+        'Silver Spot': f"${SPOT_PRICES.get('silver_oz', 0):,.2f}/oz",
+        'Tier 1 Model': 'GPT-4o-mini',
+        'Tier 2 Model': 'GPT-4o',
+        'Discord Alerts': 'Enabled' if os.getenv('DISCORD_WEBHOOK_URL') else 'Disabled',
+        'eBay Polling': 'Available',
+    }
+
+    # Key routes
+    system_data['routes'] = [
+        {'method': 'POST', 'path': '/match_mydata', 'description': 'Main analysis endpoint (uBuyFirst webhook)'},
+        {'method': 'GET', 'path': '/dashboard', 'description': 'Main monitoring dashboard'},
+        {'method': 'GET', 'path': '/live', 'description': 'Real-time WebSocket feed'},
+        {'method': 'POST', 'path': '/ebay/poll/start', 'description': 'Start direct eBay polling'},
+        {'method': 'GET', 'path': '/ebay/stats', 'description': 'eBay API usage statistics'},
+        {'method': 'GET', 'path': '/api/blocked-sellers', 'description': 'List blocked sellers'},
+        {'method': 'GET', 'path': '/purchases', 'description': 'Purchase history dashboard'},
+        {'method': 'GET', 'path': '/training', 'description': 'Training data dashboard'},
+        {'method': 'GET', 'path': '/health', 'description': 'Health check endpoint'},
+    ]
+
+    html = render_system_architecture(system_data)
+    return HTMLResponse(content=html)
+
+
 
 
 
@@ -8276,6 +8336,7 @@ configure_dashboard(
     cache=cache,
     get_spot_prices=get_spot_prices,
     get_analytics=get_analytics,
+    app_state=app_state,  # Phase 2: Direct AppState access
 )
 
 # normalize_title and log_race_item moved to routes/ebay_race.py
@@ -9063,6 +9124,7 @@ configure_analysis(
     record_openai_cost=record_openai_cost,
     log_incoming_listing=log_incoming_listing,
     render_queued_html=_render_queued_html,
+    app_state=app_state,  # Phase 2: Direct AppState access
 )
 
 
