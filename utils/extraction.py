@@ -214,6 +214,177 @@ def extract_lot_info(title: str) -> Tuple[bool, int]:
     return False, 0
 
 
+def detect_flatware(title: str) -> Tuple[bool, str, int, float]:
+    """
+    Detect if listing is for sterling flatware and estimate weight.
+
+    FLATWARE WEIGHT ESTIMATES (solid sterling):
+    - Dinner fork: 45g
+    - Salad fork: 35g
+    - Dinner spoon/Tablespoon: 45g
+    - Soup spoon: 35g
+    - Teaspoon: 20g
+    - Iced tea spoon: 18g
+    - Serving fork/spoon: 55g
+    - Pickle fork: 10g
+    - Butter spreader: 25g
+
+    Returns: (is_flatware, piece_type, quantity, estimated_grams)
+    """
+    title_lower = title.lower()
+
+    # Check for sterling silver indicators
+    is_sterling = any(kw in title_lower for kw in ['sterling', '.925', '925'])
+    if not is_sterling:
+        return False, "", 0, 0
+
+    # Flatware piece types with estimated weights (grams)
+    # Format: (keywords, base_weight, piece_name)
+    flatware_types = [
+        # Forks - check specific types first
+        (['dinner fork'], 45, 'dinner_fork'),
+        (['salad fork', 'dessert fork', 'luncheon fork'], 35, 'salad_fork'),
+        (['serving fork', 'meat fork', 'cold meat fork', 'carving fork'], 55, 'serving_fork'),
+        (['pickle fork', 'olive fork', 'cocktail fork', 'seafood fork', 'oyster fork'], 10, 'pickle_fork'),
+        (['fork'], 45, 'fork'),  # Default fork = dinner fork size
+
+        # Spoons - check specific types first
+        (['tablespoon', 'table spoon', 'serving spoon', 'berry spoon'], 55, 'serving_spoon'),
+        (['dinner spoon'], 45, 'dinner_spoon'),
+        (['soup spoon', 'gumbo spoon', 'bouillon spoon'], 35, 'soup_spoon'),
+        (['teaspoon', 'tea spoon', 'demitasse spoon', 'coffee spoon'], 20, 'teaspoon'),
+        (['iced tea spoon', 'ice tea spoon'], 18, 'iced_tea_spoon'),
+        (['sugar spoon', 'sugar shell'], 25, 'sugar_spoon'),
+        (['spoon'], 35, 'spoon'),  # Default spoon = medium
+
+        # Other flatware
+        (['butter spreader', 'butter knife', 'butter server'], 25, 'butter_spreader'),
+        (['ladle'], 80, 'ladle'),
+        (['tongs', 'sugar tongs', 'ice tongs'], 30, 'tongs'),
+        (['server', 'pie server', 'cake server'], 60, 'server'),
+    ]
+
+    # Find matching piece type
+    matched_type = None
+    base_weight = 0
+    piece_name = ""
+
+    for keywords, weight, name in flatware_types:
+        if any(kw in title_lower for kw in keywords):
+            matched_type = keywords[0]
+            base_weight = weight
+            piece_name = name
+            break
+
+    if not matched_type:
+        return False, "", 0, 0
+
+    # Check for size hints that modify weight
+    size_modifier = 1.0
+
+    # Large/dinner size indicators
+    if any(s in title_lower for s in ['7 1/2', '7.5"', '7 1/2"', '7.5 inch', 'large', 'dinner']):
+        size_modifier = 1.0  # Full size
+    # Medium size
+    elif any(s in title_lower for s in ['6 1/2', '6.5"', '6 1/2"', 'luncheon', 'medium']):
+        size_modifier = 0.85
+    # Small size
+    elif any(s in title_lower for s in ['5 1/2', '5.5"', '5 1/2"', 'small', 'cocktail', 'dessert']):
+        size_modifier = 0.7
+
+    # Extract quantity
+    quantity = 1
+    qty_patterns = [
+        re.compile(r'(\d+)\s*(?:sterling|silver)', re.IGNORECASE),
+        re.compile(r'set\s*of\s*(\d+)', re.IGNORECASE),
+        re.compile(r'(\d+)\s*(?:pc|pcs|pieces?)', re.IGNORECASE),
+        re.compile(r'(\d+)\s*(?:fork|spoon|ladle|tong|server)s?\b', re.IGNORECASE),
+        re.compile(r'^(\d+)\s+', re.IGNORECASE),  # Number at start of title
+    ]
+
+    for pattern in qty_patterns:
+        match = pattern.search(title_lower)
+        if match:
+            try:
+                qty = int(match.group(1))
+                if qty > 0 and qty <= 100:  # Sanity check
+                    quantity = qty
+                    break
+            except (ValueError, IndexError):
+                pass
+
+    # Calculate estimated weight
+    estimated_weight = base_weight * size_modifier * quantity
+
+    logger.info(f"[FLATWARE] Detected {quantity}x {piece_name} ({matched_type}) - est {estimated_weight:.0f}g")
+
+    return True, piece_name, quantity, estimated_weight
+
+
+def detect_flatware_knives(title: str) -> Tuple[bool, int, float]:
+    """
+    Detect if listing is for sterling flatware knives and calculate actual silver content.
+
+    Sterling flatware knives have STAINLESS STEEL BLADES - only the hollow handles
+    contain silver. Each knife handle only contains ~15-20g of actual silver.
+
+    Returns: (is_knife, quantity, max_silver_grams)
+    """
+    title_lower = title.lower()
+
+    # Check for sterling silver indicators
+    is_sterling = any(kw in title_lower for kw in ['sterling', '.925', '925'])
+    if not is_sterling:
+        return False, 0, 0
+
+    # Knife keywords (flatware knives, not pocket knives)
+    knife_keywords = [
+        'dinner knife', 'dinner knives',
+        'butter knife', 'butter knives',
+        'steak knife', 'steak knives',
+        'luncheon knife', 'luncheon knives',
+        'place knife', 'place knives',
+        'knives',  # General knives (after checking for sterling flatware context)
+    ]
+
+    is_knife = any(kw in title_lower for kw in knife_keywords)
+    if not is_knife:
+        return False, 0, 0
+
+    # Extract quantity
+    quantity = 1
+
+    # Patterns like "4 Sterling", "Set of 6", "6 knives", etc.
+    qty_patterns = [
+        re.compile(r'(\d+)\s*(?:sterling|silver)', re.IGNORECASE),
+        re.compile(r'set\s*of\s*(\d+)', re.IGNORECASE),
+        re.compile(r'(\d+)\s*(?:pc|pcs|pieces?)', re.IGNORECASE),
+        re.compile(r'(\d+)\s*knives?\b', re.IGNORECASE),
+        re.compile(r'^(\d+)\s+', re.IGNORECASE),  # Number at start of title
+    ]
+
+    for pattern in qty_patterns:
+        match = pattern.search(title_lower)
+        if match:
+            try:
+                qty = int(match.group(1))
+                if qty > 0 and qty <= 100:  # Sanity check
+                    quantity = qty
+                    break
+            except (ValueError, IndexError):
+                pass
+
+    # Calculate max silver content
+    # Each knife handle contains ~15-20g of sterling silver
+    # Use conservative 15g estimate (the blade is stainless steel, not silver)
+    SILVER_PER_KNIFE = 15  # grams
+    max_silver_grams = quantity * SILVER_PER_KNIFE
+
+    logger.info(f"[KNIFE] Detected {quantity} sterling flatware knives = max {max_silver_grams}g silver")
+
+    return True, quantity, max_silver_grams
+
+
 def normalize_title(title: str) -> str:
     """
     Normalize a title for comparison/matching.

@@ -73,6 +73,7 @@ _check_price_correction = None
 _analyze_new_seller = None
 _log_race_item = None
 _log_listing_received = None
+_race_log_ubf_item = None  # For RACE_DATA tracking in main.py
 _detect_category = None
 _lookup_user_price = None
 _check_instant_pass = None
@@ -146,6 +147,7 @@ def configure_analysis(
     analyze_new_seller: Callable,
     log_race_item: Callable,
     log_listing_received: Callable,
+    race_log_ubf_item: Callable,  # For RACE_DATA tracking
     detect_category: Callable,
     lookup_user_price: Callable,
     check_instant_pass: Callable,
@@ -190,7 +192,7 @@ def configure_analysis(
     global _IMAGES, _FAST_EXTRACT_AVAILABLE, _EBAY_POLLER_AVAILABLE
     global _check_seller_spam, _check_recently_evaluated, _mark_as_evaluated
     global _check_price_correction, _analyze_new_seller
-    global _log_race_item, _log_listing_received, _detect_category
+    global _log_race_item, _log_listing_received, _race_log_ubf_item, _detect_category
     global _lookup_user_price, _check_instant_pass, _get_pricecharting_context
     global _get_agent, _get_agent_prompt, _fast_extract_gold, _fast_extract_silver
     global _get_spot_prices, _process_image_list, _get_category_prompt, _format_listing_data
@@ -247,6 +249,7 @@ def configure_analysis(
     _analyze_new_seller = analyze_new_seller
     _log_race_item = log_race_item
     _log_listing_received = log_listing_received
+    _race_log_ubf_item = race_log_ubf_item
     _detect_category = detect_category
     _lookup_user_price = lookup_user_price
     _check_instant_pass = check_instant_pass
@@ -364,6 +367,17 @@ async def analyze_listing(request: Request):
         view_url = data.get('ViewUrl', data.get('viewUrl', data.get('view_url', '')))
         ebay_url = checkout_url or view_url or ''
 
+        # Extract item_id from URL if not provided directly (uBuyFirst embeds it in URL)
+        # URL format: https://www.ebay.com/itm/297941758779?...
+        if not item_id:
+            url_param = data.get('URL', '')
+            if '/itm/' in url_param:
+                import re
+                match = re.search(r'/itm/(\d+)', url_param)
+                if match:
+                    item_id = match.group(1)
+                    logger.debug(f"[DEBUG] Extracted item_id from URL: {item_id}")
+
         logger.info(f"Title: {title[:50]}")
         logger.info(f"Price: ${total_price}")
         logger.info(f"[SAVED] response_type: {response_type}")
@@ -401,7 +415,22 @@ async def analyze_listing(request: Request):
         if cached_result:
             logger.info(f"[DEDUP] Returning cached result: {cached_result.get('Recommendation', 'UNKNOWN')}")
             cached_result['dedup_cached'] = True
-            return JSONResponse(content=cached_result)
+            # Ensure html is present for uBuyFirst display
+            if 'html' not in cached_result and _render_result_html:
+                try:
+                    cached_html = _render_result_html(cached_result, cached_result.get('category', 'silver'), title)
+                    cached_result['html'] = cached_html
+                    logger.info("[DEDUP] Regenerated missing html for cached result")
+                except Exception as e:
+                    logger.warning(f"[DEDUP] Could not regenerate html: {e}")
+            # Respect response_type for dual-request uBuyFirst system
+            if response_type == 'json':
+                return JSONResponse(content=cached_result)
+            else:
+                cached_html = cached_result.get('html', '')
+                if cached_html:
+                    return HTMLResponse(content=cached_html)
+                return JSONResponse(content=cached_result)
 
         # ============================================================
         # PRICE CORRECTIONS - Check user's logged market prices
@@ -455,6 +484,14 @@ async def analyze_listing(request: Request):
         # CATEGORY DETECTION (needed early for seller analysis)
         # ============================================================
         category, category_reasons = _detect_category(data)
+
+        # === SILVER CATEGORY LOGGING ===
+        # Log all silver items for debugging missed opportunities
+        if category == 'silver':
+            logger.warning(f"[SILVER-TRACK] Title: {title}")
+            logger.warning(f"[SILVER-TRACK] Price: ${total_price}")
+            logger.warning(f"[SILVER-TRACK] Alias: {alias}")
+            logger.warning(f"[SILVER-TRACK] Category reasons: {category_reasons}")
 
         # ============================================================
         # LISTING ENHANCEMENTS - Freshness, Sold check, Seller scoring
@@ -556,6 +593,8 @@ async def analyze_listing(request: Request):
             price_float = float(str(total_price).replace('$', '').replace(',', ''))
             # Use ItemId if available, otherwise create hash from title+price
             race_item_id = item_id if item_id else f"ubf_{hash(title + str(price_float)) % 10000000:07d}"
+            seller_name = data.get('SellerName', '') or data.get('StoreName', '')
+
             _log_race_item(
                 item_id=race_item_id,
                 source="ubuyfirst",
@@ -564,6 +603,34 @@ async def analyze_listing(request: Request):
                 category=data.get('CategoryName', 'Unknown'),
             )
             logger.info(f"[RACE] Logged item {race_item_id} from uBuyFirst: {title[:40]}")
+
+            # Log to RACE_DATA tracking in main.py (for /race/data endpoint)
+            # Calculate latency from PostedTime
+            latency_ms = 0
+            posted_time_str = data.get('PostedTime', '').replace('+', ' ')
+            if posted_time_str:
+                try:
+                    from datetime import datetime as dt
+                    # Multiple format attempts - eBay/UBF use various formats
+                    for fmt in ["%m/%d/%Y %I:%M:%S %p", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y %H:%M:%S"]:
+                        try:
+                            # Strip timezone info if present
+                            clean_time = posted_time_str.split(' -')[0].split(' +')[0].strip()
+                            posted_dt = dt.strptime(clean_time, fmt)
+                            latency_ms = int((dt.now() - posted_dt).total_seconds() * 1000)
+                            # Sanity check: if latency is negative by more than 5 min, likely timezone issue
+                            # Just set to 0 (unknown) rather than showing bogus negative values
+                            if latency_ms < -300000:  # More than 5 min negative
+                                logger.debug(f"[LATENCY] Bogus negative latency {latency_ms}ms, setting to 0")
+                                latency_ms = 0
+                            break
+                        except:
+                            continue
+                except:
+                    pass
+
+            if _race_log_ubf_item:
+                _race_log_ubf_item(race_item_id, title, price_float, seller_name, latency_ms)
 
             # Log to source comparison system for latency tracking
             _log_listing_received(
@@ -614,6 +681,7 @@ async def analyze_listing(request: Request):
                             _STATS["cache_hits"] += 1
                             logger.info(f"[CACHE HIT] Returning cached {result.get('Recommendation', 'UNKNOWN')} (PC verified)")
                             if response_type == 'json':
+                                result["html"] = html  # Include HTML for uBuyFirst display
                                 return JSONResponse(content=result)
                             else:
                                 return HTMLResponse(content=html)
@@ -622,6 +690,7 @@ async def analyze_listing(request: Request):
                         _STATS["cache_hits"] += 1
                         logger.info(f"[CACHE HIT] Returning cached {result.get('Recommendation', 'UNKNOWN')} (PC verified)")
                         if response_type == 'json':
+                            result["html"] = html  # Include HTML for uBuyFirst display
                             return JSONResponse(content=result)
                         else:
                             return HTMLResponse(content=html)
@@ -631,6 +700,7 @@ async def analyze_listing(request: Request):
                 # Return based on response_type
                 if response_type == 'json':
                     logger.info("[CACHE HIT] Returning JSON (response_type=json)")
+                    result["html"] = html  # Include HTML for uBuyFirst display
                     return JSONResponse(content=result)
                 else:
                     logger.info("[CACHE HIT] Returning HTML (response_type=html)")
@@ -667,6 +737,7 @@ async def analyze_listing(request: Request):
                     result, html = _IN_FLIGHT_RESULTS[request_key]
                     logger.info(f"[IN-FLIGHT] Got result: {result.get('Recommendation', 'UNKNOWN')}")
                     if response_type == 'json':
+                        result["html"] = html  # Include HTML for uBuyFirst display
                         return JSONResponse(content=result)
                     else:
                         return HTMLResponse(content=html)
@@ -773,6 +844,7 @@ async def analyze_listing(request: Request):
                     _cache.set(title, total_price, result, html)
 
                     if response_type == 'json':
+                        result["html"] = html  # Include HTML for uBuyFirst display
                         return JSONResponse(content=result)
                     else:
                         return HTMLResponse(content=html)
@@ -800,6 +872,7 @@ async def analyze_listing(request: Request):
                     _cache.set(title, total_price, result, html)
 
                     if response_type == 'json':
+                        result["html"] = html  # Include HTML for uBuyFirst display
                         return JSONResponse(content=result)
                     else:
                         return HTMLResponse(content=html)
@@ -826,6 +899,7 @@ async def analyze_listing(request: Request):
                     _cache.set(title, total_price, result, html)
 
                     if response_type == 'json':
+                        result["html"] = html  # Include HTML for uBuyFirst display
                         return JSONResponse(content=result)
                     else:
                         return HTMLResponse(content=html)
@@ -871,8 +945,64 @@ async def analyze_listing(request: Request):
             logger.info(f"[INSTANT PASS] Saved ~8 seconds by skipping AI!")
 
             if response_type == 'json':
+                result["html"] = html  # Include HTML for uBuyFirst display
                 return JSONResponse(content=result)
             return HTMLResponse(content=html)
+
+        # ============================================================
+        # TEXTBOOK HANDLING - Calls KeepaTracker API (no AI needed)
+        # ============================================================
+        if category == "textbook":
+            logger.info(f"[TEXTBOOK] Routing to KeepaTracker for ISBN lookup")
+            try:
+                from agents.textbook import TextbookAgent
+                textbook_agent = TextbookAgent()
+
+                # Quick pass check
+                quick_reason, quick_rec = textbook_agent.quick_pass(data, float(str(total_price).replace('$', '').replace(',', '') or 0))
+                if quick_reason:
+                    result = {
+                        "Recommendation": quick_rec,
+                        "Qualify": "No",
+                        "reasoning": quick_reason,
+                        "confidence": 90,
+                        "category": "textbook",
+                        **listing_enhancements
+                    }
+                    html = _render_result_html(result, category, title)
+                    if response_type == 'json':
+                        result["html"] = html  # Include HTML for uBuyFirst display
+                        return JSONResponse(content=result)
+                    return HTMLResponse(content=html)
+
+                # Call KeepaTracker for analysis
+                textbook_result = await textbook_agent.analyze_textbook(
+                    data,
+                    float(str(total_price).replace('$', '').replace(',', '') or 0)
+                )
+
+                # Add listing enhancements
+                textbook_result.update(listing_enhancements)
+                textbook_result["category"] = "textbook"
+
+                html = _render_result_html(textbook_result, category, title)
+                _cache.set(title, total_price, textbook_result, html)
+
+                if textbook_result.get("Recommendation") == "BUY":
+                    _STATS["buy_count"] += 1
+                else:
+                    _STATS["pass_count"] += 1
+
+                if response_type == 'json':
+                    textbook_result["html"] = html  # Include HTML for uBuyFirst display
+                    return JSONResponse(content=textbook_result)
+                return HTMLResponse(content=html)
+
+            except Exception as e:
+                logger.error(f"[TEXTBOOK] Error: {e}")
+                import traceback
+                traceback.print_exc()
+                # Fall through to standard analysis on error
 
         # PriceCharting lookup for TCG and LEGO
         pc_result = None
@@ -980,6 +1110,7 @@ async def analyze_listing(request: Request):
                         logger.info(f"[QUICK PASS] Saved {30}+ seconds by skipping images!")
 
                         if response_type == 'json':
+                            quick_result["html"] = html  # Include HTML for uBuyFirst display
                             return JSONResponse(content=quick_result)
                         return HTMLResponse(content=html)
 
@@ -1009,59 +1140,71 @@ async def analyze_listing(request: Request):
                     _cache.set(title, total_price, quick_result, html)
                     _STATS["pass_count"] += 1
                     if response_type == 'json':
+                        quick_result["html"] = html  # Include HTML for uBuyFirst display
                         return JSONResponse(content=quick_result)
                     return HTMLResponse(content=html)
         except Exception as e:
             logger.error(f"[AGENT QUICK PASS] Error: {e}")
 
         # === GOLD QUICK PASS CHECK - Skip images if price/gram is clearly too high ===
+        # Only applies to 10K/14K gold - higher karats (18K+) have higher melt values
         if category == "gold":
             try:
                 price_float = float(str(total_price).replace('$', '').replace(',', ''))
+                title_lower = title.lower()
 
-                # Try to extract weight from title (common patterns: "5.5g", "5.5 grams", "5.5 gram")
-                weight_match = re.search(r'(\d+\.?\d*)\s*(?:g(?:ram)?s?|dwt)\b', title.lower())
-                if weight_match:
-                    title_weight = float(weight_match.group(1))
+                # Check karat in title - only apply quick pass to 10K/14K
+                is_low_karat = any(k in title_lower for k in ['10k', '10kt', '14k', '14kt'])
+                is_high_karat = any(k in title_lower for k in ['18k', '18kt', '22k', '22kt', '24k', '24kt', 'pure gold', '999'])
 
-                    # Convert dwt to grams if needed
-                    if 'dwt' in title.lower():
-                        title_weight = title_weight * 1.555
+                # Skip this check for high karat gold (18K+ has higher melt value)
+                if is_high_karat:
+                    logger.debug(f"[QUICK PASS] Skipping price/gram check - high karat gold detected")
+                elif is_low_karat or not is_high_karat:  # Apply to 10K/14K or unknown karat
+                    # Try to extract weight from title (common patterns: "5.5g", "5.5 grams", "5.5 gram")
+                    weight_match = re.search(r'(\d+\.?\d*)\s*(?:g(?:ram)?s?|dwt)\b', title_lower)
+                    if weight_match:
+                        title_weight = float(weight_match.group(1))
 
-                    if title_weight > 0:
-                        price_per_gram = price_float / title_weight
+                        # Convert dwt to grams if needed
+                        if 'dwt' in title_lower:
+                            title_weight = title_weight * 1.555
 
-                        # If price > $100/gram, instant PASS (way over scrap value)
-                        if price_per_gram > 100:
-                            logger.info(f"[QUICK PASS] Gold: ${price_float:.0f} / {title_weight}g = ${price_per_gram:.0f}/gram > $100 - skipping images")
+                        if title_weight > 0:
+                            price_per_gram = price_float / title_weight
 
-                            quick_result = {
-                                'Qualify': 'No',
-                                'Recommendation': 'PASS',
-                                'reasoning': f"Price ${price_float:.0f} / {title_weight}g = ${price_per_gram:.0f}/gram exceeds $100/gram ceiling (auto-PASS)",
-                                'karat': 'Unknown',
-                                'weight': f"{title_weight}g",
-                                'goldweight': f"{title_weight}",
-                                'meltvalue': 'NA',
-                                'maxBuy': 'NA',
-                                'sellPrice': 'NA',
-                                'Profit': 'NA',
-                                'Margin': 'NA',
-                                'confidence': 60,
-                                'fakerisk': 'Low',
-                                'itemtype': 'Unknown',
-                                'pricePerGram': f"${price_per_gram:.0f}",
-                            }
+                            # If price > $100/gram for 10K/14K, instant PASS (way over scrap value)
+                            if price_per_gram > 100:
+                                logger.info(f"[QUICK PASS] Gold (10K/14K): ${price_float:.0f} / {title_weight}g = ${price_per_gram:.0f}/gram > $100 - skipping images")
 
-                            html = _render_result_html(quick_result, category, title)
-                            _cache.set(title, total_price, quick_result, html)
+                                quick_result = {
+                                    'Qualify': 'No',
+                                    'Recommendation': 'PASS',
+                                    'reasoning': f"Price ${price_float:.0f} / {title_weight}g = ${price_per_gram:.0f}/gram exceeds $100/gram ceiling for 10K/14K (auto-PASS)",
+                                    'karat': 'Unknown',
+                                    'weight': f"{title_weight}g",
+                                    'goldweight': f"{title_weight}",
+                                    'meltvalue': 'NA',
+                                    'maxBuy': 'NA',
+                                    'sellPrice': 'NA',
+                                    'Profit': 'NA',
+                                    'Margin': 'NA',
+                                    'confidence': 60,
+                                    'fakerisk': 'Low',
+                                    'itemtype': 'Unknown',
+                                    'pricePerGram': f"${price_per_gram:.0f}",
+                                }
 
-                            _STATS["pass_count"] += 1
-                            logger.info(f"[QUICK PASS] Saved time by skipping images!")
+                                html = _render_result_html(quick_result, category, title)
+                                _cache.set(title, total_price, quick_result, html)
 
-                            if response_type == 'json':
-                                return JSONResponse(content=quick_result)
-                            return HTMLResponse(content=html)
+                                _STATS["pass_count"] += 1
+                                logger.info(f"[QUICK PASS] Saved time by skipping images!")
+
+                                if response_type == 'json':
+                                    quick_result["html"] = html  # Include HTML for uBuyFirst display
+                                    return JSONResponse(content=quick_result)
+                                return HTMLResponse(content=html)
 
             except Exception as e:
                 logger.debug(f"[QUICK PASS] Gold check error: {e}")
@@ -1173,6 +1316,7 @@ async def analyze_listing(request: Request):
                     logger.info(f"[FAST] Saved ALL AI time with instant PASS!")
 
                     if response_type == 'json':
+                        quick_result["html"] = html  # Include HTML for uBuyFirst display
                         return JSONResponse(content=quick_result)
                     return HTMLResponse(content=html)
 
@@ -1245,6 +1389,7 @@ async def analyze_listing(request: Request):
                 logger.info(f"[LAZY] Saved {2 + 4:.0f}+ seconds (no images, no AI) - PASS in {_timing['total']*1000:.0f}ms")
 
                 if response_type == 'json':
+                    quick_result["html"] = html  # Include HTML for uBuyFirst display
                     return JSONResponse(content=quick_result)
                 return HTMLResponse(content=html)
             else:
@@ -1302,6 +1447,32 @@ async def analyze_listing(request: Request):
                 fast_context += "USE THESE VALUES - they are extracted from title and verified.\n"
                 fast_context += "Only override if you see CONFLICTING info in images (different weight on scale).\n"
             logger.info(f"[FAST] Injecting verified data into AI prompt")
+
+        # === FLATWARE WEIGHT ESTIMATION ===
+        # If silver item with no weight in title, estimate based on piece type
+        if category == 'silver' and not (fast_result and fast_result.weight_grams):
+            try:
+                from utils.extraction import detect_flatware
+                is_flatware, piece_type, flat_qty, estimated_weight = detect_flatware(title)
+                if is_flatware and estimated_weight > 0:
+                    spots = _get_spot_prices()
+                    sterling_rate = spots.get('sterling', 2.50)
+                    est_melt = estimated_weight * sterling_rate
+                    max_buy_est = est_melt * 0.75
+
+                    flatware_context = "\n\n=== FLATWARE WEIGHT ESTIMATE (NO WEIGHT IN TITLE) ===\n"
+                    flatware_context += f"DETECTED: {flat_qty}x {piece_type.replace('_', ' ').title()}\n"
+                    flatware_context += f"ESTIMATED WEIGHT: {estimated_weight:.0f}g (based on typical flatware sizes)\n"
+                    flatware_context += f"ESTIMATED MELT: ${est_melt:.0f} (at ${sterling_rate:.2f}/g sterling)\n"
+                    flatware_context += f"ESTIMATED MAX BUY: ${max_buy_est:.0f}\n"
+                    flatware_context += "⚠️ WEIGHT IS ESTIMATED - Use images to verify piece type/size.\n"
+                    flatware_context += "If listing price < max buy estimate, recommend BUY or RESEARCH.\n"
+                    flatware_context += "Flatware from known makers (Dominick & Haff, Gorham, Wallace, etc.) is solid sterling.\n"
+
+                    fast_context += flatware_context
+                    logger.info(f"[FLATWARE] Injecting estimate into prompt: {flat_qty}x {piece_type} = {estimated_weight:.0f}g")
+            except Exception as e:
+                logger.warning(f"[FLATWARE] Detection error: {e}")
 
         # Inject PriceCharting context for TCG/LEGO/videogames
         if pc_context:
@@ -1455,6 +1626,15 @@ async def analyze_listing(request: Request):
             result = _validate_and_fix_margin(result, total_price, category, title, data)
             _timing['validation'] = _time.time() - _validation_start
             logger.info(f"[TIMING] Validation: {_timing['validation']*1000:.0f}ms")
+
+            # === SILVER RESULT LOGGING ===
+            if category == 'silver':
+                logger.warning(f"[SILVER-RESULT] Title: {title}")
+                logger.warning(f"[SILVER-RESULT] Recommendation: {result.get('Recommendation')}")
+                logger.warning(f"[SILVER-RESULT] Weight: {result.get('weight', result.get('silverweight', 'NA'))}")
+                logger.warning(f"[SILVER-RESULT] WeightSource: {result.get('weightSource', 'NA')}")
+                logger.warning(f"[SILVER-RESULT] Melt: {result.get('meltvalue', 'NA')}")
+                logger.warning(f"[SILVER-RESULT] Profit: {result.get('Profit', 'NA')}")
 
             # TCG/LEGO VALIDATION: Normalize keys and override with PriceCharting data if available
             if category in ["tcg", "lego"]:
@@ -1939,6 +2119,10 @@ async def analyze_listing(request: Request):
                     premium_stones = ['diamond', 'sapphire', 'ruby', 'emerald', 'opal', 'tanzanite', 'aquamarine', 'topaz', 'garnet', 'amethyst', 'pearl']
                     has_premium = any(stone in title_lower for stone in premium_stones)
 
+                    # EXCLUDE lab-created/synthetic diamonds - these are retail junk, not arbitrage opportunities
+                    lab_diamond_indicators = ['lab created', 'lab grown', 'lab-created', 'lab-grown', 'igi certified', 'igi lab', 'lgd', 'cvd diamond', 'hpht', 'moissanite', 'simulated', 'cz ', 'cubic zirconia']
+                    is_lab_diamond = any(indicator in title_lower for indicator in lab_diamond_indicators)
+
                     # Check for scale/weight photo indicators
                     scale_hints = ['scale', 'gram', 'grams', 'weigh', 'dwt', 'pennyweight']
                     has_scale_hint = any(hint in title_lower for hint in scale_hints)
@@ -1948,7 +2132,20 @@ async def analyze_listing(request: Request):
                     has_scale_in_desc = any(hint in desc_lower for hint in scale_hints)
 
                     # If price > $300 AND has karat AND (has premium stones OR has scale hints), force RESEARCH
-                    if price_val > 300 and has_karat and (has_premium or has_scale_hint or has_scale_in_desc):
+                    # BUT skip if it's lab-created diamond jewelry (retail trash)
+                    # AND skip if margin is clearly negative (price way above max buy = no opportunity)
+                    max_buy = result.get('maxBuy', 0)
+                    try:
+                        max_buy_val = float(str(max_buy).replace('$', '').replace(',', '')) if max_buy else 0
+                    except:
+                        max_buy_val = 0
+
+                    # Skip override if price is 50%+ above max buy - clearly overpriced, no opportunity
+                    is_clearly_overpriced = max_buy_val > 0 and price_val > max_buy_val * 1.5
+
+                    if is_clearly_overpriced:
+                        logger.info(f"[HIGH-VALUE GOLD] Skipping override - clearly overpriced: ${price_val:.0f} vs maxBuy ${max_buy_val:.0f} (margin: -${price_val - max_buy_val:.0f})")
+                    elif price_val > 300 and has_karat and (has_premium or has_scale_hint or has_scale_in_desc) and not is_lab_diamond:
                         logger.warning(f"[HIGH-VALUE GOLD] Forcing RESEARCH: ${price_val:.0f}, karat={has_karat}, premium={has_premium}, scale_hint={has_scale_hint or has_scale_in_desc}")
                         result['Recommendation'] = 'RESEARCH'
                         result['Qualify'] = 'Maybe'

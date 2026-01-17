@@ -748,7 +748,7 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
                 
 
-                karat_purity = {10: 0.417, 14: 0.583, 18: 0.75, 22: 0.916, 24: 1.0}.get(karat_num, 0.583)
+                karat_purity = {9: 0.375, 10: 0.417, 14: 0.583, 18: 0.75, 22: 0.916, 24: 1.0}.get(karat_num, 0.583)
 
                 gold_price_per_gram = spots.get('gold_oz', 2650) / 31.1035
 
@@ -836,7 +836,7 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
                     except:
                         karat_num = 14
 
-                    karat_purity = {10: 0.417, 14: 0.583, 18: 0.75, 22: 0.916, 24: 1.0}.get(karat_num, 0.583)
+                    karat_purity = {9: 0.375, 10: 0.417, 14: 0.583, 18: 0.75, 22: 0.916, 24: 1.0}.get(karat_num, 0.583)
                     gold_price_per_gram = spots.get('gold_oz', 2650) / 31.1035
 
                     correct_melt = metal_weight * gold_price_per_gram * karat_purity
@@ -970,7 +970,7 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
                     
 
-                    karat_purity = {10: 0.417, 14: 0.583, 18: 0.75, 22: 0.916, 24: 1.0}.get(karat_num, 0.583)
+                    karat_purity = {9: 0.375, 10: 0.417, 14: 0.583, 18: 0.75, 22: 0.916, 24: 1.0}.get(karat_num, 0.583)
 
                     gold_price_per_gram = spots.get('gold_oz', 2650) / 31.1035
 
@@ -1169,7 +1169,23 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
                 metal_weight = 0
 
-            
+            # === FLATWARE WEIGHT ESTIMATION (when AI returns weight=0) ===
+            # If AI couldn't determine weight, try server-side estimation for flatware
+            if metal_weight == 0 and title:
+                try:
+                    from utils.extraction import detect_flatware
+                    is_flatware_est, piece_type, flat_qty, estimated_weight = detect_flatware(title)
+                    if is_flatware_est and estimated_weight > 0:
+                        metal_weight = estimated_weight
+                        result['weight'] = f"{estimated_weight:.0f}"
+                        result['silverweight'] = f"{estimated_weight:.0f}"
+                        result['weightSource'] = 'estimate'
+                        result['itemtype'] = 'Flatware'
+                        logger.info(f"[FLATWARE-EST] Server estimated {flat_qty}x {piece_type} = {estimated_weight:.0f}g")
+                except Exception as e:
+                    logger.warning(f"[FLATWARE-EST] Error: {e}")
+
+
 
             # === FLATWARE WEIGHT VALIDATION (IMPROVED) ===
 
@@ -1420,6 +1436,43 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
                 if weight_was_corrected:
 
                     result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Weight corrected from {original_weight:.0f}g to {metal_weight:.0f}g]"
+
+            else:
+                # === NON-FLATWARE SILVER (candlesticks, candelabra, hollowware, etc.) ===
+                # Check for weighted items and apply 15% rule
+                title_lower_check = title.lower() if title else ''
+                desc_text = str(data.get('description', '') or data.get('Description', '')).lower()
+                combined_check = f"{title_lower_check} {desc_text}"
+
+                weighted_kw = ['weighted', 'candlestick', 'candelabra', 'candle holder', 'candleholder',
+                              'salt shaker', 'pepper shaker', 'compote', 'reinforced', 'cement filled']
+                is_weighted_item = any(kw in combined_check for kw in weighted_kw)
+
+                if is_weighted_item and metal_weight > 0:
+                    # Get title weight (gross weight) for 15% calculation
+                    title_gross_weight = None
+                    # Try to extract weight from title
+                    gram_m = re.search(r'([\d,]+(?:\.\d+)?)\s*(?:grams?|g)', title_lower_check)
+                    if gram_m:
+                        title_gross_weight = float(gram_m.group(1).replace(',', ''))
+                    else:
+                        oz_m = re.search(r'([\d.]+)\s*(?:oz|ounce)', title_lower_check)
+                        if oz_m:
+                            title_gross_weight = float(oz_m.group(1)) * 31.1035
+
+                    # Use title weight if available, otherwise use AI's weight
+                    gross_weight = title_gross_weight if title_gross_weight else metal_weight
+                    WEIGHTED_PCT = 0.15  # 15% of gross weight is actual silver
+                    max_silver = gross_weight * WEIGHTED_PCT
+
+                    if metal_weight > max_silver:
+                        logger.warning(f"[WEIGHTED] Non-flatware weighted item detected! Using 15% rule: {gross_weight:.0f}g gross -> {max_silver:.0f}g actual silver")
+                        metal_weight = max_silver
+                        result['weight'] = f"{max_silver:.0f}"
+                        result['silverweight'] = f"{max_silver:.0f}"
+                        result['itemtype'] = 'Weighted'
+                        result['reasoning'] = result.get('reasoning', '') + f" [SERVER: WEIGHTED ITEM - actual silver ~15% of {gross_weight:.0f}g = {max_silver:.0f}g]"
+
 
         else:
 
@@ -2001,11 +2054,27 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
                         current_rec = 'RESEARCH'
 
 
+            # HIGH-VALUE NEAR-MISS: If listing > $500 AND within 10% of max buy, flag RESEARCH
+            # These are worth looking at even if slightly unprofitable - negotiation possible
+            gap_percent = ((listing_price - max_buy) / listing_price * 100) if listing_price > 0 and max_buy > 0 else 100
+            is_high_value_near_miss = (
+                listing_price > 500 and
+                max_buy > 0 and
+                gap_percent <= 10 and  # Within 10% of max buy
+                category in ['gold', 'silver'] and
+                not is_bead_item
+            )
+
+            if is_high_value_near_miss and correct_profit < 15:
+                # High value item close to profitable - worth a look
+                logger.warning(f"[CALC] HIGH-VALUE NEAR-MISS: ${listing_price:.0f} listing, ${max_buy:.0f} max buy, gap {gap_percent:.1f}% - forcing RESEARCH")
+                result['Recommendation'] = 'RESEARCH'
+                result['reasoning'] = result.get('reasoning', '') + f" [SERVER: High-value ${listing_price:.0f} within {gap_percent:.1f}% of max buy ${max_buy:.0f} - worth reviewing]"
+                current_rec = 'RESEARCH'
+
             # CRITICAL: Force PASS if profit is NEGATIVE (regardless of other factors)
-
-            # But skip this if we already set RESEARCH for high-value items above
-
-            if correct_profit < 0 and current_rec == 'BUY' and not is_bead_item:
+            # But skip for high-value near-misses (already handled above)
+            elif correct_profit < 0 and current_rec == 'BUY' and not is_bead_item:
 
                 logger.warning(f"OVERRIDE: PASS (negative profit ${correct_profit:.0f})")
 
@@ -2057,12 +2126,20 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
                 # AI knows the item type and judged price is too high
 
                 if weight_source == 'estimate':
+                    # SPECIAL CASE: Flatware with server-estimated weight
+                    # Flatware weight estimates are reliable based on piece type
+                    # If profit is substantial, override to RESEARCH
+                    itemtype_lower = str(result.get('itemtype', '')).lower()
+                    is_flatware_item = itemtype_lower == 'flatware' or 'fork' in itemtype_lower or 'spoon' in itemtype_lower
 
-                    logger.info(f"[CALC] KEEPING AI's PASS - weight is estimated, trusting AI's judgment on price vs item type")
-
-                    # Keep the PASS - don't override
-
-                
+                    if is_flatware_item and correct_profit > 30:
+                        logger.warning(f"[FLATWARE-OVERRIDE] Server-estimated flatware shows ${correct_profit:.0f} profit - overriding PASS to RESEARCH")
+                        result['Recommendation'] = 'RESEARCH'
+                        result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Flatware estimated at {metal_weight:.0f}g shows ${correct_profit:.0f} profit - verify piece type/weight]"
+                        current_rec = 'RESEARCH'
+                    else:
+                        logger.info(f"[CALC] KEEPING AI's PASS - weight is estimated, trusting AI's judgment on price vs item type")
+                        # Keep the PASS - don't override
 
                 # Only consider overriding if weight is verified
 
@@ -2111,6 +2188,11 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
                     # EXCEPTION: "Scrap" in title indicates melt intent - stones already removed
                     elif 'lot' in title_lower and 'jewelry' in title_lower and category == 'silver' and 'scrap' not in title_lower:
                         logger.info(f"[CALC] KEEPING PASS - silver jewelry lot (weight likely includes stones/components)")
+
+                    # SAFEGUARD: Don't override for items with major non-metal components
+                    # Crystal bowls, glass items, etc. - scale shows TOTAL weight, not just silver
+                    elif any(nm in title_lower for nm in ['crystal', 'glass', 'bowl', 'vase', 'pitcher', 'dish', 'plate', 'candlestick', 'candelabra', 'porcelain', 'ceramic', 'wood', 'wooden']):
+                        logger.info(f"[CALC] KEEPING PASS - item has non-metal component (crystal/glass/wood) - scale weight includes non-silver")
 
                     elif correct_profit > 50:
 

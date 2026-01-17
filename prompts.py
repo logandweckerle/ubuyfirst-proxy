@@ -403,6 +403,111 @@ OUTPUT ONLY VALID JSON. NO OTHER TEXT.
 
 
 # ============================================================
+# COIN SCRAP PROMPT (Junk Silver / Constitutional Silver)
+# ============================================================
+
+def get_coin_prompt() -> str:
+    """Get coin/junk silver analysis prompt with current spot prices"""
+    silver_oz = SPOT_PRICES.get("silver_oz", 30)
+    source = SPOT_PRICES.get("source", "default")
+    last_updated = SPOT_PRICES.get("last_updated", "unknown")
+
+    # 90% silver coin melt values (silver content per coin)
+    # Dime: 0.07234 oz, Quarter: 0.18084 oz, Half: 0.36169 oz, Dollar: 0.77344 oz
+    dime_90 = silver_oz * 0.07234
+    quarter_90 = silver_oz * 0.18084
+    half_90 = silver_oz * 0.36169
+    dollar_90 = silver_oz * 0.77344  # Morgan/Peace
+
+    # 40% silver (1965-1970 halves, silver Ikes)
+    half_40 = silver_oz * 0.1479
+    ike_40 = silver_oz * 0.3161
+
+    # Silver Eagle (1 oz .999)
+    eagle = silver_oz * 1.0
+
+    # Per $1 face value for 90% silver
+    face_value_90 = silver_oz * 0.7234
+
+    return f"""
+=== JUNK SILVER / CONSTITUTIONAL SILVER CALCULATOR ===
+
+You are calculating MELT value of US silver coins. We buy coins for SILVER CONTENT only.
+No numismatic/collector premiums - just metal value.
+
+=== CURRENT SILVER SPOT ({source}) ===
+Silver: ${silver_oz:.2f}/oz (updated: {last_updated})
+
+=== 90% SILVER COINS (Pre-1965) - MELT VALUES ===
+| Coin Type | Face Value | Silver (oz) | Melt Value |
+|-----------|------------|-------------|------------|
+| Barber/Mercury/Roosevelt Dime | $0.10 | 0.0723 oz | ${dime_90:.2f} |
+| Barber/Standing Liberty/Washington Quarter | $0.25 | 0.1808 oz | ${quarter_90:.2f} |
+| Barber/Walking Liberty/Franklin/1964 Kennedy Half | $0.50 | 0.3617 oz | ${half_90:.2f} |
+| Morgan Dollar (1878-1921) | $1.00 | 0.7734 oz | ${dollar_90:.2f} |
+| Peace Dollar (1921-1935) | $1.00 | 0.7734 oz | ${dollar_90:.2f} |
+
+=== 40% SILVER COINS ===
+| Coin Type | Face Value | Silver (oz) | Melt Value |
+|-----------|------------|-------------|------------|
+| Kennedy Half (1965-1970) | $0.50 | 0.1479 oz | ${half_40:.2f} |
+| Eisenhower Dollar (1971-1976 Silver) | $1.00 | 0.3161 oz | ${ike_40:.2f} |
+
+=== SILVER BULLION ===
+| Coin Type | Silver (oz) | Melt Value |
+|-----------|-------------|------------|
+| American Silver Eagle (1986-present) | 1.000 oz | ${eagle:.2f} |
+| Canadian Maple Leaf | 1.000 oz | ${eagle:.2f} |
+| Generic 1 oz Round | 1.000 oz | ${eagle:.2f} |
+
+=== QUICK CALCULATION: 90% SILVER BY FACE VALUE ===
+$1.00 face value of 90% silver = 0.7234 oz = ${face_value_90:.2f} melt
+- $10 face = ${face_value_90 * 10:.2f}
+- $100 face = ${face_value_90 * 100:.2f}
+
+=== BUYING RULES ===
+- MAX BUY: 90% of melt value (our ceiling)
+- SWEET SPOT: 80-85% of melt = good deal
+- EXAMPLE: $10 face 90% silver, melt ${face_value_90 * 10:.2f}, max buy ${face_value_90 * 10 * 0.90:.2f}
+
+=== INSTANT PASS ===
+- Slabbed/graded coins (collector premium, not scrap)
+- Key dates (1916-D dime, 1893-S Morgan, etc.)
+- Proof sets (collector value)
+- "Cleaned", "polished" rare coins
+- Any price significantly above melt (>95%)
+
+=== WATCH FOR ===
+- "Cull" or "junk" = good, means no collector value
+- "Lot" or "roll" = calculate total face value
+- Mixed lots: count each denomination separately
+- 40% vs 90% - HUGE difference! 1965-1970 halves are only 40%
+
+=== CALCULATION STEPS ===
+1. Identify coin type and count
+2. Calculate total face value by denomination
+3. Look up melt value per coin from table above
+4. Total melt = sum of all coins
+5. Max buy = total melt × 0.90
+6. If listing price > max buy = PASS
+
+=== OUTPUT FORMAT ===
+Return JSON with:
+- Recommendation: BUY/RESEARCH/PASS
+- Qualify: Yes/Maybe/No
+- reasoning: Coin type | Count | Face value | Melt calculation | Profit
+- coinType: "90% junk silver" / "40% silver" / "silver eagle" / "mixed"
+- faceValue: total face value (e.g., "$5.00")
+- silverOz: total silver ounces
+- meltvalue: total melt value
+- maxBuy: melt × 0.90
+- Profit: maxBuy - listingPrice
+
+OUTPUT ONLY VALID JSON. NO OTHER TEXT.
+"""
+
+
+# ============================================================
 # GOLD PROMPT
 # ============================================================
 
@@ -943,6 +1048,15 @@ Dense stones like Tiger's Eye, Turquoise, Amber, Malachite, Lapis, Onyx, Jade:
 - At 9K (37.5%): 3g gold = 1.1g pure = ~$95 melt, NOT $300+!
 
 RULE: If earrings have chunky/large cabochon stones, deduct 50-70% of total weight for stones!
+
+** CRITICAL: BROOCHES WITH LARGE STONES - STONE IS MOST OF THE WEIGHT! **
+Agate, Carnelian, Jasper, Onyx, Chalcedony, Malachite - all dense stones (~2.6 g/cm³)
+- Brooch frame is THIN METAL wrapped around the stone!
+- A 1.5" brooch with large stone: Frame is typically only 2-4g gold
+- EXAMPLE: "8.87g Edwardian 9K agate brooch" = ~5-6g agate + 2-3g gold frame
+- At 9K (37.5%): 2.5g gold = 0.94g pure = ~$140 melt, NOT $350+!
+
+RULE: If brooch features a large cabochon/agate stone, deduct 50-70% for stone weight!
 
 EXAMPLE - 14K chain with pearl pendant (like in photos):
 - Scale shows 4.84g total WITH the pearl
@@ -1654,6 +1768,8 @@ def get_category_prompt(category: str) -> str:
         return get_gold_prompt()
     elif category == "silver":
         return get_silver_prompt()
+    elif category == "coin_scrap":
+        return get_coin_prompt()
     elif category == "lego":
         return LEGO_PROMPT
     elif category == "tcg":
@@ -1671,15 +1787,25 @@ def get_category_prompt(category: str) -> str:
 def detect_category(data: dict) -> tuple:
     """Detect listing category from data fields, return (category, reasoning)"""
     alias = data.get("Alias", "").lower()
-    title = data.get("Title", "").lower()
+    # Normalize title: replace URL encoding (+, %20) with spaces
+    title = data.get("Title", "").lower().replace('+', ' ').replace('%20', ' ')
     reasons = []
-    
+
     # Define keywords
-    gold_keywords = ["10k", "14k", "18k", "22k", "24k", "karat"]
+    gold_keywords = ["10k", "14k", "18k", "22k", "24k", "karat", "gold nugget", "placer gold",
+                     "raw gold", "dental gold", "dental scrap"]
     silver_keywords = ["sterling", "925", ".925"]
-    
+    platinum_keywords = ["platinum", "pt950", "pt900", "pt850", "950 plat", "900 plat", "iridium plat"]
+    palladium_keywords = ["palladium", "pd950", "pd500", "950 palladium"]
+    coin_scrap_keywords = ["junk silver", "90% silver", "constitutional silver", "pre-1965 silver",
+                           "silver coin lot", "morgan lot", "peace dollar lot", "walking liberty lot",
+                           "mercury dime lot", "silver quarter lot", "silver half lot"]
+
     gold_matches = [kw for kw in gold_keywords if kw in title]
     silver_matches = [kw for kw in silver_keywords if kw in title]
+    platinum_matches = [kw for kw in platinum_keywords if kw in title]
+    palladium_matches = [kw for kw in palladium_keywords if kw in title]
+    coin_scrap_matches = [kw for kw in coin_scrap_keywords if kw in title]
     
     # ============================================================
     # PRIORITY 0: Known mixed-metal brands = ALWAYS SILVER
@@ -1708,9 +1834,18 @@ def detect_category(data: dict) -> tuple:
     # ============================================================
     # PRIORITY 2: Check Alias (user's search intent)
     # ============================================================
-    if "gold" in alias:
-        reasons.append(f"Alias contains 'gold': {data.get('Alias', '')}")
+    if "platinum" in alias:
+        reasons.append(f"Alias contains 'platinum': {data.get('Alias', '')}")
+        return "platinum", reasons
+    elif "palladium" in alias:
+        reasons.append(f"Alias contains 'palladium': {data.get('Alias', '')}")
+        return "palladium", reasons
+    elif "gold" in alias or "nugget" in alias or "dental" in alias:
+        reasons.append(f"Alias contains gold keywords: {data.get('Alias', '')}")
         return "gold", reasons
+    elif "junk silver" in alias or "coin scrap" in alias or "90%" in alias:
+        reasons.append(f"Alias contains coin scrap keywords: {data.get('Alias', '')}")
+        return "coin_scrap", reasons
     elif "silver" in alias or "sterling" in alias:
         reasons.append(f"Alias contains silver/sterling: {data.get('Alias', '')}")
         return "silver", reasons

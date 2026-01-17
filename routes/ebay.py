@@ -133,6 +133,7 @@ _get_item_description = None
 _get_item_details = None
 _browse_api_available = None
 _EBAY_SEARCH_CONFIGS = None
+_analyze_listing_callback = None  # Callback for full AI analysis
 
 # Other dependencies
 _get_spot_prices = None
@@ -155,12 +156,14 @@ def configure_ebay(
     get_spot_prices: Callable,
     send_discord_alert: Callable,
     EBAY_POLLER_AVAILABLE: bool,
+    analyze_listing_callback: Callable = None,  # Callback for full AI analysis
 ):
     """Configure the eBay module with all required dependencies."""
     global _search_ebay, _ebay_get_stats, _ebay_start_polling, _ebay_stop_polling
     global _ebay_clear_seen, _get_item_description, _get_item_details
     global _browse_api_available, _EBAY_SEARCH_CONFIGS
     global _get_spot_prices, _send_discord_alert, _EBAY_POLLER_AVAILABLE
+    global _analyze_listing_callback
 
     _search_ebay = search_ebay
     _ebay_get_stats = ebay_get_stats
@@ -174,6 +177,7 @@ def configure_ebay(
     _get_spot_prices = get_spot_prices
     _send_discord_alert = send_discord_alert
     _EBAY_POLLER_AVAILABLE = EBAY_POLLER_AVAILABLE
+    _analyze_listing_callback = analyze_listing_callback
 
     logger.info("[EBAY ROUTES] Module configured")
 
@@ -612,8 +616,13 @@ async def ebay_poll_start(categories: str = "gold", race_mode: bool = False):
         RACE_FEED_API.clear()
         logger.info("[RACE] Cleared race data for fresh start")
 
-    # Start polling in background - with race callback if race_mode enabled
-    callback = race_callback if race_mode else None
+    # Start polling in background - with race callback if race_mode, otherwise analyze callback
+    if race_mode:
+        callback = race_callback
+    elif _analyze_listing_callback:
+        callback = _analyze_listing_callback  # Full AI analysis for each new listing
+    else:
+        callback = None
     asyncio.create_task(_ebay_start_polling(valid_cats, callback=callback))
 
     return JSONResponse({

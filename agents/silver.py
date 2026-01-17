@@ -47,9 +47,14 @@ class SilverAgent(BaseAgent):
             if f" {mark} " in f" {title} " or title.startswith(f"{mark} "):
                 return (f"PLATED MARK - '{mark}' indicates electroplate", "PASS")
 
-        # Costume/fashion
-        if any(kw in title for kw in ["costume", "fashion jewelry", "imitation"]):
-            return ("COSTUME/FASHION - not real silver", "PASS")
+        # Costume/fashion - only PASS if NOT a costume search
+        # Costume searches may have hidden precious metals in lots
+        alias = data.get("Alias", "").lower()
+        is_costume_search = "costume" in alias or "fashion" in alias
+
+        if not is_costume_search:
+            if any(kw in title for kw in ["costume", "fashion jewelry", "imitation"]):
+                return ("COSTUME/FASHION - not real silver", "PASS")
 
         # ============================================================
         # TIER 0: RESEARCH - Needs manual verification
@@ -99,19 +104,40 @@ class SilverAgent(BaseAgent):
             if kw in title:
                 return (f"FLATWARE KNIFE '{kw}' - hollow handle with stainless blade, use 15-25g per knife not stated weight", "RESEARCH")
 
+        # PLACE SETTINGS / FLATWARE WITH STAINLESS MENTIONED
+        # If description mentions "stainless steel" + flatware, the knives have stainless blades
+        # Total weight INCLUDES stainless which is worthless - must deduct ~85g per knife
+        flatware_keywords = ["place setting", "flatware", "silverware", "cutlery"]
+        stainless_in_desc = "stainless" in description
+        if stainless_in_desc and any(kw in title for kw in flatware_keywords):
+            return ("FLATWARE WITH STAINLESS - description mentions stainless steel, knife blades are NOT sterling. Deduct 85g per knife from total weight!", "RESEARCH")
+
+        # FILIGREE - Extremely lightweight delicate lacework metal
+        # A "large" filigree brooch might only be 3-8g total!
+        if "filigree" in title:
+            return ("FILIGREE - extremely lightweight delicate metalwork, small items only 3-8g", "RESEARCH")
+
+        # Small brooches/pins without stated weight - typically very light
+        small_jewelry_keywords = ["brooch", "pin", "butterfly", "dragonfly", "flower pin"]
+        if any(kw in title for kw in small_jewelry_keywords):
+            # Only flag if no weight stated and price seems high for small item
+            if price > 30:
+                return (f"SMALL JEWELRY (brooch/pin) at ${price:.0f} - verify weight, small items typically 3-10g", "RESEARCH")
+
         return (None, None)
 
     def get_prompt(self) -> str:
         """Get the silver analysis prompt"""
         silver_oz = SPOT_PRICES.get("silver_oz", 30)
         sterling_rate = silver_oz / 31.1035 * 0.925
+        silver_800_rate = silver_oz / 31.1035 * 0.800
         source = SPOT_PRICES.get("source", "default")
         last_updated = SPOT_PRICES.get("last_updated", "unknown")
 
         return f"""
 === SILVER CALCULATOR - SCRAP VALUE ONLY ===
 
-You are calculating SCRAP/MELT value of sterling silver. We buy silver to MELT IT.
+You are calculating SCRAP/MELT value of silver items. We buy silver to MELT IT.
 
 === STEP 1: FIND STATED WEIGHT (CRITICAL!) ===
 LOOK AT EVERY IMAGE FOR A SCALE PHOTO! Scale photos show digital display with numbers.
@@ -140,7 +166,12 @@ BEADED JEWELRY = MOSTLY BEADS, NOT SILVER!
 
 === CURRENT PRICING ({source}) ===
 Silver spot: ${silver_oz:.2f}/oz (updated: {last_updated})
-Sterling melt rate: ${sterling_rate:.2f}/gram
+
+PURITY RATES (what refiners pay per gram):
+- Sterling (.925): ${sterling_rate:.2f}/gram
+- 800 Silver (.800): ${silver_800_rate:.2f}/gram (Continental European)
+
+USE THE CORRECT RATE! 800 silver is NOT sterling - it's only 80% pure!
 
 === PRICING MODEL ===
 1. silverWeight = totalWeight - stoneWeight
@@ -183,6 +214,12 @@ KNIFE HANDLES ONLY (no blade): 15-25g ACTUAL silver per handle (hollow/weighted!
   - Total weight is MEANINGLESS for handles - they're filled with cement/pitch
   - Example: "596g 9 handles" = 9 x 15-20g = 135-180g ACTUAL silver, NOT 596g!
 
+PLACE SETTINGS WITH KNIVES (CRITICAL!):
+  - "4 piece place setting 180g" with knife = DEDUCT 85g for the stainless blade!
+  - If description mentions "stainless steel knife blade" = blade is NOT sterling!
+  - Example: "180g includes stainless steel knife blade" = only ~95g actual sterling
+  - ALWAYS check description for "stainless" when flatware includes knives!
+
 SERVERS WITH STAINLESS BLADES (cake server, pie server, cheese server):
   - "Sterling handle" + "stainless" = ONLY HANDLE IS SILVER!
   - Handle = 25-40g actual silver, blade is worthless stainless
@@ -211,6 +248,25 @@ Average per piece: ~30-35g (knives and teaspoons drag down average)
 | Bread tray 10-12" | 150-250g |
 | Serving tray 12-14" | 250-400g |
 
+=== FILIGREE & SMALL JEWELRY (VERY LIGHTWEIGHT!) ===
+FILIGREE = delicate lacework metal, EXTREMELY LIGHT!
+| Item | Weight |
+| Small filigree brooch/pin | 2-5g |
+| Medium filigree brooch 1-1.5" | 4-8g |
+| Large filigree brooch 2"+ | 6-12g |
+| Filigree bracelet | 8-15g |
+| Filigree pendant | 2-6g |
+
+SMALL JEWELRY (pins, brooches):
+| Item | Weight |
+| Butterfly/insect pin | 3-8g |
+| Small bar pin | 2-4g |
+| Cameo brooch (stone is heavy!) | 3-6g SILVER only |
+| Flower brooch | 4-10g |
+
+CRITICAL: "Antique" + "Filigree" + "Brooch" = typically 3-8g total!
+A $50 filigree brooch at 5g 800 silver = $12 melt = PASS!
+
 === INSTANT PASS ===
 - Rogers, 1847 Rogers, Community, EPNS = PLATED
 - "Silver Plate", "Silverplate" = NOT STERLING
@@ -238,15 +294,16 @@ If weightSource = "estimate", Recommendation CANNOT be "BUY"!
 === JSON OUTPUT ===
 {{
   "Qualify": "Yes"/"No",
-  "Recommendation": "BUY"/"PASS",
+  "Recommendation": "BUY"/"PASS"/"RESEARCH",
   "verified": "Yes"/"No"/"Unknown",
-  "itemtype": "Flatware"/"Hollowware"/"Weighted"/"Jewelry"/"Beaded",
+  "purity": "925"/"800" (use correct rate!),
+  "itemtype": "Flatware"/"Hollowware"/"Weighted"/"Jewelry"/"Filigree"/"Beaded",
   "weightSource": "scale"/"stated"/"estimate",
   "weight": total weight,
   "stoneDeduction": "4g turquoise" or "0",
   "silverweight": weight after deductions,
   "pricepergram": listing price / silverweight,
-  "meltvalue": silverweight x ${sterling_rate:.2f},
+  "meltvalue": silverweight x rate (925=${sterling_rate:.2f}, 800=${silver_800_rate:.2f}),
   "maxBuy": meltvalue x 0.75,
   "sellPrice": meltvalue x 0.82,
   "Profit": maxBuy - listingPrice,

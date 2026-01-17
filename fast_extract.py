@@ -15,8 +15,10 @@ from dataclasses import dataclass
 
 # Get spot prices from config (will be imported in main)
 # These are FALLBACKS if live fetch fails - update periodically to stay close to market
-DEFAULT_GOLD_OZ = 4500   # Fallback ~Jan 2026 prices
-DEFAULT_SILVER_OZ = 82   # Fallback ~Jan 2026 prices
+DEFAULT_GOLD_OZ = 4500       # Fallback ~Jan 2026 prices
+DEFAULT_SILVER_OZ = 82       # Fallback ~Jan 2026 prices
+DEFAULT_PLATINUM_OZ = 2412   # Fallback ~Jan 2026 prices
+DEFAULT_PALLADIUM_OZ = 1908  # Fallback ~Jan 2026 prices
 
 
 @dataclass
@@ -49,6 +51,9 @@ NON_METAL_INDICATORS = [
     'pearl', 'diamond', 'turquoise', 'jade', 'coral', 'opal', 'onyx',
     'amethyst', 'ruby', 'sapphire', 'emerald', 'garnet', 'topaz', 'aquamarine',
     'peridot', 'citrine', 'tanzanite', 'morganite', 'alexandrite',
+    # Semi-precious cabochon stones (common in antique/vintage jewelry)
+    'agate', 'carnelian', 'jasper', 'lapis', 'malachite', 'moonstone',
+    'tiger eye', 'chalcedony', 'aventurine', 'bloodstone', 'quartz', 'cameo',
     # Stone indicators (but NOT 'ct ' alone - too many false positives)
     'stone', 'gemstone', 'gem', 'cttw', 'ctw', 'carat',
     # Watches (have movement/crystal weight)
@@ -63,10 +68,31 @@ NON_METAL_INDICATORS = [
     'weighted', 'cement', 'reinforced', 'filled base',
     # Stainless blade/composite items (only handle is silver)
     'stainless', 'sterling handle', 'silver handle',
+    # Handled flatware - knives have stainless blades + weighted/filled sterling handles
+    'handled', 'knife', 'knives', 'carving set',
+    # Mother of pearl inlays (handle material, not silver)
+    'mother of pearl', 'mop handle',
 ]
 
 # Pattern for carat weight (e.g., "0.5 ct", "1ct", ".25 ct") - requires digit before ct
 CARAT_WEIGHT_PATTERN = re.compile(r'\d+\.?\d*\s*ct\b', re.IGNORECASE)
+
+# Items where melt calculation is IMPOSSIBLE for GOLD - instant PASS
+# These have partial gold content where you can't calculate value from total weight
+INSTANT_PASS_PARTIAL_GOLD = [
+    'gold handle',  # Only handle is gold, blade/body is steel
+    'stainless blade', 'stainless steel blade',  # Gold-handled with steel blade
+]
+
+# Items for SILVER - NOT instant pass, AI will calculate with proper weight
+# Knives/handles need AI to apply handle-only weight (~15-20g per knife)
+# Previously instant-passed but user wants these analyzed
+SILVER_PARTIAL_METAL_INDICATORS = [
+    'sterling handle', 'silver handle',
+    'handled', 'knife', 'knives', 'carving set',
+    'stainless blade', 'stainless steel blade',
+]
+
 
 
 def detect_non_metal(title: str, description: str = "") -> Tuple[bool, str]:
@@ -109,9 +135,9 @@ PLATED_PATTERNS_COMPILED = [
     (re.compile(r'\brolled\s*gold\b', re.IGNORECASE), 'rolled gold'),
 ]
 
-# Known gold filled brands - instant PASS
+# Known gold filled brands - instant PASS (NOT Keystone - good brand)
 GOLD_FILLED_BRANDS = [
-    'champion dueber', 'dueber', 'wadsworth', 'keystone',
+    'champion dueber', 'dueber', 'wadsworth',
     'star watch case', 'illinois watch', 'elgin watch case',
     'fortune', 'lenox',
 ]
@@ -157,6 +183,50 @@ KARAT_PATTERNS_COMPILED = [
     (re.compile(r'\b585\b'), 14),   # 14K
     (re.compile(r'\b417\b'), 10),   # 10K
     (re.compile(r'\b375\b'), 9),    # 9K
+]
+
+
+# ============================================================
+# PLATINUM PURITY PATTERNS (Pre-compiled for speed)
+# ============================================================
+
+PLATINUM_PURITY_PATTERNS_COMPILED = [
+    # PT950 = 95% platinum (most common)
+    (re.compile(r'\bpt\s*950\b', re.IGNORECASE), 0.950),
+    (re.compile(r'\b950\s*plat(?:inum)?\b', re.IGNORECASE), 0.950),
+    (re.compile(r'\bplatinum\s*950\b', re.IGNORECASE), 0.950),
+    # PT900 = 90% platinum
+    (re.compile(r'\bpt\s*900\b', re.IGNORECASE), 0.900),
+    (re.compile(r'\b900\s*plat(?:inum)?\b', re.IGNORECASE), 0.900),
+    (re.compile(r'\bplatinum\s*900\b', re.IGNORECASE), 0.900),
+    # PT850 = 85% platinum
+    (re.compile(r'\bpt\s*850\b', re.IGNORECASE), 0.850),
+    (re.compile(r'\b850\s*plat(?:inum)?\b', re.IGNORECASE), 0.850),
+    (re.compile(r'\bplatinum\s*850\b', re.IGNORECASE), 0.850),
+    # Generic "platinum" - assume PT950 (standard jewelry grade)
+    (re.compile(r'\bplatinum\b', re.IGNORECASE), 0.950),
+    (re.compile(r'\bplat\b', re.IGNORECASE), 0.950),
+    # Iridium-platinum alloys (typically 90-95%)
+    (re.compile(r'\birid(?:ium)?\s*plat(?:inum)?\b', re.IGNORECASE), 0.900),
+    (re.compile(r'\bplat(?:inum)?\s*irid(?:ium)?\b', re.IGNORECASE), 0.900),
+]
+
+
+# ============================================================
+# PALLADIUM PURITY PATTERNS (Pre-compiled for speed)
+# ============================================================
+
+PALLADIUM_PURITY_PATTERNS_COMPILED = [
+    # PD950 = 95% palladium (most common)
+    (re.compile(r'\bpd\s*950\b', re.IGNORECASE), 0.950),
+    (re.compile(r'\b950\s*pallad(?:ium)?\b', re.IGNORECASE), 0.950),
+    (re.compile(r'\bpalladium\s*950\b', re.IGNORECASE), 0.950),
+    # PD500 = 50% palladium (common in older jewelry)
+    (re.compile(r'\bpd\s*500\b', re.IGNORECASE), 0.500),
+    (re.compile(r'\b500\s*pallad(?:ium)?\b', re.IGNORECASE), 0.500),
+    (re.compile(r'\bpalladium\s*500\b', re.IGNORECASE), 0.500),
+    # Generic "palladium" - assume PD950
+    (re.compile(r'\bpalladium\b', re.IGNORECASE), 0.950),
 ]
 
 
@@ -307,16 +377,88 @@ def calculate_silver_melt(weight_grams: float, silver_spot_oz: float, purity: fl
     Default purity is sterling (0.925)
     """
     silver_per_gram = silver_spot_oz / 31.1035
-    
+
     melt_value = weight_grams * purity * silver_per_gram
     max_buy = melt_value * 0.75  # 75% ceiling for silver
     sell_price = melt_value * 0.82  # What refiner pays
-    
+
     return {
         'melt_value': round(melt_value, 2),
         'max_buy': round(max_buy, 2),
         'sell_price': round(sell_price, 2),
         'rate_per_gram': round(purity * silver_per_gram, 2),
+    }
+
+
+def extract_platinum_purity(title: str, description: str = "") -> Tuple[Optional[float], str]:
+    """
+    Extract platinum purity from title/description.
+    Returns (purity, source) where purity is decimal (0.950, 0.900, 0.850)
+    """
+    for pattern, purity in PLATINUM_PURITY_PATTERNS_COMPILED:
+        if pattern.search(title):
+            return purity, "title"
+
+    if description:
+        for pattern, purity in PLATINUM_PURITY_PATTERNS_COMPILED:
+            if pattern.search(description):
+                return purity, "description"
+
+    return None, "none"
+
+
+def extract_palladium_purity(title: str, description: str = "") -> Tuple[Optional[float], str]:
+    """
+    Extract palladium purity from title/description.
+    Returns (purity, source) where purity is decimal (0.950, 0.500)
+    """
+    for pattern, purity in PALLADIUM_PURITY_PATTERNS_COMPILED:
+        if pattern.search(title):
+            return purity, "title"
+
+    if description:
+        for pattern, purity in PALLADIUM_PURITY_PATTERNS_COMPILED:
+            if pattern.search(description):
+                return purity, "description"
+
+    return None, "none"
+
+
+def calculate_platinum_melt(weight_grams: float, platinum_spot_oz: float, purity: float = 0.950) -> Dict:
+    """
+    Calculate platinum melt value.
+    Default purity is PT950 (95%)
+    """
+    platinum_per_gram = platinum_spot_oz / 31.1035
+
+    melt_value = weight_grams * purity * platinum_per_gram
+    max_buy = melt_value * 0.85  # 85% ceiling for platinum (less liquid market)
+    sell_price = melt_value * 0.90  # What refiner pays
+
+    return {
+        'melt_value': round(melt_value, 2),
+        'max_buy': round(max_buy, 2),
+        'sell_price': round(sell_price, 2),
+        'rate_per_gram': round(purity * platinum_per_gram, 2),
+    }
+
+
+def calculate_palladium_melt(weight_grams: float, palladium_spot_oz: float, purity: float = 0.950) -> Dict:
+    """
+    Calculate palladium melt value.
+    Default purity is PD950 (95%)
+    """
+    palladium_per_gram = palladium_spot_oz / 31.1035
+
+    melt_value = weight_grams * purity * palladium_per_gram
+    max_buy = melt_value * 0.80  # 80% ceiling for palladium (volatile, less liquid)
+    sell_price = melt_value * 0.85  # What refiner pays
+
+    return {
+        'melt_value': round(melt_value, 2),
+        'max_buy': round(max_buy, 2),
+        'sell_price': round(sell_price, 2),
+        'rate_per_gram': round(purity * palladium_per_gram, 2),
     }
 
 
@@ -347,6 +489,14 @@ def fast_extract_gold(
         result.instant_pass = True
         result.pass_reason = f"Gold filled/plated: {plated_reason}"
         return result
+
+    # Step 1.5: Check for partial gold items (gold handle only = instant PASS)
+    text = f"{title} {description}".lower()
+    for indicator in INSTANT_PASS_PARTIAL_GOLD:
+        if indicator in text:
+            result.instant_pass = True
+            result.pass_reason = f"Partial gold only: {indicator}"
+            return result
 
     # Step 2: Check for non-metal components (stones, pearls, watches)
     # These need AI analysis - don't do price-based instant pass!
@@ -453,6 +603,15 @@ def fast_extract_silver(
             result.pass_reason = f"Silver plated: {name}"
             return result
 
+    # Step 1.5: Check for knife/handle items - NOT instant pass
+    # AI will calculate using handle-only weight (~15-20g per knife)
+    for indicator in SILVER_PARTIAL_METAL_INDICATORS:
+        if indicator in text:
+            result.has_non_metal = True
+            result.non_metal_type = f"partial_silver:{indicator}"
+            result.confidence -= 20  # Lower confidence, needs AI for proper calculation
+            # Don't return - continue to let AI handle it
+
     # Step 2: Check for non-metal components (stones, beads)
     has_non_metal, non_metal_type = detect_non_metal(title, description)
     if has_non_metal:
@@ -489,7 +648,143 @@ def fast_extract_silver(
                 result.is_hot = True
                 result.hot_reason = f"Verified: {weight}g sterling = ${calc['melt_value']:.0f} melt, max ${calc['max_buy']:.0f}, profit ${profit:.0f}"
                 result.confidence += 20
-            elif profit < -15:
+            elif profit < -50:
+                result.instant_pass = True
+                result.pass_reason = f"Price ${price:.0f} > max buy ${calc['max_buy']:.0f} (loss > $50)"
+
+    return result
+
+
+# ============================================================
+# PLATINUM EXTRACTION FUNCTION
+# ============================================================
+
+def fast_extract_platinum(
+    title: str,
+    price: float,
+    description: str = "",
+    platinum_spot_oz: float = DEFAULT_PLATINUM_OZ
+) -> FastExtractResult:
+    """
+    Perform instant server-side extraction for platinum listings.
+    """
+    result = FastExtractResult()
+
+    text = f"{title} {description}".lower()
+
+    # Step 1: Check for partial metal items (instant PASS)
+    for indicator in INSTANT_PASS_PARTIAL_METAL:
+        if indicator in text:
+            result.instant_pass = True
+            result.pass_reason = f"Partial metal only: {indicator}"
+            return result
+
+    # Step 2: Check for non-metal components
+    has_non_metal, non_metal_type = detect_non_metal(title, description)
+    if has_non_metal:
+        result.has_non_metal = True
+        result.non_metal_type = non_metal_type
+        result.confidence -= 20
+
+    # Step 3: Extract purity
+    purity, purity_source = extract_platinum_purity(title, description)
+    if purity:
+        result.karat = int(purity * 1000)  # Store as PT950 -> 950
+        result.karat_source = purity_source
+        result.confidence += 30
+
+    # Step 4: Extract weight
+    weight, weight_source = extract_weight(title, description, max_weight=500)
+    if weight:
+        result.weight_grams = weight
+        result.weight_source = weight_source
+        result.confidence += 40
+
+        # Calculate melt
+        calc = calculate_platinum_melt(weight, platinum_spot_oz, purity or 0.950)
+        result.melt_value = calc['melt_value']
+        result.max_buy = calc['max_buy']
+
+        profit = calc['max_buy'] - price
+        margin_pct = (profit / price * 100) if price > 0 else 0
+
+        if has_non_metal:
+            result.confidence = max(30, result.confidence - 20)
+        else:
+            if profit > 50 and margin_pct > 20:
+                result.is_hot = True
+                purity_str = f"PT{int((purity or 0.950) * 1000)}"
+                result.hot_reason = f"Verified: {weight}g {purity_str} = ${calc['melt_value']:.0f} melt, max ${calc['max_buy']:.0f}, profit ${profit:.0f}"
+                result.confidence += 20
+            elif profit < -30:
+                result.instant_pass = True
+                result.pass_reason = f"Price ${price:.0f} > max buy ${calc['max_buy']:.0f}"
+
+    return result
+
+
+# ============================================================
+# PALLADIUM EXTRACTION FUNCTION
+# ============================================================
+
+def fast_extract_palladium(
+    title: str,
+    price: float,
+    description: str = "",
+    palladium_spot_oz: float = DEFAULT_PALLADIUM_OZ
+) -> FastExtractResult:
+    """
+    Perform instant server-side extraction for palladium listings.
+    """
+    result = FastExtractResult()
+
+    text = f"{title} {description}".lower()
+
+    # Step 1: Check for partial metal items (instant PASS)
+    for indicator in INSTANT_PASS_PARTIAL_METAL:
+        if indicator in text:
+            result.instant_pass = True
+            result.pass_reason = f"Partial metal only: {indicator}"
+            return result
+
+    # Step 2: Check for non-metal components
+    has_non_metal, non_metal_type = detect_non_metal(title, description)
+    if has_non_metal:
+        result.has_non_metal = True
+        result.non_metal_type = non_metal_type
+        result.confidence -= 20
+
+    # Step 3: Extract purity
+    purity, purity_source = extract_palladium_purity(title, description)
+    if purity:
+        result.karat = int(purity * 1000)  # Store as PD950 -> 950
+        result.karat_source = purity_source
+        result.confidence += 30
+
+    # Step 4: Extract weight
+    weight, weight_source = extract_weight(title, description, max_weight=500)
+    if weight:
+        result.weight_grams = weight
+        result.weight_source = weight_source
+        result.confidence += 40
+
+        # Calculate melt
+        calc = calculate_palladium_melt(weight, palladium_spot_oz, purity or 0.950)
+        result.melt_value = calc['melt_value']
+        result.max_buy = calc['max_buy']
+
+        profit = calc['max_buy'] - price
+        margin_pct = (profit / price * 100) if price > 0 else 0
+
+        if has_non_metal:
+            result.confidence = max(30, result.confidence - 20)
+        else:
+            if profit > 50 and margin_pct > 20:
+                result.is_hot = True
+                purity_str = f"PD{int((purity or 0.950) * 1000)}"
+                result.hot_reason = f"Verified: {weight}g {purity_str} = ${calc['melt_value']:.0f} melt, max ${calc['max_buy']:.0f}, profit ${profit:.0f}"
+                result.confidence += 20
+            elif profit < -30:
                 result.instant_pass = True
                 result.pass_reason = f"Price ${price:.0f} > max buy ${calc['max_buy']:.0f}"
 

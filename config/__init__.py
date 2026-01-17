@@ -1,12 +1,11 @@
 """
-Configuration Settings for Claude Proxy Server
+Configuration Package
 
-BACKWARDS COMPATIBILITY: This module re-exports everything from config/settings.py.
-For new code, import directly from config.settings or from the config package.
+All configuration is centralized in settings.py.
+Import from here for backwards compatibility with existing code.
 """
 
-# Re-export everything from the centralized config package
-from config import (
+from .settings import (
     # Paths
     BASE_DIR,
     DB_PATH,

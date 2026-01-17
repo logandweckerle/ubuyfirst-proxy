@@ -417,12 +417,33 @@ async def process_image_list(raw_images: List[Any], max_size: int = None, max_co
                     data_images.append(parsed)
     
     # Apply selection strategy to URLs before fetching
+    original_count = len(http_urls)
+
     if selection == "first_last" and len(http_urls) > 6:
-        # Take first 3 + last 3 (scale photos often at end of eBay listings)
-        first_urls = http_urls[:3]
-        last_urls = http_urls[-3:]
-        http_urls = first_urls + last_urls
-        logger.info(f"[IMAGES] Using first_last strategy: {len(first_urls)} + {len(last_urls)} = {len(http_urls)} images")
+        # SMART IMAGE SELECTION for gold/silver
+        # Scale photos are almost always at the END of eBay listings
+        # Overview photo is first, detail shots in middle, scale at end
+
+        if len(http_urls) >= 30:
+            # Large listing (30+ images) - be more aggressive
+            # Take first 2 (overview) + last 4 (likely scale photos)
+            first_urls = http_urls[:2]
+            last_urls = http_urls[-4:]
+            http_urls = first_urls + last_urls
+            logger.info(f"[IMAGES] Smart selection (large listing {original_count}): first 2 + last 4 = {len(http_urls)} images")
+        elif len(http_urls) >= 15:
+            # Medium listing (15-29 images) - prioritize last images more
+            # Take first 2 (overview) + last 4 (likely scale photos)
+            first_urls = http_urls[:2]
+            last_urls = http_urls[-4:]
+            http_urls = first_urls + last_urls
+            logger.info(f"[IMAGES] Smart selection (medium listing {original_count}): first 2 + last 4 = {len(http_urls)} images")
+        else:
+            # Standard listing (7-14 images) - use original first_last
+            first_urls = http_urls[:3]
+            last_urls = http_urls[-3:]
+            http_urls = first_urls + last_urls
+            logger.info(f"[IMAGES] Using first_last strategy: {len(first_urls)} + {len(last_urls)} = {len(http_urls)} images")
     elif max_count and len(http_urls) > max_count:
         http_urls = http_urls[:max_count]
     

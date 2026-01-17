@@ -85,6 +85,16 @@ from .deal_scoring import (
     POOR_LISTING_KEYWORDS,
 )
 
+# Budget tracking
+from .budget import (
+    check_openai_budget,
+    record_openai_cost,
+    get_openai_budget_status,
+    set_hourly_budget,
+    reset_budget_tracker,
+    OPENAI_HOURLY_BUDGET,
+)
+
 # Unified Listing Adapter - normalizes both uBuyFirst and Direct API data
 from .listing_adapter import (
     StandardizedListing,
@@ -174,4 +184,11 @@ __all__ = [
     'validate_listing',
     'detect_category',
     'CATEGORY_KEYWORDS',
+    # Budget tracking
+    'check_openai_budget',
+    'record_openai_cost',
+    'get_openai_budget_status',
+    'set_hourly_budget',
+    'reset_budget_tracker',
+    'OPENAI_HOURLY_BUDGET',
 ]

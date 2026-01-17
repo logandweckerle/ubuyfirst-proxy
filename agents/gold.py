@@ -46,8 +46,8 @@ class GoldAgent(BaseAgent):
             if kw in title:
                 return (f"PLATED - '{kw}' detected in title", "PASS")
 
-        # Gold filled watch case brands
-        filled_brands = ["dueber", "wadsworth", "keystone", "star watch case", "champion",
+        # Gold filled watch case brands (NOT Keystone - that's a good brand)
+        filled_brands = ["dueber", "wadsworth", "star watch case", "champion",
                         "fahys", "crescent", "boss", "royal", "illinois"]
         for brand in filled_brands:
             if brand in title and "watch" in title:
@@ -67,12 +67,17 @@ class GoldAgent(BaseAgent):
         if "single earring" in title or "one earring" in title:
             return ("SINGLE EARRING - no resale value", "PASS")
 
-        # Fashion jewelry keywords
-        fashion_keywords = ["costume", "fashion jewelry", "rhinestone", "cubic zirconia", "cz ",
-                           "simulated", "faux gold", "imitation", "gold color"]
-        for kw in fashion_keywords:
-            if kw in title:
-                return (f"FASHION/COSTUME - '{kw}' detected", "PASS")
+        # Fashion jewelry keywords - only PASS if NOT a costume search
+        # Costume searches may have hidden precious metals in lots
+        alias = data.get("Alias", "").lower()
+        is_costume_search = "costume" in alias or "fashion" in alias
+
+        if not is_costume_search:
+            fashion_keywords = ["costume", "fashion jewelry", "rhinestone", "cubic zirconia", "cz ",
+                               "simulated", "faux gold", "imitation", "gold color"]
+            for kw in fashion_keywords:
+                if kw in title:
+                    return (f"FASHION/COSTUME - '{kw}' detected", "PASS")
 
         # Broken/damaged items with no gold content
         if any(kw in title for kw in ["empty mount", "setting only", "mountings only"]):
@@ -112,6 +117,42 @@ class GoldAgent(BaseAgent):
             if kw in title:
                 # Coral/jade items need careful weight deduction - flag for research
                 return (f"CORAL/JADE DETECTED - stone weight can be 50-70% of total, needs careful deduction", "RESEARCH")
+
+        # POCKET WATCH SCRAP RULE
+        # Pocket watches have approximately 30% of their weight in gold (case only)
+        # The remaining 70% is movement, crystal, dial, crown, etc.
+        # If we can find weight in description, calculate if overpriced based on 30% gold
+        if "pocket watch" in combined or "pocket-watch" in combined:
+            import re
+            # Extract weight from description (grams or dwt)
+            weight_match = re.search(r'(\d+\.?\d*)\s*(?:g(?:ram)?s?|dwt)\b', combined, re.IGNORECASE)
+            if weight_match:
+                weight_str = weight_match.group(0).lower()
+                weight_val = float(weight_match.group(1))
+                # Convert dwt to grams if needed
+                if 'dwt' in weight_str:
+                    weight_val = weight_val * 1.555
+
+                # Calculate gold value assuming 30% of weight is gold
+                gold_weight = weight_val * 0.30
+
+                # Determine karat from title
+                karat_rate = 0
+                gold_gram = SPOT_PRICES.get("gold_oz", 2650) / 31.1035
+                if "18k" in title or "18 k" in title or "18kt" in title:
+                    karat_rate = gold_gram * 0.75
+                elif "14k" in title or "14 k" in title or "14kt" in title:
+                    karat_rate = gold_gram * 0.583
+                elif "10k" in title or "10 k" in title or "10kt" in title:
+                    karat_rate = gold_gram * 0.417
+
+                if karat_rate > 0:
+                    melt_value = gold_weight * karat_rate
+                    max_buy = melt_value * 0.90
+
+                    # If price is more than max_buy, it's overpriced for scrap
+                    if price > max_buy:
+                        return (f"POCKET WATCH - {weight_val:.1f}g total but only ~30% ({gold_weight:.1f}g) is gold. Melt ${melt_value:.0f}, maxBuy ${max_buy:.0f}, listing ${price:.0f} = OVERPRICED for scrap", "RESEARCH")
 
         return (None, None)
 
@@ -171,6 +212,18 @@ JADE/JADEITE (also heavy)
 - Medium carved piece: 3-8g
 - Large carved piece: 10-20g
 
+AGATE/CARNELIAN/JASPER/CHALCEDONY (dense cabochon stones ~2.6g/cm³)
+- Small cabochon (<10mm): 1-2g
+- Medium cabochon (10-15mm): 2-4g
+- LARGE cabochon (15-25mm): 4-8g
+- VERY LARGE (25mm+ / 1"+): 8-15g
+
+BROOCH WITH LARGE STONE (CRITICAL!)
+- Brooch frame is THIN METAL around the stone!
+- A 1.5" brooch with large stone: Frame is only 2-4g gold
+- Example: "8.87g Edwardian agate brooch" = ~5-6g agate + 2-3g gold frame
+- RULE: If brooch features a large stone, deduct 50-70% for stone weight!
+
 === CURRENT PRICING ({source} - {last_updated}) ===
 Gold spot: ${gold_oz:,.0f}/oz = ${gold_gram:.2f}/gram pure
 
@@ -221,6 +274,15 @@ These could be plated! Unknown karat = unknown value = RESEARCH required.
 - Movement inside (mechanical): Deduct 5-8g
 - Crystal/glass: Deduct 0.5-1.5g
 - Empty case (no movement): Only deduct crystal
+
+=== POCKET WATCH RULE (CRITICAL!) ===
+POCKET WATCHES have only ~30% of their weight in gold (the case).
+The other 70% is movement, dial, crystal, crown, hands, etc.
+- If description states total weight, multiply by 0.30 to get gold weight
+- Example: 57.2g pocket watch = ~17.2g of gold (30%)
+- Many sellers list total weight thinking it's all gold - IT'S NOT!
+- If price > (goldWeight * karatRate * 0.90), item is OVERPRICED for scrap
+- ALWAYS flag overpriced pocket watches as RESEARCH, not BUY
 
 === WEIGHT ESTIMATION ===
 | Item Type | Weight Range |

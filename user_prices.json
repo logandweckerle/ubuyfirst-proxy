@@ -1,0 +1,99 @@
+{
+  "watches": {
+    "omega": {
+      "Omega Seamaster 14K Solid Gold Mens Watch": {
+        "market_value": 1000.00,
+        "max_buy": 700.00,
+        "added": "2026-01-11",
+        "notes": "Vintage 1960s, value as collectible watch not scrap gold. Range $800-1200"
+      }
+    }
+  },
+  "tcg": {
+    "pokemon": {
+      "Scarlet & Violet Destined Rivals Elite Trainer Box": {
+        "market_value": 125.00,
+        "max_buy": 87.50,
+        "added": "2026-01-09",
+        "notes": "Factory sealed ETB"
+      },
+      "Scarlet & Violet Journey Together Elite Trainer Box": {
+        "market_value": 82.00,
+        "max_buy": 57.40,
+        "added": "2026-01-10",
+        "notes": "Factory sealed ETB"
+      },
+      "Prismatic Evolutions Binder Collection Box": {
+        "market_value": 75.00,
+        "max_buy": 52.50,
+        "added": "2026-01-10",
+        "notes": "SV8.5 Factory sealed"
+      },
+      "Arceus V Figure Collection Box": {
+        "market_value": 112.00,
+        "max_buy": 78.40,
+        "added": "2026-01-10",
+        "notes": "Brilliant Stars 2022"
+      },
+      "Scarlet & Violet 151 Blooming Waters Premium Collection Box": {
+        "market_value": 182.00,
+        "max_buy": 127.40,
+        "added": "2026-01-11",
+        "notes": "SV3.5 151 subset"
+      },
+      "Zacian V-Union Special Collection Box": {
+        "market_value": 85.00,
+        "max_buy": 59.50,
+        "added": "2026-01-11",
+        "notes": "Factory sealed, Celebrations era"
+      },
+      "Chilling Reign Elite Trainer Box Shadow Rider Calyrex": {
+        "market_value": 105.00,
+        "max_buy": 73.50,
+        "added": "2026-01-11",
+        "notes": "SWSH Chilling Reign ETB"
+      },
+      "Prismatic Evolutions Premium Figure Collection": {
+        "market_value": 110.00,
+        "max_buy": 77.00,
+        "added": "2026-01-11",
+        "notes": "SV8.5 Prismatic Evolutions figure box"
+      },
+      "Scarlet & Violet White Flare Elite Trainer Box": {
+        "market_value": 75.00,
+        "max_buy": 52.50,
+        "added": "2026-01-11",
+        "notes": "SV 10.5 White Flare ETB"
+      },
+      "Mega Lucario EX Figure Collection Box": {
+        "market_value": 39.00,
+        "max_buy": 27.30,
+        "added": "2026-01-14",
+        "notes": "XY era figure collection box"
+      }
+    },
+    "mtg": {
+      "Strixhaven School of Mages Set Booster Box": {
+        "market_value": 150.00,
+        "max_buy": 105.00,
+        "added": "2026-01-09",
+        "notes": "Factory sealed"
+      }
+    }
+  },
+  "videogames": {
+    "wii_u": {
+      "Legend of Zelda Twilight Princess HD": {
+        "market_value": 100.00,
+        "max_buy": 65.00,
+        "added": "2026-01-11",
+        "notes": "Factory sealed Wii U"
+      }
+    }
+  },
+  "meta": {
+    "last_updated": "2026-01-11",
+    "threshold": 0.70,
+    "notes": "User-provided market values for arbitrage reference"
+  }
+}

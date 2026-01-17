@@ -28,12 +28,13 @@ from datetime import datetime, timedelta, date
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from pathlib import Path
+import urllib.parse
 
 # Import blocked sellers for filtering
 try:
     from utils.spam_detection import BLOCKED_SELLERS, check_seller_spam
     BLOCKED_SELLERS_ENABLED = True
-    from config import INSTANT_PASS_KEYWORDS
+    from config import INSTANT_PASS_KEYWORDS, UBF_TITLE_FILTERS, UBF_LOCATION_FILTERS, UBF_FEEDBACK_RULES
 except ImportError:
     BLOCKED_SELLERS = set()
     BLOCKED_SELLERS_ENABLED = False
@@ -50,14 +51,28 @@ try:
     SELLER_PROFILING_ENABLED = True
 except ImportError:
     SELLER_PROFILING_ENABLED = False
-    logger = logging.getLogger("ebay_poller")
+
+# Logger - must be defined early before any functions that use it
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ebay_poller")
+logger.setLevel(logging.INFO)  # Explicitly set level
+
+if not SELLER_PROFILING_ENABLED:
     logger.warning("[EBAY API] Seller profiling not available - database module not found")
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
 EBAY_APP_ID = os.getenv("EBAY_APP_ID", "")
+
+# Discord webhook for API monitoring
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
+DISCORD_NOTIFY_ALL_LISTINGS = True  # Send EVERY new listing to Discord for monitoring
 EBAY_CERT_ID = os.getenv("EBAY_CERT_ID", "")  # Client Secret for OAuth
 
 # API endpoints
@@ -70,13 +85,17 @@ _oauth_token: Optional[str] = None
 _oauth_expires: Optional[datetime] = None
 _oauth_lock = threading.Lock()
 
-# Rate limiting - eBay allows ~5000 calls/day over 14 hours
-# 5000 / 14hr = 357/hr = 6 calls/min = 10 seconds between calls
-# With 2 keywords: each refreshes every 20 seconds
-RATE_LIMIT_MIN_INTERVAL = 10.0  # 10 seconds between calls - OPTIMIZED for 5000/day
+# Rate limiting - Production mode with efficient itemStartDate filtering
+# With efficient filtering, we can poll faster since responses are smaller
+# Daily quota: 25,000 calls/day (increased from 5K on 2026-01-16)
+RATE_LIMIT_MIN_INTERVAL = 2.0  # 2 seconds between calls - aggressive for speed
 
 # Track last API call time for rate limiting
 _last_api_call: Optional[float] = None
+
+# Efficient polling: Track newest timestamp per keyword for itemStartDate filtering
+# This dramatically reduces data transfer by only fetching truly new items
+KEYWORD_TIMESTAMPS: Dict[str, datetime] = {}
 _rate_limit_lock: Optional[asyncio.Lock] = None  # Async lock for proper serialization
 
 def _get_rate_limit_lock():
@@ -104,6 +123,150 @@ async def rate_limit_wait():
 
         # Update last call time BEFORE releasing lock
         _last_api_call = _time.time()
+
+
+# ============================================================
+# DISCORD NOTIFICATIONS
+# ============================================================
+
+async def send_discord_listing(
+    listing,
+    keyword: str = "",
+    source: str = "API",
+    recommendation: str = None,
+    reasoning: str = None,
+    melt_value: float = None,
+    max_buy: float = None
+):
+    """
+    Send a new listing notification to Discord for monitoring.
+    This helps verify the API is actually finding listings.
+
+    Args:
+        listing: The eBay listing object
+        keyword: Search keyword that found this item
+        source: Source identifier (e.g., "RACE-API-BUY")
+        recommendation: BUY/RESEARCH/PASS
+        reasoning: Explanation for the recommendation
+        melt_value: Calculated melt value if applicable
+        max_buy: Maximum buy price if applicable
+    """
+    if not DISCORD_WEBHOOK_URL or not DISCORD_NOTIFY_ALL_LISTINGS:
+        return
+
+    try:
+        # Color based on recommendation
+        if recommendation == "BUY":
+            color = 0x00ff00  # Green
+            emoji = "💰"
+        elif recommendation == "RESEARCH":
+            color = 0xffff00  # Yellow
+            emoji = "🔍"
+        else:
+            color = 0x808080  # Gray
+            emoji = "📋"
+
+        # Format the embed - Title is clickable link to item
+        item_url = listing.view_url if hasattr(listing, 'view_url') and listing.view_url else f"https://www.ebay.com/itm/{listing.item_id}"
+        embed = {
+            "title": listing.title[:200] if hasattr(listing, 'title') else "New Listing",
+            "url": item_url,  # Makes title clickable
+            "description": f"{emoji} **{source}**: {recommendation or 'Monitoring'}",
+            "color": color,
+            "fields": [
+                {"name": "💵 Price", "value": f"${listing.price:.2f}" if hasattr(listing, 'price') else "N/A", "inline": True},
+            ],
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+        # Add analysis fields if available
+        if melt_value:
+            embed["fields"].append({"name": "🔥 Melt Value", "value": f"${melt_value:.0f}", "inline": True})
+        if max_buy:
+            embed["fields"].append({"name": "📊 Max Buy", "value": f"${max_buy:.0f}", "inline": True})
+            if hasattr(listing, 'price') and listing.price:
+                margin = max_buy - listing.price
+                embed["fields"].append({"name": "💎 Margin", "value": f"${margin:.0f}", "inline": True})
+
+        # Add reasoning
+        if reasoning:
+            embed["fields"].append({"name": "📝 Analysis", "value": reasoning[:100], "inline": False})
+
+        # Add seller info
+        embed["fields"].append({"name": "👤 Seller", "value": listing.seller_id[:30] if hasattr(listing, 'seller_id') else "N/A", "inline": True})
+        embed["fields"].append({"name": "🔎 Keyword", "value": keyword[:50] if keyword else "N/A", "inline": True})
+
+        # Add seller score if available
+        if hasattr(listing, 'seller_score') and listing.seller_score != 50:
+            embed["fields"].append({
+                "name": "📊 Seller Score",
+                "value": f"{listing.seller_score} ({listing.seller_priority})" if hasattr(listing, 'seller_priority') else str(listing.seller_score),
+                "inline": True
+            })
+
+        # URL is already set in embed title above
+
+        # Add "I Bought This" link
+        if hasattr(listing, 'item_id'):
+            purchase_data = {
+                "title": listing.title[:100] if hasattr(listing, 'title') else "",
+                "price": listing.price if hasattr(listing, 'price') else 0,
+                "category": "gold" if "gold" in keyword.lower() or "14k" in keyword.lower() else "silver",
+                "item_id": listing.item_id,
+                "profit": (max_buy - listing.price) if max_buy and hasattr(listing, 'price') else 0,
+                "seller_id": listing.seller_id if hasattr(listing, 'seller_id') else "",
+                "melt": melt_value or 0,
+            }
+            purchase_params = urllib.parse.urlencode(purchase_data)
+            log_url = f"http://localhost:8000/log-purchase-quick?{purchase_params}"
+            embed["fields"].append({
+                "name": "🛒 Log Purchase",
+                "value": f"[I Bought This]({log_url})",
+                "inline": True
+            })
+
+        # Add thumbnail
+        if hasattr(listing, 'thumbnail_url') and listing.thumbnail_url:
+            embed["thumbnail"] = {"url": listing.thumbnail_url}
+
+        # Add item ID for tracking
+        if hasattr(listing, 'item_id'):
+            embed["footer"] = {"text": f"Item ID: {listing.item_id}"}
+
+        payload = {
+            "embeds": [embed],
+            "username": "eBay API Monitor"
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(DISCORD_WEBHOOK_URL, json=payload)
+            if response.status_code not in (200, 204):
+                logger.warning(f"[DISCORD] Failed to send: {response.status_code}")
+
+    except Exception as e:
+        logger.debug(f"[DISCORD] Error sending notification: {e}")
+
+
+async def send_discord_status(message: str, color: int = 0x0099ff):
+    """Send a status message to Discord"""
+    if not DISCORD_WEBHOOK_URL:
+        return
+
+    try:
+        payload = {
+            "embeds": [{
+                "title": "📡 eBay API Status",
+                "description": message,
+                "color": color,
+                "timestamp": datetime.utcnow().isoformat(),
+            }],
+            "username": "eBay API Monitor"
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            await client.post(DISCORD_WEBHOOK_URL, json=payload)
+    except Exception as e:
+        logger.debug(f"[DISCORD] Status error: {e}")
 
 
 async def get_oauth_token() -> Optional[str]:
@@ -174,15 +337,26 @@ def browse_api_available() -> bool:
 # STAGGERED POLLING CONFIGURATION
 # ============================================================
 # Round-robin polling: one keyword at a time, cycling through all
-# Target: 5,000 calls / 12 hours = 417 calls/hour = 1 call every 8.6 seconds
-# With 3 keywords, each keyword refreshes every 8.6s * 3 = ~26 seconds
-STAGGERED_POLL_INTERVAL = 8.6  # Seconds between each API call (round-robin)
+# Target: 25,000 calls / 14 hours = 1,785 calls/hour = 1 call every 2 seconds
+# With 3 keywords, each keyword refreshes every 2s * 3 = 6 seconds
+# This should consistently beat uBuyFirst's 6-38 second latency
+STAGGERED_POLL_INTERVAL = 2.0  # Seconds between each API call (AGGRESSIVE - 25K quota)
 
 # Legacy intervals (kept for reference/fallback)
 POLL_INTERVAL_GOLD = 26      # Each gold keyword refreshes every ~26s
 POLL_INTERVAL_SILVER = 26    # Each silver keyword refreshes every ~26s
 POLL_INTERVAL_TCG = 600      # TCG - disabled, 10 min placeholder
 POLL_INTERVAL_LEGO = 600     # LEGO - disabled, 10 min placeholder
+
+# ============================================================
+# RSS FEED CONFIGURATION
+# ============================================================
+# NOTE: eBay public RSS feeds appear to be deprecated/blocked (returns HTML not XML)
+# uBuyFirst likely uses a proprietary method or eBay partner API for their RSS
+# Keeping code in place but DISABLED until we find a working RSS endpoint
+RSS_ENABLED = False  # DISABLED - eBay public RSS returns HTML, not XML
+RSS_POLL_INTERVAL = 5.0  # Seconds between RSS polls (can be faster since no rate limit)
+RSS_BASE_URL = "https://www.ebay.com/sch/i.html"
 
 # Track API usage - persisted to file for survival across restarts
 API_STATS_FILE = Path(__file__).parent / "api_stats.json"
@@ -242,27 +416,43 @@ SEEN_LISTINGS_MAX_AGE = 3600  # Forget listings after 1 hour
 KEYWORDS_PER_POLL = 10  # Max keywords to search per poll cycle
 KEYWORD_ROTATION_INDEX: Dict[str, int] = {}  # Track rotation position per category
 
-# OPTIMIZED: Only 2 keywords to maximize refresh rate within 5000 calls/day
-# With 10s between calls, each keyword refreshes every 20 seconds
-# This beats uBuyFirst's typical 6-38 second latency
+# OPTIMIZED: 3 priority keywords with 25K calls/day quota
+# With 2s between calls, each keyword refreshes every 6 seconds
+# This beats uBuyFirst's typical 6-38 second latency consistently
+#
+# IMPORTANT: Using specific category IDs for faster eBay indexing
+# Categories from uBuyFirst config:
+#   Gold: 281 (Jewelry), 162134 (Gold Bullion), 3360 (Coins & Paper Money)
+#   Silver: 20081 (Fine Silver), 163271 (Sterling Silver Mixed Lots)
 PRIORITY_KEYWORDS = {
     "gold": [
         "14k scrap",      # Most common karat, highest volume scrap
         "14K Gold",       # Broad coverage for 14K items (chains, necklaces, etc.)
     ],
     "silver": [
-        "sterling scrap", # Direct scrap sellers
+        # Match uBuyFirst's "New Silver Search" keywords exactly for race testing
+        "sterling scrap",
+        "sterling lot",
+        "sterling flatware",
+        "925 scrap",
+        "sterling gorham",
+        "sterling towle",
     ],
 }
-# DISABLED - batched keywords consume too much API budget
-# Re-enable if eBay increases rate limits or you get additional API keys
 
-# DISABLED to maximize refresh rate on priority keywords
-# Uncomment if you get more API budget
+# Category IDs for priority keywords (NOT searching all categories!)
+# Match uBuyFirst's exact categories for race testing
+PRIORITY_CATEGORY_IDS = {
+    "gold": ["281", "162134", "3360"],  # Jewelry, Gold Bullion, Coins
+    "silver": ["20096", "262022", "281", "2213"],  # uBuyFirst: 20096/262022 (New Silver Search), 281/2213 (Search 2)
+}
+# BATCHED KEYWORDS - Available but disabled to maximize speed on priority keywords
+# With 25K quota, could enable these if broader coverage preferred over speed
+# Each additional keyword adds 2s to the refresh cycle time
 BATCHED_KEYWORDS = {
-    "gold": [],      # DISABLED - using priority only
+    "gold": [],      # DISABLED - using priority only for max speed
     "watch": [],     # DISABLED
-    "silver": [],    # DISABLED - using priority only
+    "silver": [],    # DISABLED - using priority only for max speed
 }
 
 def clear_seen_listings():
@@ -272,10 +462,6 @@ def clear_seen_listings():
     SEEN_LISTINGS.clear()
     logger.info(f"[EBAY API] Cleared {count} seen listings from cache")
     return count
-
-# Logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("ebay_poller")
 
 # ============================================================
 # LOAD KEYWORDS FROM UBUYFIRST EXPORT
@@ -331,6 +517,11 @@ SEARCH_CONFIGS = {
             # === Generic/Scrap ===
             "scrap gold", "gold scrap lot", "gold jewelry lot",
             "karat gold scrap", "solid gold lot",
+            # === Gold Nuggets (natural gold ~85% pure) ===
+            "gold nugget", "gold nuggets", "placer gold", "raw gold",
+            "natural gold nugget", "alaska gold nugget", "california gold",
+            # === Dental Gold (usually 10K-22K) ===
+            "dental gold", "dental scrap gold", "gold crowns", "dental gold lot",
         ],
         "category_ids": ["281", "162134", "3360", "262022", "10290"],
         "price_min": 50,
@@ -340,6 +531,7 @@ SEARCH_CONFIGS = {
     "silver": {
         "keywords": [
             "sterling scrap", "sterling lot", "sterling flatware", "sterling grams",
+            "scrap lot sterling", "scrap lot 925", "925 scrap lot", "silver scrap lot",
             "925 scrap", "925 grams", "sterling gorham", "sterling towle",
             "sterling bowl", "sterling tea", "800 silver", "800 grams",
             "830 silver", "900 silver", "coin silver", "mexican silver",
@@ -348,6 +540,52 @@ SEARCH_CONFIGS = {
         # 163271 = Sterling Silver Mixed Lots (under Antiques), 20081 = Fine Silver
         "category_ids": ["163271", "20081", "1", "281", "20096", "262022", "262025"],
         "price_min": 30,
+        "price_max": 10000,
+        "poll_interval": POLL_INTERVAL_SILVER,
+    },
+    "platinum": {
+        "keywords": [
+            # === Platinum Jewelry ===
+            "platinum ring", "platinum band", "platinum wedding",
+            "platinum bracelet", "platinum necklace", "platinum chain",
+            "platinum scrap", "platinum lot", "platinum grams",
+            "PT950 ring", "PT950 band", "950 platinum",
+            "PT900 ring", "PT900 band", "900 platinum",
+            "platinum diamond", "platinum vintage", "platinum estate",
+            "iridium platinum",  # Antique platinum often has iridium
+        ],
+        "category_ids": ["281", "164315", "110633", "262022"],  # Fine Jewelry, Wedding Rings
+        "price_min": 100,
+        "price_max": 15000,
+        "poll_interval": POLL_INTERVAL_GOLD,  # Same as gold
+    },
+    "palladium": {
+        "keywords": [
+            # === Palladium Jewelry (rare but valuable) ===
+            "palladium ring", "palladium band", "palladium wedding",
+            "palladium scrap", "PD950", "950 palladium", "PD500",
+            "palladium lot", "palladium grams",
+        ],
+        "category_ids": ["281", "164315", "262022"],
+        "price_min": 100,
+        "price_max": 10000,
+        "poll_interval": POLL_INTERVAL_GOLD,
+    },
+    "coin_scrap": {
+        "keywords": [
+            # === Junk Silver (90% silver coins at face value) ===
+            "junk silver lot", "90% silver lot", "90% silver coins",
+            "silver coin lot", "constitutional silver", "pre-1965 silver",
+            "walking liberty lot", "mercury dime lot", "silver quarter lot",
+            "silver half dollar lot", "barber silver lot", "peace dollar lot",
+            "morgan dollar lot", "silver dollar lot cull",
+            # === Scrap Gold Coins ===
+            "gold coin scrap", "gold coin damaged", "gold coin lot cull",
+            # === Bullion Scrap ===
+            "silver bar scrap", "silver rounds lot", "generic silver lot",
+        ],
+        "category_ids": ["39482", "39489", "145410", "163116"],  # US Coins, Bullion
+        "price_min": 50,
         "price_max": 10000,
         "poll_interval": POLL_INTERVAL_SILVER,
     },
@@ -417,6 +655,26 @@ SEARCH_CONFIGS = {
         "price_min": 30,
         "price_max": 5000,
         "poll_interval": POLL_INTERVAL_SILVER,  # Same interval as silver
+    },
+    "textbook": {
+        "keywords": [
+            # Publisher-specific (high value)
+            "pearson textbook", "mcgraw hill textbook", "cengage textbook",
+            "wiley textbook", "pearson isbn", "mcgraw-hill isbn",
+            # Subject-specific (high demand)
+            "organic chemistry textbook", "calculus textbook",
+            "anatomy physiology textbook", "biology textbook",
+            "accounting textbook", "physics textbook",
+            "nursing textbook", "medical textbook",
+            "engineering textbook", "computer science textbook",
+            # General textbook terms
+            "college textbook isbn", "university textbook",
+            "11th edition textbook", "12th edition textbook",
+        ],
+        "category_ids": ["267"],  # Books category
+        "price_min": 10,
+        "price_max": 150,  # Most textbook arbitrage buys are under $150
+        "poll_interval": 120,  # Slower polling - textbooks don't need instant grab
     },
 }
 
@@ -608,6 +866,315 @@ def get_api_stats() -> Dict:
     }
 
 
+# ============================================================
+# WEB SCRAPING SEARCH
+# ============================================================
+# WARNING: Web scraping eBay violates their Terms of Service!
+# Can result in account suspension or legal action.
+# Use only the official API for legitimate access.
+
+WEB_SCRAPING_ENABLED = False  # DISABLED - Violates eBay ToS
+
+async def search_ebay_web(
+    keywords: str,
+    category_ids: List[str] = None,
+    price_min: float = None,
+    price_max: float = None,
+    entries_per_page: int = 50,
+) -> List[EbayListing]:
+    """
+    Search eBay by scraping the website directly - NO API indexing delay!
+    Returns list of EbayListing objects.
+    """
+    import re
+    from urllib.parse import quote_plus
+
+    # Build search URL
+    params = [
+        f"_nkw={quote_plus(keywords)}",
+        "_sop=10",  # Sort by newly listed
+        "LH_BIN=1",  # Buy It Now only
+        "LH_PrefLoc=1",  # US preferred
+        f"_ipg={min(entries_per_page, 60)}",  # Items per page
+    ]
+
+    if price_min is not None:
+        params.append(f"_udlo={int(price_min)}")
+    if price_max is not None:
+        params.append(f"_udhi={int(price_max)}")
+    if category_ids and len(category_ids) > 0:
+        params.append(f"_sacat={category_ids[0]}")
+
+    url = "https://www.ebay.com/sch/i.html?" + "&".join(params)
+    listings = []
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+            })
+
+            if response.status_code != 200:
+                logger.warning(f"[WEB] HTTP {response.status_code} for '{keywords}'")
+                return []
+
+            html = response.text
+
+            # Extract item IDs from the page
+            # Pattern: /itm/ITEM_ID? or data attributes
+            item_ids = set(re.findall(r'/itm/(\d{10,14})\?', html))
+
+            # Also try to extract prices and titles
+            # Pattern: s-item__price and s-item__title
+            for item_id in list(item_ids)[:entries_per_page]:
+                try:
+                    # Extract title for this item (look for link with item ID)
+                    title_match = re.search(
+                        rf'href="[^"]*{item_id}[^"]*"[^>]*>([^<]+)</a>',
+                        html
+                    )
+                    title = title_match.group(1).strip() if title_match else f"Item {item_id}"
+
+                    # Extract price (look near the item link)
+                    # Prices are formatted like $123.45
+                    price = 0.0
+                    price_section = html[max(0, html.find(item_id)-2000):html.find(item_id)+500]
+                    price_match = re.search(r'\$[\d,]+\.?\d*', price_section)
+                    if price_match:
+                        price_str = price_match.group().replace('$', '').replace(',', '')
+                        try:
+                            price = float(price_str)
+                        except:
+                            pass
+
+                    # Create listing object
+                    listing = EbayListing(
+                        item_id=item_id,
+                        title=title[:200],
+                        price=price,
+                        currency="USD",
+                        thumbnail_url="",
+                        gallery_url="",
+                        view_url=f"https://www.ebay.com/itm/{item_id}",
+                        listing_type="FixedPrice",
+                        condition="",
+                        location="US",
+                        seller_id="",  # Not available from scraping
+                        seller_feedback=0,
+                        start_time=datetime.now(),  # Use current time (we just found it!)
+                        category_id=category_ids[0] if category_ids else "",
+                        category_name="",
+                        source="web_scrape",
+                        seller_score=50,
+                        seller_priority="NORMAL",
+                    )
+
+                    listings.append(listing)
+
+                except Exception as e:
+                    logger.debug(f"[WEB] Error parsing item {item_id}: {e}")
+                    continue
+
+            logger.info(f"[WEB] '{keywords}': {len(listings)} listings scraped")
+
+    except httpx.TimeoutException:
+        logger.warning(f"[WEB] Timeout scraping '{keywords}'")
+    except Exception as e:
+        logger.error(f"[WEB] Error scraping '{keywords}': {e}")
+
+    return listings
+
+
+# ============================================================
+# RSS FEED SEARCH
+# ============================================================
+
+async def search_ebay_rss(
+    keywords: str,
+    category_ids: List[str] = None,
+    price_min: float = None,
+    price_max: float = None,
+    entries_per_page: int = 50,
+) -> List[EbayListing]:
+    """
+    Search eBay using RSS feed - MUCH faster than Browse API!
+    RSS feeds update within seconds of listing going live.
+
+    Returns list of EbayListing objects, or empty list on error.
+    """
+    import xml.etree.ElementTree as ET
+    from urllib.parse import quote_plus
+
+    # Build RSS URL
+    # Format: https://www.ebay.com/sch/i.html?_nkw=keyword&_sop=10&_rss=1&LH_BIN=1&_ipg=50
+    params = {
+        "_nkw": quote_plus(keywords),  # Search keyword
+        "_sop": "10",  # Sort by newly listed
+        "_rss": "1",   # Return RSS format
+        "LH_BIN": "1", # Buy It Now only
+        "LH_PrefLoc": "1",  # US only (prefer US)
+        "_ipg": str(min(entries_per_page, 100)),  # Items per page (max 100 for RSS)
+    }
+
+    # Add price filters
+    if price_min is not None:
+        params["_udlo"] = str(int(price_min))
+    if price_max is not None:
+        params["_udhi"] = str(int(price_max))
+
+    # Add category filter (only first category for RSS)
+    if category_ids and len(category_ids) > 0:
+        params["_sacat"] = category_ids[0]
+
+    # Build URL
+    url = RSS_BASE_URL + "?" + "&".join(f"{k}={v}" for k, v in params.items())
+
+    listings = []
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            })
+
+            if response.status_code != 200:
+                logger.warning(f"[RSS] HTTP {response.status_code} for '{keywords}'")
+                return []
+
+            # Parse RSS XML
+            root = ET.fromstring(response.text)
+
+            # Find all items in RSS feed
+            # RSS format: <rss><channel><item>...</item></channel></rss>
+            channel = root.find("channel")
+            if channel is None:
+                logger.warning(f"[RSS] No channel found in response for '{keywords}'")
+                return []
+
+            items = channel.findall("item")
+            logger.debug(f"[RSS] Found {len(items)} items for '{keywords}'")
+
+            for item in items:
+                try:
+                    # Extract item data from RSS
+                    title_elem = item.find("title")
+                    link_elem = item.find("link")
+
+                    if title_elem is None or link_elem is None:
+                        continue
+
+                    title = title_elem.text or ""
+                    link = link_elem.text or ""
+
+                    # Extract item ID from link
+                    # Format: https://www.ebay.com/itm/TITLE/123456789?...
+                    item_id = ""
+                    if "/itm/" in link:
+                        # Try to get ID from URL path
+                        parts = link.split("/itm/")
+                        if len(parts) > 1:
+                            id_part = parts[1].split("?")[0].split("/")[-1]
+                            if id_part.isdigit():
+                                item_id = id_part
+
+                    if not item_id:
+                        # Try guid element
+                        guid_elem = item.find("guid")
+                        if guid_elem is not None and guid_elem.text:
+                            # GUID might be the item ID or URL
+                            guid = guid_elem.text
+                            if guid.isdigit():
+                                item_id = guid
+                            elif "/itm/" in guid:
+                                parts = guid.split("/itm/")
+                                if len(parts) > 1:
+                                    id_part = parts[1].split("?")[0].split("/")[-1]
+                                    if id_part.isdigit():
+                                        item_id = id_part
+
+                    if not item_id:
+                        continue
+
+                    # Extract price from description or title
+                    # RSS description often contains price info
+                    price = 0.0
+                    desc_elem = item.find("description")
+                    if desc_elem is not None and desc_elem.text:
+                        desc = desc_elem.text
+                        # Look for price patterns like $123.45 or US $123.45
+                        import re
+                        price_match = re.search(r'\$[\d,]+\.?\d*', desc)
+                        if price_match:
+                            price_str = price_match.group().replace('$', '').replace(',', '')
+                            try:
+                                price = float(price_str)
+                            except:
+                                pass
+
+                    # Extract publication date (listing start time)
+                    start_time = None
+                    pubdate_elem = item.find("pubDate")
+                    if pubdate_elem is not None and pubdate_elem.text:
+                        try:
+                            from email.utils import parsedate_to_datetime
+                            start_time = parsedate_to_datetime(pubdate_elem.text)
+                        except:
+                            pass
+
+                    # Extract image URL if available
+                    image_url = ""
+                    # Check for media:content or enclosure
+                    for child in item:
+                        if "content" in child.tag.lower() or child.tag == "enclosure":
+                            image_url = child.get("url", "")
+                            break
+
+                    # Create listing object
+                    listing = EbayListing(
+                        item_id=item_id,
+                        title=title,
+                        price=price,
+                        currency="USD",
+                        thumbnail_url=image_url,
+                        gallery_url=image_url,
+                        view_url=link,
+                        listing_type="FixedPrice",
+                        condition="",
+                        location="US",
+                        seller_id="",  # Not available in RSS
+                        seller_feedback=0,
+                        start_time=start_time,
+                        category_id="",
+                        category_name="",
+                        source="rss",
+                        seller_score=50,  # Default score since we don't have seller info
+                        seller_priority="NORMAL",
+                    )
+
+                    listings.append(listing)
+
+                except Exception as e:
+                    logger.debug(f"[RSS] Error parsing item: {e}")
+                    continue
+
+            logger.info(f"[RSS] '{keywords}': {len(listings)} listings found")
+
+    except httpx.TimeoutException:
+        logger.warning(f"[RSS] Timeout fetching '{keywords}'")
+    except ET.ParseError as e:
+        logger.warning(f"[RSS] XML parse error for '{keywords}': {e}")
+    except Exception as e:
+        logger.error(f"[RSS] Error searching '{keywords}': {e}")
+
+    return listings
+
+
+# Try Finding API first for potentially faster indexing
+# NOTE: Finding API has stricter rate limits - hits 500 error immediately
+USE_FINDING_API_FIRST = False  # DISABLED - Finding API rate limited heavily
+
 async def search_ebay(
     keywords: str,
     category_ids: List[str] = None,
@@ -615,22 +1182,53 @@ async def search_ebay(
     price_max: float = None,
     sort_order: str = "StartTimeNewest",
     entries_per_page: int = 50,
+    use_rss: bool = True,
+    since_date: datetime = None,
+    condition_filter: str = None,  # "USED" for pre-owned only, "NEW" for new only
 ) -> List[EbayListing]:
     """
-    Search eBay using Browse API (preferred) or Finding API (fallback)
+    Search eBay - tries multiple methods in order of speed:
+    1. Web scraping (FASTEST - no API indexing delay)
+    2. RSS feed (if enabled)
+    3. Finding API (if enabled)
+    4. Browse API (fallback)
+
+    since_date: If provided, only return items listed AFTER this timestamp (Browse API only)
+    condition_filter: "USED" for pre-owned only, "NEW" for new only, None for all
 
     Returns list of EbayListing objects
     """
+    # Try WEB SCRAPING first (FASTEST - bypasses API indexing delay!)
+    if WEB_SCRAPING_ENABLED:
+        web_results = await search_ebay_web(keywords, category_ids, price_min, price_max, entries_per_page)
+        if web_results:
+            return web_results
+        logger.debug(f"[EBAY] Web scraping returned no results for '{keywords}', trying API")
+
+    # Try RSS if enabled
+    if use_rss and RSS_ENABLED:
+        rss_results = await search_ebay_rss(keywords, category_ids, price_min, price_max, entries_per_page)
+        if rss_results:
+            return rss_results
+        logger.debug(f"[EBAY] RSS returned no results for '{keywords}', trying API")
+
     if not EBAY_APP_ID:
         logger.error("[EBAY API] No EBAY_APP_ID configured!")
         return []
 
-    # Use Browse API only (Finding API is deprecated/legacy)
+    # Try Finding API if enabled
+    if USE_FINDING_API_FIRST:
+        finding_results = await search_ebay_finding(keywords, category_ids, price_min, price_max, sort_order, entries_per_page)
+        if finding_results:
+            return finding_results
+        logger.debug(f"[EBAY] Finding API returned no results for '{keywords}', trying Browse API")
+
+    # Use Browse API as fallback
     if not browse_api_available():
         logger.error("[EBAY API] Browse API not available - check EBAY_CERT_ID")
         return []
 
-    result = await search_ebay_browse(keywords, category_ids, price_min, price_max, sort_order, entries_per_page)
+    result = await search_ebay_browse(keywords, category_ids, price_min, price_max, sort_order, entries_per_page, since_date, condition_filter)
     if result is None:  # None means API error
         logger.warning("[EBAY API] Browse API returned error - skipping this search")
         return []
@@ -644,10 +1242,16 @@ async def search_ebay_browse(
     price_max: float = None,
     sort_order: str = "StartTimeNewest",
     entries_per_page: int = 50,
+    since_date: datetime = None,
+    condition_filter: str = None,  # "USED" for pre-owned only, "NEW" for new only, None for all
 ) -> Optional[List[EbayListing]]:
     """
     Search eBay using Browse API (modern REST API)
     Returns None on API error (to trigger fallback), [] on no results
+
+    since_date: If provided, only return items listed AFTER this timestamp (itemStartDate filter)
+                This makes polling much more efficient by only fetching truly new items.
+    condition_filter: "USED" for pre-owned only, "NEW" for new only, None for all conditions
     """
     # Get OAuth token
     token = await get_oauth_token()
@@ -672,6 +1276,21 @@ async def search_ebay_browse(
         filters.append(f"price:[{price_min}..{price_max or ''}],priceCurrency:USD")
     elif price_max is not None:
         filters.append(f"price:[..{price_max}],priceCurrency:USD")
+
+    # Add condition filter (USED = pre-owned, NEW = new only)
+    if condition_filter:
+        filters.append(f"conditions:{{{condition_filter}}}")
+        logger.debug(f"[Browse API] Using condition filter: {condition_filter}")
+
+    # Add itemStartDate filter for efficient polling (only fetch items newer than since_date)
+    if since_date is not None:
+        # Add 1 second to exclude the item we just processed (eBay filter is inclusive >=)
+        from datetime import timedelta
+        filter_date = since_date + timedelta(seconds=1)
+        # Format: 2025-01-13T03:00:00Z (ISO 8601 UTC)
+        since_str = filter_date.strftime("%Y-%m-%dT%H:%M:%SZ")
+        filters.append(f"itemStartDate:[{since_str}..]")
+        logger.info(f"[Browse API] Using itemStartDate filter: since {since_str}")
 
     # Build request
     headers = {
@@ -1157,16 +1776,33 @@ async def get_new_listings(category: str, enrich_sellers: bool = True, immediate
         # Regular keywords: Use category filter from config
         search_categories = None if (is_priority_keyword and keyword in PRIORITY_KEYWORDS.get(category, [])) else config["category_ids"]
 
+        # Get the newest timestamp we've seen for this keyword (efficient polling)
+        since_date = KEYWORD_TIMESTAMPS.get(keyword)
+
+        # Gold/Silver: Only search pre-owned items (new items are retail priced, no arbitrage)
+        condition = "USED" if category in ("gold", "silver") else None
+
         listings = await search_ebay(
             keywords=keyword,
             category_ids=search_categories,
             price_min=config["price_min"],
             price_max=config["price_max"],
             entries_per_page=50,  # Get more per call since we make fewer calls
+            since_date=since_date,  # Only fetch items newer than this timestamp
+            condition_filter=condition,  # Pre-owned only for gold/silver
         )
+
+        # Log efficiency stats
+        if since_date:
+            logger.debug(f"[EFFICIENT] {keyword}: {len(listings)} new items (since {since_date.strftime('%H:%M:%S')})")
 
         # Filter to new listings only
         for listing in listings:
+            # Update keyword timestamp for efficient polling (track ALL items)
+            if listing.start_time:
+                current_ts = KEYWORD_TIMESTAMPS.get(keyword)
+                if current_ts is None or listing.start_time > current_ts:
+                    KEYWORD_TIMESTAMPS[keyword] = listing.start_time
             if is_new_listing(listing.item_id):
                 # FRESHNESS CHECK - only analyze listings from last 5 minutes
                 if listing.start_time:
@@ -1187,6 +1823,29 @@ async def get_new_listings(category: str, enrich_sellers: bool = True, immediate
                         logger.debug(f"[EBAY API] Skipping blocked seller: {listing.seller_id}")
                         continue
 
+                # Check feedback rules (same as uBuyFirst filters)
+                feedback_score = listing.seller_feedback
+                if feedback_score < 1:
+                    logger.debug(f"[FILTER] Skip {listing.seller_id}: 0 feedback")
+                    continue
+                if feedback_score < UBF_FEEDBACK_RULES.get('min_feedback_score', 3):
+                    logger.debug(f"[FILTER] Skip {listing.seller_id}: feedback {feedback_score} < min")
+                    continue
+                if feedback_score > UBF_FEEDBACK_RULES.get('max_feedback_score', 30000):
+                    logger.debug(f"[FILTER] Skip {listing.seller_id}: feedback {feedback_score} > max")
+                    continue
+
+                # Check location filters (skip Japan, China, etc.)
+                location_lower = listing.location.lower() if listing.location else ''
+                skip_location = False
+                for loc in UBF_LOCATION_FILTERS:
+                    if loc in location_lower:
+                        logger.debug(f"[FILTER] Skip location '{loc}': {listing.title[:40]}")
+                        skip_location = True
+                        break
+                if skip_location:
+                    continue
+
                 # Check for instant pass keywords (gold plated, silver plated, etc.)
                 title_lower = listing.title.lower()
                 skip_instant = False
@@ -1195,6 +1854,13 @@ async def get_new_listings(category: str, enrich_sellers: bool = True, immediate
                         logger.debug(f"[EBAY API] Skipping instant-pass keyword '{kw}': {listing.title[:40]}")
                         skip_instant = True
                         break
+                # Also check UBF title filters (trading cards, coins, etc.)
+                if not skip_instant:
+                    for kw in UBF_TITLE_FILTERS:
+                        if kw in title_lower:
+                            logger.debug(f"[EBAY API] Skipping UBF filter '{kw}': {listing.title[:40]}")
+                            skip_instant = True
+                            break
                 if skip_instant:
                     continue
 
@@ -1259,26 +1925,6 @@ async def poll_category(category: str, callback=None):
 
 
 # ============================================================
-# INTEGRATION WITH PROXY
-# ============================================================
-
-async def analyze_listing_callback(listing: EbayListing):
-    """
-    Callback to send new listings to the proxy for analysis
-    """
-    # This would send to localhost:8000/match_mydata
-    # For now, just log it
-    logger.info(f"[EBAY API] Would analyze: ${listing.price:.0f} - {listing.title[:40]}")
-    
-    # TODO: Implement actual proxy call
-    # async with httpx.AsyncClient() as client:
-    #     response = await client.post(
-    #         "http://localhost:8000/match_mydata",
-    #         json=listing.to_dict()
-    #     )
-
-
-# ============================================================
 # STAGGERED ROUND-ROBIN POLLING
 # ============================================================
 # Single polling loop that cycles through all keywords one at a time
@@ -1294,13 +1940,15 @@ def build_staggered_keyword_list() -> List[Dict]:
     # Add priority keywords from all enabled categories
     for category, kw_list in PRIORITY_KEYWORDS.items():
         config = SEARCH_CONFIGS.get(category, {})
+        # Use specific category IDs for faster indexing (not searching all of eBay!)
+        cat_ids = PRIORITY_CATEGORY_IDS.get(category, config.get("category_ids"))
         for kw in kw_list:
             keywords.append({
                 "keyword": kw,
                 "category": category,
                 "price_min": config.get("price_min", 50),
                 "price_max": config.get("price_max", 10000),
-                "category_ids": None,  # Priority keywords search all categories
+                "category_ids": cat_ids,  # Specific categories for faster results
             })
 
     return keywords
@@ -1310,11 +1958,23 @@ async def poll_single_keyword(kw_info: Dict, callback=None) -> List[EbayListing]
     """
     Poll a single keyword and process new listings.
     Returns list of new listings found.
+
+    Uses itemStartDate filter for efficient polling - only fetches items newer than last seen.
     """
     keyword = kw_info["keyword"]
     category = kw_info["category"]
 
     new_listings = []
+
+    # DISABLED: since_date filter was too aggressive - API indexing delay means
+    # items don't appear immediately, so filtering by timestamp misses items
+    # that are posted but take 30-60s to index.
+    # Instead, rely on local SEEN_ITEM_IDS dedup + freshness check (5 min window)
+    since_date = None  # DISABLED - fetch all, filter locally
+    is_initial_baseline = not KEYWORD_TIMESTAMPS.get(keyword)  # True on first poll
+
+    # Gold/Silver: Only search pre-owned items (new items are retail priced, no arbitrage)
+    condition = "USED" if category in ("gold", "silver") else None
 
     try:
         listings = await search_ebay(
@@ -1323,9 +1983,23 @@ async def poll_single_keyword(kw_info: Dict, callback=None) -> List[EbayListing]
             price_min=kw_info.get("price_min", 50),
             price_max=kw_info.get("price_max", 10000),
             entries_per_page=50,
+            since_date=None,  # Fetch all recent items, filter locally
+            condition_filter=condition,  # Pre-owned only for gold/silver
         )
 
+        # Log stats
+        if is_initial_baseline:
+            logger.info(f"[POLL] {keyword}: {len(listings)} items (baseline, callback disabled)")
+        else:
+            logger.info(f"[POLL] {keyword}: {len(listings)} items fetched, filtering for new")
+
         for listing in listings:
+            # Update keyword timestamp for efficient polling (track ALL items, even filtered)
+            if listing.start_time:
+                current_ts = KEYWORD_TIMESTAMPS.get(keyword)
+                if current_ts is None or listing.start_time > current_ts:
+                    KEYWORD_TIMESTAMPS[keyword] = listing.start_time
+
             if is_new_listing(listing.item_id):
                 # Freshness check - only items from last 5 minutes
                 if listing.start_time:
@@ -1344,13 +2018,35 @@ async def poll_single_keyword(kw_info: Dict, callback=None) -> List[EbayListing]
                     if seller_key in BLOCKED_SELLERS:
                         continue
 
-                # Check instant pass keywords
+                # Check feedback rules (from uBuyFirst FiltersExport)
+                feedback_score = listing.seller_feedback
+                # Skip 0 feedback sellers (rule: remove 0 feedbacks)
+                if feedback_score < 1:
+                    logger.debug(f"[FILTER] Skip {listing.seller_id}: 0 feedback")
+                    continue
+                # Skip low feedback sellers (rule: Remove less than 3 feedback)
+                if feedback_score < UBF_FEEDBACK_RULES.get('min_feedback_score', 3):
+                    logger.debug(f"[FILTER] Skip {listing.seller_id}: feedback {feedback_score} < min")
+                    continue
+                # Skip high volume sellers (rule: Remove over 30K feedback)
+                if feedback_score > UBF_FEEDBACK_RULES.get('max_feedback_score', 30000):
+                    logger.debug(f"[FILTER] Skip {listing.seller_id}: feedback {feedback_score} > max")
+                    continue
+
+                # Check instant pass keywords AND uBuyFirst title filters
                 title_lower = listing.title.lower()
                 skip = False
+                # Check basic instant pass keywords
                 for kw in INSTANT_PASS_KEYWORDS:
                     if kw in title_lower:
                         skip = True
                         break
+                # Check uBuyFirst title filters (trading cards, coins, etc.)
+                if not skip:
+                    for kw in UBF_TITLE_FILTERS:
+                        if kw in title_lower:
+                            skip = True
+                            break
                 if skip:
                     continue
 
@@ -1363,8 +2059,8 @@ async def poll_single_keyword(kw_info: Dict, callback=None) -> List[EbayListing]
                 priority_tag = f"[{listing.seller_priority}]" if listing.seller_score >= 60 else ""
                 logger.info(f"[EBAY API] NEW{priority_tag}: ${listing.price:.0f} - {listing.title[:50]}...")
 
-                # Fire callback immediately
-                if callback:
+                # Send to analysis callback - Discord notification handled there based on recommendation
+                if callback and not is_initial_baseline:
                     asyncio.create_task(_safe_callback(callback, listing))
 
     except Exception as e:
@@ -1394,15 +2090,35 @@ async def poll_staggered(callback=None):
     logger.info(f"[STAGGERED] Each keyword refreshes every {STAGGERED_POLL_INTERVAL * len(keywords):.1f}s")
     logger.info(f"[STAGGERED] Keywords: {[k['keyword'] for k in keywords]}")
 
+#     # Send startup notification to Discord
+#     startup_msg = f"**eBay API Polling Started**\n" \
+#                   f"• Keywords: {[k['keyword'] for k in keywords]}\n" \
+#                   f"• Poll Interval: {STAGGERED_POLL_INTERVAL}s\n" \
+#                   f"• Refresh Rate: {STAGGERED_POLL_INTERVAL * len(keywords):.1f}s per keyword\n" \
+#                   f"• Discord notifications: **ENABLED** for all new listings"
+#     await send_discord_status(startup_msg, 0x00ff00)
+
     keyword_index = 0
+    poll_count = 0
+    total_found = 0
 
     while True:
         kw_info = keywords[keyword_index]
 
         # Poll this keyword
         new_items = await poll_single_keyword(kw_info, callback)
+        poll_count += 1
+        total_found += len(new_items)
 
         logger.info(f"[STAGGERED] {kw_info['keyword']}: {len(new_items)} new items | next in {STAGGERED_POLL_INTERVAL}s")
+
+#         # Send periodic status every 20 polls (about every 3 minutes)
+#         if poll_count % 20 == 0:
+#             status_msg = f"**Polling Status** (poll #{poll_count})\n" \
+#                          f"• Total new items found: {total_found}\n" \
+#                          f"• API calls today: {API_STATS.get('calls_today', 0)}\n" \
+#                          f"• Last keyword: {kw_info['keyword']}"
+#             await send_discord_status(status_msg, 0x0099ff)
 
         # Move to next keyword
         keyword_index = (keyword_index + 1) % len(keywords)
@@ -1412,21 +2128,118 @@ async def poll_staggered(callback=None):
 
 
 # ============================================================
+# RSS FAST POLLING (NO RATE LIMITS!)
+# ============================================================
+# RSS feeds don't count against API limits, so we can poll much faster
+
+_RSS_TASK: Optional[asyncio.Task] = None
+
+async def poll_rss_fast(callback=None):
+    """
+    Fast RSS-only polling loop.
+    Since RSS doesn't have rate limits, we can poll every 5 seconds!
+    This should get items within 10-15 seconds of listing.
+    """
+    keywords = build_staggered_keyword_list()
+
+    if not keywords:
+        logger.error("[RSS] No keywords configured for polling!")
+        return
+
+    logger.info(f"[RSS FAST] Starting fast RSS polling: {len(keywords)} keywords, {RSS_POLL_INTERVAL}s interval")
+    logger.info(f"[RSS FAST] Each keyword refreshes every {RSS_POLL_INTERVAL * len(keywords):.1f}s")
+    logger.info(f"[RSS FAST] Keywords: {[k['keyword'] for k in keywords]}")
+
+    keyword_index = 0
+
+    while True:
+        kw_info = keywords[keyword_index]
+        keyword = kw_info["keyword"]
+
+        try:
+            # Use RSS only (no API fallback for speed)
+            listings = await search_ebay_rss(
+                keywords=keyword,
+                category_ids=kw_info.get("category_ids"),
+                price_min=kw_info.get("price_min", 50),
+                price_max=kw_info.get("price_max", 10000),
+                entries_per_page=50,
+            )
+
+            new_count = 0
+            for listing in listings:
+                if is_new_listing(listing.item_id):
+                    # Freshness check - only items from last 5 minutes
+                    if listing.start_time:
+                        try:
+                            from datetime import timezone
+                            now = datetime.now(timezone.utc) if listing.start_time.tzinfo else datetime.now()
+                            age_minutes = (now - listing.start_time).total_seconds() / 60
+                            if age_minutes > 5:
+                                continue
+                        except:
+                            pass
+
+                    # Check instant pass keywords
+                    title_lower = listing.title.lower()
+                    skip = False
+                    try:
+                        for kw in INSTANT_PASS_KEYWORDS:
+                            if kw in title_lower:
+                                skip = True
+                                break
+                    except:
+                        pass
+                    if skip:
+                        continue
+
+                    new_count += 1
+                    logger.info(f"[RSS] NEW: ${listing.price:.0f} - {listing.title[:50]}...")
+
+                    # Fire callback immediately
+                    if callback:
+                        asyncio.create_task(_safe_callback(callback, listing))
+
+            if new_count > 0:
+                logger.info(f"[RSS FAST] {keyword}: {new_count} new items")
+
+        except Exception as e:
+            logger.error(f"[RSS FAST] Error polling '{keyword}': {e}")
+
+        # Move to next keyword
+        keyword_index = (keyword_index + 1) % len(keywords)
+
+        # Wait for next poll (short interval since no rate limits)
+        await asyncio.sleep(RSS_POLL_INTERVAL)
+
+
+# ============================================================
 # BACKGROUND POLLING
 # ============================================================
 
 POLL_TASKS: Dict[str, asyncio.Task] = {}
 _STAGGERED_TASK: Optional[asyncio.Task] = None
 
-async def start_polling(categories: List[str] = None, callback=None, use_staggered: bool = True):
+async def start_polling(categories: List[str] = None, callback=None, use_staggered: bool = True, use_rss_fast: bool = True):
     """
     Start background polling for specified categories
 
     categories: List of category names, or None for all
     callback: async function to call for each new listing
     use_staggered: If True (default), use efficient round-robin polling
+    use_rss_fast: If True (default), use fast RSS polling (no rate limits!)
     """
-    global POLL_TASKS, _STAGGERED_TASK
+    global POLL_TASKS, _STAGGERED_TASK, _RSS_TASK
+
+    # Prefer RSS fast polling (much faster, no rate limits)
+    if use_rss_fast and RSS_ENABLED:
+        if _RSS_TASK is not None:
+            logger.warning("[RSS] Fast RSS polling already running")
+            return
+
+        _RSS_TASK = asyncio.create_task(poll_rss_fast(callback))
+        logger.info("[RSS] Started FAST RSS polling (no rate limits!)")
+        return
 
     if use_staggered:
         # Use new staggered polling (recommended)
@@ -1454,7 +2267,13 @@ async def start_polling(categories: List[str] = None, callback=None, use_stagger
 
 async def stop_polling(categories: List[str] = None):
     """Stop polling for specified categories"""
-    global POLL_TASKS, _STAGGERED_TASK
+    global POLL_TASKS, _STAGGERED_TASK, _RSS_TASK
+
+    # Stop RSS fast polling if running
+    if _RSS_TASK is not None:
+        _RSS_TASK.cancel()
+        _RSS_TASK = None
+        logger.info("[RSS] Stopped fast RSS polling")
 
     # Stop staggered polling if running
     if _STAGGERED_TASK is not None:
@@ -1471,6 +2290,143 @@ async def stop_polling(categories: List[str] = None):
             POLL_TASKS[category].cancel()
             del POLL_TASKS[category]
             logger.info(f"[EBAY API] Stopped polling: {category}")
+
+
+# ============================================================
+# TEXTBOOK ARBITRAGE POLLING
+# ============================================================
+
+TEXTBOOK_POLL_INTERVAL = 120  # 2 minutes between textbook searches
+TEXTBOOK_SEEN_ITEMS: Dict[str, datetime] = {}  # Track seen items
+_TEXTBOOK_TASK: Optional[asyncio.Task] = None
+KEEPA_TRACKER_URL = "http://127.0.0.1:8001"  # KeepaTracker service
+
+
+async def analyze_textbook_listing(listing: EbayListing) -> Optional[Dict]:
+    """
+    Send a textbook listing to KeepaTracker for analysis.
+    Returns deal info if profitable, None otherwise.
+    """
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{KEEPA_TRACKER_URL}/textbook/analyze",
+                json={
+                    "title": listing.title,
+                    "price": listing.price,
+                    "url": listing.view_url,
+                    "description": "",  # Could fetch if needed
+                    "condition": listing.condition or "Used",
+                },
+                timeout=15.0,
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "profitable":
+                    return data.get("deal")
+            return None
+
+    except Exception as e:
+        logger.error(f"[TEXTBOOK] Error calling KeepaTracker: {e}")
+        return None
+
+
+async def textbook_polling_loop(callback=None):
+    """
+    Dedicated textbook polling loop.
+    Runs separately from main gold/silver polling at a slower rate.
+    """
+    global TEXTBOOK_SEEN_ITEMS
+
+    config = SEARCH_CONFIGS.get("textbook", {})
+    keywords = config.get("keywords", [])
+    category_ids = config.get("category_ids", ["267"])
+    price_min = config.get("price_min", 10)
+    price_max = config.get("price_max", 150)
+
+    logger.info(f"[TEXTBOOK] Starting textbook polling: {len(keywords)} keywords, {TEXTBOOK_POLL_INTERVAL}s interval")
+
+    keyword_index = 0
+
+    while True:
+        keyword = keywords[keyword_index]
+
+        try:
+            listings = await search_ebay(
+                keywords=keyword,
+                category_ids=category_ids,
+                price_min=price_min,
+                price_max=price_max,
+                entries_per_page=50,
+            )
+
+            new_count = 0
+            profitable_count = 0
+
+            for listing in listings:
+                # Skip if already seen
+                if listing.item_id in TEXTBOOK_SEEN_ITEMS:
+                    continue
+
+                # Mark as seen
+                TEXTBOOK_SEEN_ITEMS[listing.item_id] = datetime.now()
+                new_count += 1
+
+                # Skip blocked sellers
+                if BLOCKED_SELLERS_ENABLED:
+                    seller_lower = listing.seller_username.lower() if listing.seller_username else ""
+                    if seller_lower in BLOCKED_SELLERS:
+                        continue
+
+                # Analyze with KeepaTracker
+                deal = await analyze_textbook_listing(listing)
+
+                if deal:
+                    profitable_count += 1
+                    logger.info(f"[TEXTBOOK] PROFITABLE: {deal['title'][:50]} - ${deal['estimated_profit']} profit")
+
+                    # Call callback if provided
+                    if callback:
+                        await callback(listing, deal)
+
+            logger.info(f"[TEXTBOOK] '{keyword}': {new_count} new, {profitable_count} profitable")
+
+        except Exception as e:
+            logger.error(f"[TEXTBOOK] Polling error: {e}")
+
+        # Move to next keyword
+        keyword_index = (keyword_index + 1) % len(keywords)
+
+        # Clean up old seen items (older than 1 hour)
+        cutoff = datetime.now() - timedelta(hours=1)
+        TEXTBOOK_SEEN_ITEMS = {k: v for k, v in TEXTBOOK_SEEN_ITEMS.items() if v > cutoff}
+
+        # Wait for next poll
+        await asyncio.sleep(TEXTBOOK_POLL_INTERVAL)
+
+
+def start_textbook_polling(callback=None):
+    """Start the textbook polling loop in the background"""
+    global _TEXTBOOK_TASK
+
+    if _TEXTBOOK_TASK is not None:
+        logger.warning("[TEXTBOOK] Polling already running")
+        return
+
+    loop = asyncio.get_event_loop()
+    _TEXTBOOK_TASK = loop.create_task(textbook_polling_loop(callback))
+    logger.info("[TEXTBOOK] Started textbook polling")
+
+
+def stop_textbook_polling():
+    """Stop the textbook polling loop"""
+    global _TEXTBOOK_TASK
+
+    if _TEXTBOOK_TASK is not None:
+        _TEXTBOOK_TASK.cancel()
+        _TEXTBOOK_TASK = None
+        logger.info("[TEXTBOOK] Stopped textbook polling")
 
 
 # ============================================================
@@ -1506,6 +2462,106 @@ async def test_search():
     print(f"\nAPI Stats: {API_STATS['calls_today']} calls today")
 
 
+
+
+# ============================================================
+# ANALYSIS CALLBACK - Send listings to proxy for full analysis
+# ============================================================
+
+async def analyze_listing_callback(listing):
+    """Send a listing to the proxy for full AI analysis"""
+    logger.info(f"[ANALYSIS] Callback invoked for: {listing.title[:40]}...")
+    try:
+        # Log to source comparison system for race tracking
+        try:
+            from utils.source_comparison import log_listing_received
+            log_listing_received(
+                item_id=listing.item_id,
+                source="direct",  # Direct API source
+                posted_time=listing.start_time.isoformat() if listing.start_time else "",
+                title=listing.title,
+                price=listing.price,
+                category="gold" if "gold" in listing.title.lower() or "14k" in listing.title.lower() or "18k" in listing.title.lower() else "silver"
+            )
+            logger.info(f"[ANALYSIS] Logged to source comparison: {listing.item_id}")
+        except Exception as e:
+            logger.warning(f"[ANALYSIS] Source comparison logging failed: {e}")
+
+        proxy_url = "http://127.0.0.1:8000/match_mydata"
+
+        # Fetch full item details (description, images) for better analysis
+        item_details = await get_item_details(listing.item_id)
+        description = ""
+        images = []
+        if item_details:
+            description = item_details.get('description', '')
+            images = item_details.get('images', [])
+        
+        # Build request data - include description and images for full AI analysis
+        data = {
+            "Title": listing.title,
+            "TotalPrice": f"${listing.price:.2f}",
+            "ItemPrice": f"${listing.price:.2f}",
+            "URL": listing.view_url or f"https://www.ebay.com/itm/{listing.item_id}",
+            "SellerName": listing.seller_id,
+            "Description": description,
+            "response_type": "json",
+        }
+        
+        # Add images if available (for scale photo detection)
+        if images:
+            data["Images"] = ",".join(images[:5])  # Max 5 images
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(proxy_url, params=data)
+            if response.status_code == 200:
+                result = response.json()
+                recommendation = result.get("Recommendation", "UNKNOWN")
+                
+                # Update Discord notification with analysis results
+                if recommendation == "BUY":
+                    # Extract numeric values from proxy response
+                    max_buy_str = result.get("MaxBuy", "0") or "0"
+                    max_buy = float(max_buy_str.replace("$", "").replace(",", "").replace("+", "") or 0)
+                    
+                    profit_str = result.get("Profit", "0") or "0"
+                    profit = float(profit_str.replace("$", "").replace(",", "").replace("+", "") or 0)
+                    
+                    await send_discord_listing(
+                        listing,
+                        keyword="API Analysis",
+                        source="Full Pipeline",
+                        recommendation=recommendation,
+                        reasoning=f"Profit: ${profit:.0f} | {result.get('reasoning', '')[:100]}",
+                        melt_value=None,  # Don't show raw melt value
+                        max_buy=max_buy if max_buy > 0 else None,
+                    )
+                    logger.info(f"[ANALYSIS] {recommendation}: {listing.title[:40]}...")
+                else:
+                    logger.debug(f"[ANALYSIS] {recommendation}: {listing.title[:40]}...")
+            else:
+                logger.warning(f"[ANALYSIS] Proxy error {response.status_code}")
+    except Exception as e:
+        logger.warning(f"[ANALYSIS] Error analyzing listing: {e}")
+
+
+async def run_polling_forever():
+    """Start polling and run forever with analysis callback"""
+    await start_polling(callback=analyze_listing_callback)
+    # Keep running forever
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except asyncio.CancelledError:
+        await stop_polling()
+
 if __name__ == "__main__":
-    # Run test
-    asyncio.run(test_search())
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
+        asyncio.run(test_search())
+    else:
+        print("[EBAY POLLER] Starting continuous polling... (Ctrl+C to stop)")
+        try:
+            asyncio.run(run_polling_forever())
+        except KeyboardInterrupt:
+            print("[EBAY POLLER] Stopped by user")

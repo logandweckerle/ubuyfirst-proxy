@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShadowSnipe Live</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #00ff88;
+        }
+        .header h1 {
+            color: #00ff88;
+            font-size: 28px;
+        }
+        .header h1 span { color: #fff; }
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        .status-item {
+            background: rgba(255,255,255,0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        .status-item.connected { background: rgba(40, 167, 69, 0.3); color: #28a745; }
+        .status-item.disconnected { background: rgba(220, 53, 69, 0.3); color: #dc3545; }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: #00ff88; color: #000; }
+        .btn-primary:hover { background: #00cc6a; }
+        .btn-secondary { background: #6c757d; color: #fff; }
+        
+        .tts-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+        }
+        .tts-toggle input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .listings-container {
+            display: grid;
+            gap: 15px;
+        }
+        .listing-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 5px solid #6c757d;
+            transition: all 0.3s;
+        }
+        .listing-card.buy {
+            border-left-color: #28a745;
+            background: rgba(40, 167, 69, 0.15);
+            animation: pulse-green 2s ease-in-out;
+        }
+        .listing-card.pass {
+            border-left-color: #dc3545;
+            background: rgba(220, 53, 69, 0.05);
+        }
+        .listing-card.research {
+            border-left-color: #ffc107;
+            background: rgba(255, 193, 7, 0.1);
+        }
+        @keyframes pulse-green {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+            50% { box-shadow: 0 0 30px 15px rgba(40, 167, 69, 0.4); }
+        }
+        .listing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .listing-title {
+            font-size: 16px;
+            font-weight: 500;
+            flex: 1;
+            margin-right: 15px;
+            word-break: break-word;
+        }
+        .listing-rec {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 5px 15px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        .listing-rec.buy { background: #28a745; color: #fff; }
+        .listing-rec.pass { background: #dc3545; color: #fff; }
+        .listing-rec.research { background: #ffc107; color: #000; }
+        .listing-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .detail-item {
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .detail-label { font-size: 11px; color: #888; text-transform: uppercase; }
+        .detail-value { font-size: 16px; font-weight: bold; margin-top: 5px; }
+        .listing-time {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        .empty-state h2 { color: #00ff88; margin-bottom: 10px; }
+        
+        #tts-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.9);
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            border: 1px solid #00ff88;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚡ <span>ShadowSnipe</span> Live</h1>
+        <div class="status-bar">
+            <div id="ws-status" class="status-item disconnected">● Disconnected</div>
+            <div id="listing-count" class="status-item">0 listings</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button class="btn btn-primary" onclick="clearListings()">🗑️ Clear</button>
+        <button class="btn btn-secondary" onclick="testTTS()">🔊 Test Sound</button>
+        <div class="tts-toggle">
+            <input type="checkbox" id="tts-enabled" checked>
+            <label for="tts-enabled">🔊 Voice Alerts</label>
+        </div>
+        <div class="tts-toggle">
+            <input type="checkbox" id="sound-enabled" checked>
+            <label for="sound-enabled">🔔 Beep Sound</label>
+        </div>
+    </div>
+    
+    <div id="listings" class="listings-container">
+        <div class="empty-state">
+            <h2>Waiting for listings...</h2>
+            <p>Listings will appear here in real-time as they're analyzed by uBuyFirst</p>
+            <p style="margin-top: 10px; font-size: 12px;">WebSocket connecting to ws://localhost:8000/ws</p>
+        </div>
+    </div>
+    
+    <div id="tts-status"></div>
+    
+    <script>
+        let ws = null;
+        let listingCount = 0;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 50;
+        
+        // Initialize Speech Synthesis
+        let voices = [];
+        if ('speechSynthesis' in window) {
+            voices = window.speechSynthesis.getVoices();
+            window.speechSynthesis.onvoiceschanged = () => {
+                voices = window.speechSynthesis.getVoices();
+                console.log('Voices loaded:', voices.length);
+            };
+        }
+        
+        function speak(text) {
+            if (!document.getElementById('tts-enabled').checked) return;
+            if (!('speechSynthesis' in window)) {
+                console.log('TTS not supported');
+                showTTSStatus('❌ TTS not supported in this browser');
+                return;
+            }
+            
+            window.speechSynthesis.cancel();
+            
+            const msg = new SpeechSynthesisUtterance();
+            msg.text = text;
+            msg.rate = 1.0;
+            msg.pitch = 1.0;
+            msg.volume = 1.0;
+            
+            // Try to use an English voice
+            if (voices.length > 0) {
+                const englishVoice = voices.find(v => v.lang.startsWith('en'));
+                if (englishVoice) msg.voice = englishVoice;
+            }
+            
+            showTTSStatus('🔊 Speaking: ' + text.substring(0, 50) + '...');
+            
+            msg.onend = () => {
+                console.log('Speech finished');
+            };
+            
+            msg.onerror = (e) => {
+                console.error('Speech error:', e);
+                showTTSStatus('❌ Speech error: ' + e.error);
+            };
+            
+            window.speechSynthesis.speak(msg);
+        }
+        
+        function playSound() {
+            if (!document.getElementById('sound-enabled').checked) return;
+            
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.frequency.value = 880;
+                oscillator.type = 'sine';
+                gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + 0.3);
+            } catch (e) {
+                console.log('Audio error:', e);
+            }
+        }
+        
+        function testTTS() {
+            showTTSStatus('🔊 Testing sound and voice...');
+            playSound();
+            setTimeout(() => {
+                speak('Buy alert! 14 karat gold chain, 15 grams, profit 200 dollars');
+            }, 500);
+        }
+        
+        function showTTSStatus(text) {
+            const status = document.getElementById('tts-status');
+            status.textContent = text;
+            status.style.display = 'block';
+            setTimeout(() => { status.style.display = 'none'; }, 4000);
+        }
+        
+        function connect() {
+            const wsUrl = 'ws://' + window.location.host + '/ws';
+            console.log('Connecting to:', wsUrl);
+            
+            try {
+                ws = new WebSocket(wsUrl);
+            } catch (e) {
+                console.error('WebSocket creation error:', e);
+                return;
+            }
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected!');
+                document.getElementById('ws-status').className = 'status-item connected';
+                document.getElementById('ws-status').textContent = '● Connected';
+                reconnectAttempts = 0;
+                showTTSStatus('✅ Connected to ShadowSnipe');
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                document.getElementById('ws-status').className = 'status-item disconnected';
+                document.getElementById('ws-status').textContent = '● Disconnected';
+                
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    const delay = Math.min(2000 * reconnectAttempts, 10000);
+                    console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts})`);
+                    setTimeout(connect, delay);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onmessage = (event) => {
+                console.log('Received message:', event.data);
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'new_listing') {
+                        addListing(data);
+                    }
+                } catch (e) {
+                    console.error('Parse error:', e);
+                }
+            };
+        }
+        
+        function addListing(data) {
+            console.log('Adding listing:', data);
+            
+            const container = document.getElementById('listings');
+            
+            // Remove empty state if present
+            const emptyState = container.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+            
+            const listing = data.listing || {};
+            const analysis = data.analysis || {};
+            
+            // Extract values - try multiple field names
+            const title = listing.title || analysis.title || 'Unknown Title';
+            const rec = (analysis.Recommendation || analysis.recommendation || 'UNKNOWN').toUpperCase();
+            const recClass = rec.toLowerCase();
+            const price = listing.price || analysis.listingPrice || analysis.TotalPrice || '0';
+            const profit = analysis.Profit || analysis.profit || analysis.Margin || analysis.margin || '--';
+            const category = listing.category || analysis.category || 'unknown';
+            const confidence = analysis.confidence || '--';
+            const weight = analysis.weight || analysis.goldweight || analysis.silverweight || '--';
+            const melt = analysis.meltvalue || analysis.melt || '--';
+            const itemType = analysis.itemtype || analysis.type || '--';
+            
+            console.log('Parsed:', { title, rec, price, profit, category, weight, melt });
+            
+            // Create card
+            const card = document.createElement('div');
+            card.className = 'listing-card ' + recClass;
+            
+            // Format profit display
+            let profitDisplay = profit;
+            let profitColor = '#888';
+            if (profit !== '--') {
+                const profitNum = parseFloat(String(profit).replace(/[$,+]/g, ''));
+                if (!isNaN(profitNum)) {
+                    profitColor = profitNum >= 0 ? '#28a745' : '#dc3545';
+                    profitDisplay = (profitNum >= 0 ? '+' : '') + '$' + profitNum.toFixed(0);
+                }
+            }
+            
+            card.innerHTML = `
+                <div class="listing-header">
+                    <div class="listing-title">${escapeHtml(String(title).replace(/\+/g, ' '))}</div>
+                    <div class="listing-rec ${recClass}">${rec}</div>
+                </div>
+                <div class="listing-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Price</div>
+                        <div class="detail-value">$${price}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Profit</div>
+                        <div class="detail-value" style="color: ${profitColor}">${profitDisplay}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Weight</div>
+                        <div class="detail-value">${weight}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Melt</div>
+                        <div class="detail-value">$${melt}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Category</div>
+                        <div class="detail-value">${category}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Type</div>
+                        <div class="detail-value">${itemType}</div>
+                    </div>
+                </div>
+                <div class="listing-time">${new Date().toLocaleTimeString()} - Confidence: ${confidence}</div>
+            `;
+            
+            // Add to top of container
+            container.insertBefore(card, container.firstChild);
+            
+            // Update count
+            listingCount++;
+            document.getElementById('listing-count').textContent = listingCount + ' listings';
+            
+            // TTS and sound for BUY alerts
+            if (rec === 'BUY') {
+                playSound();
+                const cleanTitle = String(title).replace(/\+/g, ' ').replace(/[^a-zA-Z0-9\s]/g, ' ').substring(0, 80);
+                const profitText = profit !== '--' ? `, profit ${profit} dollars` : '';
+                speak('Buy alert! ' + cleanTitle + profitText);
+            }
+            
+            // Limit to 100 listings
+            while (container.children.length > 100) {
+                container.removeChild(container.lastChild);
+            }
+        }
+        
+        function clearListings() {
+            const container = document.getElementById('listings');
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h2>Waiting for listings...</h2>
+                    <p>Listings will appear here in real-time as they're analyzed</p>
+                </div>
+            `;
+            listingCount = 0;
+            document.getElementById('listing-count').textContent = '0 listings';
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Connect on page load
+        console.log('ShadowSnipe Live Dashboard initializing...');
+        connect();
+        
+        // Pre-load voices
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.getVoices();
+        }
+    </script>
+</body>
+</html>

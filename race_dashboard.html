@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>eBay API Race Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00ff88;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            background: #16213e;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+        }
+        .api-stat { color: #00ff88; }
+        .ubf-stat { color: #ff6b6b; }
+        .tie-stat { color: #ffd93d; }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .column {
+            background: #16213e;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .column h2 {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #333;
+        }
+        .api-col h2 { color: #00ff88; }
+        .ubf-col h2 { color: #ff6b6b; }
+        .item {
+            background: #0f0f23;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #333;
+        }
+        .item.winner { border-left-color: #00ff88; }
+        .item.loser { border-left-color: #ff6b6b; }
+        .item.tie { border-left-color: #ffd93d; }
+        .item-title {
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .item-details {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .item-time {
+            font-size: 11px;
+            color: #666;
+        }
+        .latency {
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .latency.fast { color: #00ff88; }
+        .latency.slow { color: #ff6b6b; }
+        .keyword-display {
+            text-align: center;
+            background: #0f3460;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .keyword {
+            font-size: 24px;
+            font-weight: bold;
+            color: #e94560;
+        }
+        #status {
+            text-align: center;
+            padding: 10px;
+            color: #888;
+        }
+        .pulse {
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <h1>eBay API vs uBuyFirst - Live Race</h1>
+
+    <div class="keyword-display">
+        Keyword: <span class="keyword" id="keyword">14K Gold</span>
+        <div id="status" class="pulse">Connecting...</div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat">
+            <div class="stat-value api-stat" id="api-wins">0</div>
+            <div class="stat-label">API Wins</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value ubf-stat" id="ubf-wins">0</div>
+            <div class="stat-label">uBuyFirst Wins</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value tie-stat" id="ties">0</div>
+            <div class="stat-label">Ties (< 5s)</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="api-latency" style="color:#888">--</div>
+            <div class="stat-label">Avg API Latency</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="ubf-latency" style="color:#888">--</div>
+            <div class="stat-label">Avg UBF Latency</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="column api-col">
+            <h2>Direct API Finds</h2>
+            <div id="api-items"></div>
+        </div>
+        <div class="column ubf-col">
+            <h2>uBuyFirst Finds</h2>
+            <div id="ubf-items"></div>
+        </div>
+    </div>
+
+    <script>
+        let apiWins = 0, ubfWins = 0, ties = 0;
+        let apiLatencies = [], ubfLatencies = [];
+        let seenItems = new Map(); // item_id -> {api_time, ubf_time}
+
+        function updateStats() {
+            document.getElementById('api-wins').textContent = apiWins;
+            document.getElementById('ubf-wins').textContent = ubfWins;
+            document.getElementById('ties').textContent = ties;
+
+            if (apiLatencies.length > 0) {
+                const avg = Math.round(apiLatencies.reduce((a,b) => a+b, 0) / apiLatencies.length);
+                document.getElementById('api-latency').textContent = formatLatency(avg);
+            }
+            if (ubfLatencies.length > 0) {
+                const avg = Math.round(ubfLatencies.reduce((a,b) => a+b, 0) / ubfLatencies.length);
+                document.getElementById('ubf-latency').textContent = formatLatency(avg);
+            }
+        }
+
+        function formatLatency(ms) {
+            if (ms < 1000) return ms + 'ms';
+            if (ms < 60000) return (ms/1000).toFixed(1) + 's';
+            return (ms/60000).toFixed(1) + 'm';
+        }
+
+        function addItem(source, item) {
+            const container = document.getElementById(source === 'api' ? 'api-items' : 'ubf-items');
+            const div = document.createElement('div');
+            div.className = 'item';
+
+            const latencyClass = item.latency < 60000 ? 'fast' : 'slow';
+
+            div.innerHTML = `
+                <div class="item-title">${item.title}</div>
+                <div class="item-details">
+                    $${item.price} | ${item.seller}
+                    <span class="latency ${latencyClass}">${formatLatency(item.latency)}</span>
+                </div>
+                <div class="item-time">${new Date().toLocaleTimeString()}</div>
+            `;
+
+            container.insertBefore(div, container.firstChild);
+
+            // Keep only last 50 items
+            while (container.children.length > 50) {
+                container.removeChild(container.lastChild);
+            }
+
+            // Track for race comparison
+            if (item.item_id) {
+                const existing = seenItems.get(item.item_id);
+                if (!existing) {
+                    seenItems.set(item.item_id, {[source]: Date.now()});
+                } else {
+                    existing[source] = Date.now();
+                    // Determine winner
+                    const diff = Math.abs(existing.api - existing.ubf);
+                    if (diff < 5000) {
+                        ties++;
+                        div.classList.add('tie');
+                    } else if (existing.api < existing.ubf) {
+                        apiWins++;
+                        div.classList.add(source === 'api' ? 'winner' : 'loser');
+                    } else {
+                        ubfWins++;
+                        div.classList.add(source === 'ubf' ? 'winner' : 'loser');
+                    }
+                }
+            }
+
+            // Track latency
+            if (source === 'api') {
+                apiLatencies.push(item.latency);
+                if (apiLatencies.length > 100) apiLatencies.shift();
+            } else {
+                ubfLatencies.push(item.latency);
+                if (ubfLatencies.length > 100) ubfLatencies.shift();
+            }
+
+            updateStats();
+        }
+
+        // Fetch race data from server
+        async function fetchRaceData() {
+            try {
+                const response = await fetch('/race/data');
+                const data = await response.json();
+
+                document.getElementById('status').textContent =
+                    `Polling active | Last update: ${new Date().toLocaleTimeString()}`;
+                document.getElementById('status').classList.remove('pulse');
+
+                // Process new items
+                if (data.api_items) {
+                    data.api_items.forEach(item => addItem('api', item));
+                }
+                if (data.ubf_items) {
+                    data.ubf_items.forEach(item => addItem('ubf', item));
+                }
+
+                // Update keyword
+                if (data.keyword) {
+                    document.getElementById('keyword').textContent = data.keyword;
+                }
+
+            } catch (e) {
+                document.getElementById('status').textContent = 'Connection error - retrying...';
+                document.getElementById('status').classList.add('pulse');
+            }
+        }
+
+        // Poll every 2 seconds
+        setInterval(fetchRaceData, 2000);
+        fetchRaceData();
+    </script>
+</body>
+</html>

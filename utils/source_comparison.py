@@ -53,7 +53,13 @@ def parse_posted_time(posted_time_str: str) -> Optional[datetime]:
         return None
 
     try:
-        # Handle URL-encoded plus signs
+        # Check if it's an ISO format with timezone (from Browse API)
+        # e.g., "2026-01-12T16:41:44+00:00" - don't mangle the timezone
+        if 'T' in posted_time_str and ('+00:00' in posted_time_str or 'Z' in posted_time_str):
+            return dt_parser.parse(posted_time_str)
+
+        # Handle URL-encoded plus signs in uBuyFirst format
+        # e.g., "1/12/2026+9:19:40+AM" -> "1/12/2026 9:19:40 AM"
         cleaned = posted_time_str.replace('+', ' ').strip()
         return dt_parser.parse(cleaned)
     except Exception as e:
@@ -82,7 +88,19 @@ def log_listing_received(
     # Calculate latency (how long after posting did we receive it)
     latency_ms = None
     if posted_dt:
-        latency_ms = int((received_at - posted_dt).total_seconds() * 1000)
+        try:
+            # Handle timezone-aware vs naive datetime comparison
+            if posted_dt.tzinfo is not None:
+                # posted_dt is timezone-aware (from Browse API), use UTC for comparison
+                from datetime import timezone
+                received_at_utc = datetime.now(timezone.utc)
+                latency_ms = int((received_at_utc - posted_dt).total_seconds() * 1000)
+            else:
+                # Both naive (local time), compare directly
+                latency_ms = int((received_at - posted_dt).total_seconds() * 1000)
+        except Exception as e:
+            logger.debug(f"[SOURCE] Latency calc error: {e}")
+            latency_ms = None
 
     entry = {
         "item_id": item_id,

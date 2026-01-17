@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keepa Tracker - Amazon Arbitrage</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff9500;
+        }
+        
+        .logo span {
+            color: #666;
+            font-weight: normal;
+        }
+        
+        .nav {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav a {
+            padding: 8px 16px;
+            background: #333;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .nav a:hover {
+            background: #444;
+        }
+        
+        .nav a.active {
+            background: #ff9500;
+            color: #000;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .status-bar {
+            background: #12121a;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+        }
+        
+        .status-dot.active {
+            background: #00ff88;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .status-text {
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-primary {
+            background: #ff9500;
+            color: #000;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #ff7b00;
+        }
+        
+        .btn-success {
+            background: #00ff88;
+            color: #000;
+        }
+        
+        .btn-success:hover:not(:disabled) {
+            background: #00dd77;
+        }
+        
+        .btn-danger {
+            background: #ff4444;
+            color: #fff;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background: #dd3333;
+        }
+        
+        .btn-secondary {
+            background: #333;
+            color: #fff;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: #444;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: #12121a;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .stat-value.highlight {
+            color: #00ff88;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+        
+        .section {
+            background: #12121a;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .section-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #333;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .section-content {
+            padding: 20px;
+        }
+        
+        .lookup-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .lookup-form input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #333;
+            background: #0a0a0f;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .lookup-form input:focus {
+            outline: none;
+            border-color: #ff9500;
+        }
+        
+        .deal-card {
+            background: #1a1a2e;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            border-left: 4px solid #ff9500;
+        }
+        
+        .deal-card.profitable {
+            border-left-color: #00ff88;
+        }
+        
+        .deal-card.not-profitable {
+            border-left-color: #ff4444;
+            opacity: 0.7;
+        }
+        
+        .deal-image {
+            width: 80px;
+            height: 80px;
+            background: #252540;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .deal-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .deal-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .deal-title {
+            font-weight: 500;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .deal-title a {
+            color: #fff;
+            text-decoration: none;
+        }
+        
+        .deal-title a:hover {
+            color: #ff9500;
+        }
+        
+        .deal-meta {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .deal-prices {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .price-item {
+            text-align: center;
+        }
+        
+        .price-value {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .price-value.buy {
+            color: #ff9500;
+        }
+        
+        .price-value.sell {
+            color: #888;
+        }
+        
+        .price-value.profit {
+            color: #00ff88;
+        }
+        
+        .price-value.profit.negative {
+            color: #ff4444;
+        }
+        
+        .price-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        
+        .deal-roi {
+            background: #00ff88;
+            color: #000;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .deal-roi.low {
+            background: #ffaa00;
+        }
+        
+        .deal-roi.negative {
+            background: #ff4444;
+            color: #fff;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #888;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .toast.success {
+            background: #00ff88;
+            color: #000;
+        }
+        
+        .toast.error {
+            background: #ff4444;
+            color: #fff;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #333;
+            border-top-color: #ff9500;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">📦 Keepa <span>Tracker</span></div>
+        <div class="nav">
+            <a href="/">Dashboard</a>
+            <a href="/live">⚡ ShadowSnipe</a>
+            <a href="/keepa" class="active">📦 Keepa</a>
+            <a href="/analytics">Analytics</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="status-dot"></div>
+                <span class="status-text" id="status-text">Not Initialized</span>
+            </div>
+            <div class="controls">
+                <button class="btn btn-primary" id="btn-start" onclick="startTracker()">🚀 Load CSV</button>
+                <button class="btn btn-success" id="btn-check" onclick="checkDeals()">🔍 Check Deals</button>
+                <button class="btn btn-secondary" id="btn-poll-start" onclick="startPolling()">▶️ Auto-Poll</button>
+                <button class="btn btn-danger" id="btn-poll-stop" onclick="stopPolling()">⏹️ Stop</button>
+            </div>
+        </div>
+        
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-api-calls">0</div>
+                <div class="stat-label">API Calls</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value highlight" id="stat-deals">0</div>
+                <div class="stat-label">Deals Found</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-asins">0</div>
+                <div class="stat-label">Tracked ASINs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-brands">0</div>
+                <div class="stat-label">Tracked Brands</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-last-check">--</div>
+                <div class="stat-label">Last Check</div>
+            </div>
+        </div>
+        
+        <!-- Webhook Setup -->
+        <div class="section">
+            <div class="section-header">
+                <span>🔗 Webhook Setup (Fastest Alerts)</span>
+            </div>
+            <div class="section-content">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="testDiscord()" style="flex: 1;">🔔 Test Discord Alert</button>
+                    <button class="btn btn-success" onclick="startPolling()" style="flex: 1;">▶️ Start Auto-Poll (5 min)</button>
+                    <button class="btn btn-danger" onclick="stopPolling()" style="flex: 1;">⏹️ Stop Polling</button>
+                </div>
+                <div id="webhook-status"></div>
+            </div>
+        </div>
+        
+        <!-- ASIN Lookup -->
+        <div class="section">
+            <div class="section-header">
+                <span>🔎 ASIN Lookup</span>
+            </div>
+            <div class="section-content">
+                <div class="lookup-form">
+                    <input type="text" id="asin-input" placeholder="Enter ASIN (e.g., B0BSHF7WHW)" />
+                    <button class="btn btn-primary" onclick="lookupAsin()">Look Up</button>
+                </div>
+                <div id="lookup-result"></div>
+            </div>
+        </div>
+        
+        <!-- Deals -->
+        <div class="section">
+            <div class="section-header">
+                <span>💰 Recent Deals</span>
+                <span id="deals-count" style="color: #888; font-weight: normal;">0 deals</span>
+            </div>
+            <div class="section-content" id="deals-container">
+                <div class="empty-state">
+                    <h3>No deals yet</h3>
+                    <p>Start the tracker and check for deals to see results here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let isInitialized = false;
+        let deals = [];
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshStats();
+            setInterval(refreshStats, 10000); // Refresh every 10s
+        });
+        
+        async function refreshStats() {
+            try {
+                const response = await fetch(`${API_BASE}/keepa/stats`);
+                const data = await response.json();
+                
+                if (data.status === 'ok' && data.stats) {
+                    isInitialized = true;
+                    updateUI(data.stats);
+                } else {
+                    isInitialized = false;
+                    updateUI(null);
+                }
+            } catch (e) {
+                console.error('Stats error:', e);
+                isInitialized = false;
+                updateUI(null);
+            }
+        }
+        
+        function updateUI(stats) {
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            const btnStart = document.getElementById('btn-start');
+            const btnCheck = document.getElementById('btn-check');
+            const btnPollStart = document.getElementById('btn-poll-start');
+            const btnPollStop = document.getElementById('btn-poll-stop');
+            
+            if (isInitialized && stats) {
+                statusDot.classList.add('active');
+                statusText.textContent = 'Tracker Active';
+                btnStart.disabled = true;
+                btnStart.textContent = '✓ Started';
+                btnCheck.disabled = false;
+                btnPollStart.disabled = false;
+                btnPollStop.disabled = false;
+                
+                // Update stats
+                document.getElementById('stat-api-calls').textContent = stats.api_calls || 0;
+                document.getElementById('stat-deals').textContent = stats.deals_found || 0;
+                document.getElementById('stat-asins').textContent = stats.tracked_asins || 0;
+                document.getElementById('stat-brands').textContent = stats.tracked_brands || 0;
+                
+                if (stats.last_check) {
+                    const lastCheck = new Date(stats.last_check);
+                    const ago = Math.floor((Date.now() - lastCheck) / 1000);
+                    document.getElementById('stat-last-check').textContent = ago < 60 ? `${ago}s ago` : `${Math.floor(ago/60)}m ago`;
+                }
+            } else {
+                statusDot.classList.remove('active');
+                statusText.textContent = 'Not Initialized';
+                btnStart.disabled = false;
+                btnStart.textContent = '🚀 Start Tracker';
+                btnCheck.disabled = true;
+                btnPollStart.disabled = true;
+                btnPollStop.disabled = true;
+            }
+        }
+        
+        async function startTracker() {
+            const btn = document.getElementById('btn-start');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Starting...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/keepa/start`, { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    showToast('Keepa tracker started!', 'success');
+                    isInitialized = true;
+                    refreshStats();
+                } else {
+                    showToast(data.message || 'Failed to start', 'error');
+                    btn.disabled = false;
+                    btn.textContent = '🚀 Start Tracker';
+                }
+            } catch (e) {
+                showToast('Error starting tracker', 'error');
+                btn.disabled = false;
+                btn.textContent = '🚀 Start Tracker';
+            }
+        }
+        
+        async function checkDeals() {
+            const btn = document.getElementById('btn-check');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Checking...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/keepa/check`);
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    deals = data.deals || [];
+                    renderDeals();
+                    showToast(`Found ${deals.length} deals!`, 'success');
+                    refreshStats();
+                } else {
+                    showToast('Failed to check deals', 'error');
+                }
+            } catch (e) {
+                showToast('Error checking deals', 'error');
+            }
+            
+            btn.disabled = false;
+            btn.textContent = '🔍 Check Deals Now';
+        }
+        
+        async function lookupAsin() {
+            const input = document.getElementById('asin-input');
+            const asin = input.value.trim().toUpperCase();
+            
+            if (!asin || asin.length !== 10) {
+                showToast('Enter a valid 10-character ASIN', 'error');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('lookup-result');
+            resultDiv.innerHTML = '<div class="loading"></div> Looking up...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/keepa/lookup?asin=${asin}`);
+                const data = await response.json();
+                
+                if (data.status === 'ok' && data.deal) {
+                    renderSingleDeal(data.deal, data.is_profitable);
+                } else {
+                    resultDiv.innerHTML = '<div class="empty-state"><p>Product not found or no data available.</p></div>';
+                }
+            } catch (e) {
+                resultDiv.innerHTML = '<div class="empty-state"><p>Error looking up ASIN.</p></div>';
+            }
+        }
+        
+        function renderSingleDeal(deal, isProfitable) {
+            const resultDiv = document.getElementById('lookup-result');
+            resultDiv.innerHTML = createDealCard(deal, isProfitable);
+        }
+        
+        function renderDeals() {
+            const container = document.getElementById('deals-container');
+            const countSpan = document.getElementById('deals-count');
+            
+            countSpan.textContent = `${deals.length} deals`;
+            
+            if (deals.length === 0) {
+                container.innerHTML = '<div class="empty-state"><h3>No profitable deals found</h3><p>Try checking again or adjust your criteria.</p></div>';
+                return;
+            }
+            
+            container.innerHTML = deals.map(deal => createDealCard(deal, deal.roi >= 30 && deal.profit >= 5)).join('');
+        }
+        
+        function createDealCard(deal, isProfitable) {
+            const profitClass = deal.profit >= 0 ? '' : 'negative';
+            const roiClass = deal.roi >= 50 ? '' : (deal.roi >= 30 ? 'low' : 'negative');
+            const cardClass = isProfitable ? 'profitable' : 'not-profitable';
+            
+            return `
+                <div class="deal-card ${cardClass}">
+                    <div class="deal-image">
+                        ${deal.image_url ? `<img src="${deal.image_url}" alt="">` : '📦'}
+                    </div>
+                    <div class="deal-info">
+                        <div class="deal-title">
+                            <a href="${deal.amazon_url}" target="_blank">${deal.title}</a>
+                        </div>
+                        <div class="deal-meta">
+                            ASIN: ${deal.asin} | Rank: ${deal.sales_rank?.toLocaleString() || 'N/A'} | ${deal.category || 'Unknown'}
+                        </div>
+                    </div>
+                    <div class="deal-prices">
+                        <div class="price-item">
+                            <div class="price-value buy">$${deal.current_price?.toFixed(2) || '0.00'}</div>
+                            <div class="price-label">Buy</div>
+                        </div>
+                        <div class="price-item">
+                            <div class="price-value sell">$${deal.sell_price?.toFixed(2) || '0.00'}</div>
+                            <div class="price-label">Sell</div>
+                        </div>
+                        <div class="price-item">
+                            <div class="price-value profit ${profitClass}">$${deal.profit?.toFixed(2) || '0.00'}</div>
+                            <div class="price-label">Profit</div>
+                        </div>
+                    </div>
+                    <div class="deal-roi ${roiClass}">${deal.roi?.toFixed(0) || 0}%</div>
+                </div>
+            `;
+        }
+        
+        async function startPolling() {
+            const statusDiv = document.getElementById('webhook-status');
+            statusDiv.innerHTML = '<span class="loading"></span> Starting auto-poll...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/keepa/poll/start?interval=300`, { method: 'POST' });
+                const data = await response.json();
+                statusDiv.innerHTML = '<span style="color: #00ff88;">✓ Auto-polling started! Checking every 5 minutes.</span>';
+                showToast('Auto-polling started (every 5 min)', 'success');
+            } catch (e) {
+                statusDiv.innerHTML = '<span style="color: #ff4444;">✗ Failed to start polling</span>';
+                showToast('Error starting polling', 'error');
+            }
+        }
+        
+        async function stopPolling() {
+            try {
+                const response = await fetch(`${API_BASE}/keepa/poll/stop`, { method: 'POST' });
+                const data = await response.json();
+                document.getElementById('webhook-status').innerHTML = '<span style="color: #ffaa00;">⏹️ Polling stopped</span>';
+                showToast('Polling stopped', 'success');
+            } catch (e) {
+                showToast('Error stopping polling', 'error');
+            }
+        }
+        
+        async function testDiscord() {
+            const statusDiv = document.getElementById('webhook-status');
+            statusDiv.innerHTML = '<span class="loading"></span> Sending test alert...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/keepa/test-discord`, { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    statusDiv.innerHTML = '<span style="color: #00ff88;">✓ Test alert sent! Check Discord.</span>';
+                    showToast('Test alert sent to Discord!', 'success');
+                } else {
+                    statusDiv.innerHTML = `<span style="color: #ff4444;">✗ ${data.message || 'Failed to send'}</span>`;
+                    showToast('Failed to send test alert', 'error');
+                }
+            } catch (e) {
+                statusDiv.innerHTML = '<span style="color: #ff4444;">✗ Error sending test</span>';
+                showToast('Error sending test alert', 'error');
+            }
+        }
+        
+        function showToast(message, type = 'success') {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        // Enter key for ASIN lookup
+        document.getElementById('asin-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') lookupAsin();
+        });
+    </script>
+</body>
+</html>

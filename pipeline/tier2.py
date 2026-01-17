@@ -324,32 +324,47 @@ Return JSON with these EXACT fields:
 - tier2_reason: why you agreed/disagreed"""
         elif category == 'silver':
             field_requirements = """
-CRITICAL - ANALYZE IMAGES FOR STONES:
-Look at EVERY photo carefully. Do you see gemstones, beads, or non-silver components?
-- If photos show CLEAN SILVER (no visible stones/beads): Use full stated weight
-- If photos show STONES: Estimate stone weight and deduct from total
-- "Scrap" lots typically have stones removed - trust the weight if photos confirm
+=== CRITICAL: TRUST STATED WEIGHT ===
+If the TITLE contains a weight (e.g., "218 GRAMS", "500g", "1 lb"), USE THAT EXACT WEIGHT.
+The seller has weighed this lot - do NOT reduce it based on guessing from photos.
 
-STONE WEIGHT DEDUCTIONS (if visible in photos):
-- Small accent stones (<5mm): 0.5-1g each
+OVERRIDE STATED WEIGHT ONLY IF:
+- Title says "plated" or "EPNS" (not sterling at all)
+- Photos clearly show it is NOT what title describes (wrong item)
+
+DO NOT REDUCE WEIGHT FOR:
+- "Souvenir spoons" - these are SOLID STERLING when marked sterling
+- "Flatware lot" - solid pieces unless knives are included
+- Multiple pieces in a lot - seller weighed them all together
+
+=== STONE DEDUCTION (only if NO stated weight) ===
+Only estimate and deduct stones if there is NO weight in the title:
+- Small accent stones: 0.5-1g each
 - Medium cabochons: 1-3g each
-- Large stones (10-20mm): 3-6g each
-- Turquoise clusters: 5-15g total
+- Large stones: 3-6g each
+
+=== YOUR JOB ===
+Verify Tier 1's analysis:
+1. Is this actually sterling (not plated)?
+2. Did Tier 1 use the correct weight from title?
+3. Is the math correct (weight x rate x 0.75)?
+
+If Tier 1 used the stated weight correctly and item is sterling = CONFIRM THE BUY.
 
 Return JSON with these EXACT fields:
 - Recommendation: "BUY", "PASS", or "RESEARCH"
 - Profit: number (maxBuy minus listingPrice, e.g., 15 or -20)
 - confidence: number 0-100
-- reasoning: MUST include what you observed in photos regarding stones/cleanliness
+- reasoning: State what weight you used and why
 - itemtype: type of silver item
-- weight: number (total weight in grams)
-- stoneDeduction: number (grams deducted for stones, 0 if none visible)
-- silverweight: number (silver weight after deductions)
+- weight: number (total weight in grams - USE STATED WEIGHT)
+- stoneDeduction: number (0 if weight was stated in title)
+- silverweight: number (silver weight after any deductions)
 - meltvalue: number (silver value in dollars)
 - maxBuy: number (75% of melt - our ceiling)
 - sellPrice: number (82% of melt - what refiner pays)
 - tier2_override: true/false
-- tier2_reason: why you agreed/disagreed - MUST mention stone analysis"""
+- tier2_reason: why you agreed/disagreed"""
         elif category == 'videogames':
             # Get PC data from tier1 result
             pc_match = tier1_result.get('pcMatch', 'No')
@@ -688,7 +703,7 @@ CRITICAL: Your Profit and other numeric fields will be displayed directly. Calcu
                 except:
                     karat_num = 14
 
-                karat_purity = {10: 0.417, 14: 0.583, 18: 0.75, 22: 0.916, 24: 1.0}.get(karat_num, 0.583)
+                karat_purity = {9: 0.375, 10: 0.417, 14: 0.583, 18: 0.75, 22: 0.916, 24: 1.0}.get(karat_num, 0.583)
                 gold_price_per_gram = spots.get('gold_oz', 2650) / 31.1035
 
                 new_melt = corrected_weight * gold_price_per_gram * karat_purity
@@ -796,10 +811,18 @@ async def tier2_reanalyze_openai(
         # Build the prompt (simplified for speed)
         if category == 'gold':
             field_spec = "karat, goldweight (grams), meltvalue, maxBuy (90% of melt), Profit (maxBuy - listing price)"
+            category_rules = ""
         elif category == 'silver':
             field_spec = "weight (grams), silverweight, meltvalue, maxBuy (75% of melt), Profit (maxBuy - listing price)"
+            category_rules = """
+SILVER RULES:
+- If title states weight (e.g., '218 GRAMS'), USE THAT EXACT WEIGHT - seller weighed it
+- 'Souvenir spoons' marked STERLING are solid sterling - do not question
+- Flatware lots are solid unless knives included
+- Only override if item is clearly PLATED (EPNS, Rogers, etc.)"""
         else:
             field_spec = "marketprice, maxBuy (65% of market), Profit"
+            category_rules = ""
 
         verification_prompt = f"""QUICK VERIFICATION - Verify or reject Tier 1's BUY recommendation.
 
@@ -807,11 +830,14 @@ TIER 1 SAYS: {tier1_rec} with ${tier1_margin:.0f} profit
 Title: {title}
 Price: ${price:.2f}
 Category: {category}
+{category_rules}
 
 CHECK:
-1. Is the weight/quantity estimate reasonable from the images?
+1. Did Tier 1 use the STATED weight from title? If yes, trust it.
 2. Any red flags (fake, plated, damaged, wrong identification)?
 3. Is the math correct?
+
+IMPORTANT: If weight is stated in title, USE IT. Do not reduce weight based on photo guessing.
 
 Return JSON ONLY (no markdown):
 {{"Recommendation": "BUY" or "PASS", "Profit": number, "confidence": 0-100, "reasoning": "brief explanation", {field_spec}, "tier2_override": true/false, "tier2_reason": "why"}}"""
