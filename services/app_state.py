@@ -168,38 +168,48 @@ class AppState:
     async def cleanup_expired_entries(self) -> int:
         """
         Remove in-flight entries older than IN_FLIGHT_TTL.
+        Also cleans orphaned results without timestamps.
         Returns the number of entries cleaned up.
         """
         current_time = time.time()
         expired_keys = []
+        orphaned_count = 0
 
         async with self.in_flight_lock:
+            # Find expired entries
             for key, created_at in list(self._in_flight_timestamps.items()):
                 if current_time - created_at > self.IN_FLIGHT_TTL:
                     expired_keys.append(key)
 
+            # Remove expired entries
             for key in expired_keys:
                 self.in_flight.pop(key, None)
                 self.in_flight_results.pop(key, None)
                 self._in_flight_timestamps.pop(key, None)
 
-        if expired_keys:
-            logger.info(f"[CLEANUP] Removed {len(expired_keys)} expired in-flight entries")
+            # Clean orphaned results (results without timestamps)
+            orphaned_keys = set(self.in_flight_results.keys()) - set(self._in_flight_timestamps.keys())
+            for key in orphaned_keys:
+                self.in_flight_results.pop(key, None)
+                orphaned_count += 1
 
-        return len(expired_keys)
+        if expired_keys or orphaned_count:
+            logger.info(f"[CLEANUP] Removed {len(expired_keys)} expired, {orphaned_count} orphaned in-flight entries")
+
+        return len(expired_keys) + orphaned_count
 
     def cleanup_old_listings(self) -> int:
         """
         Trim listings dict to MAX_LISTINGS most recent entries.
+        Uses dict insertion order (Python 3.7+) - oldest entries are first.
         Returns the number of entries removed.
         """
         listings = self.stats.get("listings", {})
         if len(listings) <= self.MAX_LISTINGS:
             return 0
 
-        # Sort by timestamp (assuming listing_id contains timestamp info or use order)
-        sorted_keys = sorted(listings.keys())
-        keys_to_remove = sorted_keys[:-self.MAX_LISTINGS]
+        # Use insertion order - oldest entries are at the start of the dict
+        keys_to_remove = list(listings.keys())[:-self.MAX_LISTINGS]
 
         for key in keys_to_remove:
             listings.pop(key, None)
