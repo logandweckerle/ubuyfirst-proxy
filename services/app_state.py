@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Any, Optional
 from datetime import datetime
 import asyncio
+import threading
 
 
 @dataclass
@@ -31,6 +32,7 @@ class AppState:
     in_flight: Dict[str, asyncio.Event] = field(default_factory=dict)
     in_flight_results: Dict[str, tuple] = field(default_factory=dict)
     _in_flight_lock: Optional[asyncio.Lock] = field(default=None, repr=False)
+    _lock_creation_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     # Session statistics
     stats: Dict[str, Any] = field(default_factory=lambda: {
@@ -48,9 +50,17 @@ class AppState:
 
     @property
     def in_flight_lock(self) -> asyncio.Lock:
-        """Lazy initialization of asyncio lock."""
+        """
+        Thread-safe lazy initialization of asyncio lock.
+
+        Uses double-checked locking pattern to prevent race conditions
+        where multiple threads could create separate locks.
+        """
         if self._in_flight_lock is None:
-            self._in_flight_lock = asyncio.Lock()
+            with self._lock_creation_lock:
+                # Double-check after acquiring the lock
+                if self._in_flight_lock is None:
+                    self._in_flight_lock = asyncio.Lock()
         return self._in_flight_lock
 
     def increment_stat(self, key: str, amount: int = 1) -> None:
