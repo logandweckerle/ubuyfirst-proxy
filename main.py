@@ -1523,8 +1523,9 @@ async def _old_analyze_listing(request: Request):  # Renamed to prevent conflict
         # LISTING ENHANCEMENTS - Freshness, Sold check, Seller scoring
         # ============================================================
 
-        # Check if already sold
-        sold_time = data.get('SoldTime', '').strip()
+        # Check if already sold (handle both field name formats)
+        sold_time = data.get('SoldTime', '') or data.get('Sold Time', '') or ''
+        sold_time = sold_time.strip() if sold_time else ''
         if sold_time:
             logger.info(f"[SKIP] Item already sold at {sold_time}")
             return JSONResponse(content={
