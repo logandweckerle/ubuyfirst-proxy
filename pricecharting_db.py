@@ -1681,6 +1681,7 @@ def extract_card_structured(title: str) -> dict:
         result["year"] = year_match.group(1)
 
     # === EXTRACT LANGUAGE ===
+    # Only set language if explicitly mentioned - None means "accept any"
     if any(x in title_lower for x in ['japanese', 'japan', 'jp', 'jpn']):
         result["language"] = "Japanese"
     elif any(x in title_lower for x in ['korean', 'korea', 'kr']):
@@ -1695,8 +1696,9 @@ def extract_card_structured(title: str) -> dict:
         result["language"] = "Spanish"
     elif any(x in title_lower for x in ['italian', 'italiano']):
         result["language"] = "Italian"
-    else:
-        result["language"] = "English"  # Default
+    elif any(x in title_lower for x in ['english', 'eng', 'usa', 'us version']):
+        result["language"] = "English"
+    # else: None - no language specified, accept any
 
     # === EXTRACT EDITION ===
     if any(x in title_lower for x in ['1st edition', '1st ed', 'first edition']):
@@ -1930,20 +1932,24 @@ def validate_card_match(extracted: dict, product_name: str, console_name: str) -
             # Don't invalidate for card name alone - could be alternate spelling
             result["confidence"] = "Medium"
 
-    # === CHECK LANGUAGE (bidirectional) ===
+    # === CHECK LANGUAGE (only when explicitly specified) ===
     is_jp_result = any(x in console_lower for x in ['japanese', 'japan', 'jp'])
 
     if extracted["language"] == "Japanese":
+        # User explicitly wants Japanese
         if is_jp_result:
             result["match_details"].append("Japanese [OK]")
         else:
             result["failures"].append("Expected Japanese card, got English")
             result["confidence"] = "Low"
     elif extracted["language"] == "English":
-        # IMPORTANT: Reject Japanese cards when English is expected
+        # User explicitly wants English - reject Japanese
         if is_jp_result:
             result["failures"].append("Got Japanese card, expected English")
-            result["is_valid"] = False  # This is a critical mismatch
+            result["is_valid"] = False
+    # else: language is None (unspecified) - accept any language
+    elif extracted["language"] is None and is_jp_result:
+        result["match_details"].append("Japanese version")
 
     # === DETERMINE FINAL CONFIDENCE ===
     if not result["is_valid"]:
