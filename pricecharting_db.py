@@ -1290,7 +1290,7 @@ def api_lookup_product(query: str, listing_price: float = 0, category: str = Non
                         len_diff = abs(len(search_words) - len(product_words))
                         score -= len_diff * 0.5
                         
-                        print(f"[PC-API] Score {score:.1f}: {p.get('product-name', '')} (matched: {matching_words})")
+                        # print(f"[PC-API] Score {score:.1f}: {p.get('product-name', '')} (matched: {matching_words})")  # Reduced logging
                         
                         if score > best_score:
                             best_score = score
@@ -1379,7 +1379,7 @@ def api_lookup_product(query: str, listing_price: float = 0, category: str = Non
                                 score -= 25  # Severe penalty - wrong product!
 
                         variant_info = f" [{variant_matches} variants]" if variant_matches > 0 else ""
-                        print(f"[PC-API] Score {score}: {product_name[:40]}{variant_info}")
+                        # print(f"[PC-API] Score {score}: {product_name[:40]}{variant_info}")  # Reduced logging
 
                         if score > best_score:
                             best_score = score
@@ -1628,6 +1628,336 @@ def extract_grade_info(title: str) -> dict:
     return result
 
 
+def extract_card_structured(title: str) -> dict:
+    """
+    Extract structured card data from a graded card title.
+
+    This is the KEY function for accurate matching - extracts all identifiable
+    attributes from the eBay title to enable precise PriceCharting lookup.
+
+    Returns:
+        dict with: card_number, card_name, set_name, edition, variant,
+                   language, year, grader, grade, tcg_type, clean_search_query
+    """
+    title_lower = title.lower()
+    result = {
+        "card_number": None,
+        "card_name": None,
+        "set_name": None,
+        "edition": None,       # 1st Edition, Unlimited, Shadowless
+        "variant": None,       # Holo, Reverse Holo, Full Art, etc.
+        "language": None,      # Japanese, English, etc.
+        "year": None,
+        "grader": None,
+        "grade": None,
+        "tcg_type": None,      # pokemon, yugioh, mtg, etc.
+        "clean_search_query": None,
+        "raw_title": title
+    }
+
+    # === EXTRACT GRADER AND GRADE ===
+    grade_info = extract_grade_info(title)
+    result["grader"] = grade_info["grader"]
+    result["grade"] = grade_info["grade"]
+
+    # === EXTRACT CARD NUMBER ===
+    # Patterns: #25, #4, #183, No. 25, No.25, Number 25
+    card_num_patterns = [
+        r'#(\d{1,4})\b',                    # #25, #183
+        r'\bno\.?\s*(\d{1,4})\b',           # No. 25, No.25, No 25
+        r'\bnumber\s*(\d{1,4})\b',          # Number 25
+        r'/(\d{1,4})\b',                    # 25/102 format - take first number
+        r'\b(\d{1,4})/\d+\b',               # 25/102 format
+    ]
+    for pattern in card_num_patterns:
+        match = re.search(pattern, title_lower)
+        if match:
+            result["card_number"] = match.group(1)
+            break
+
+    # === EXTRACT YEAR ===
+    year_match = re.search(r'\b(199\d|200\d|201\d|202\d)\b', title)
+    if year_match:
+        result["year"] = year_match.group(1)
+
+    # === EXTRACT LANGUAGE ===
+    if any(x in title_lower for x in ['japanese', 'japan', 'jp', 'jpn']):
+        result["language"] = "Japanese"
+    elif any(x in title_lower for x in ['korean', 'korea', 'kr']):
+        result["language"] = "Korean"
+    elif any(x in title_lower for x in ['chinese', 'china', 'cn']):
+        result["language"] = "Chinese"
+    elif any(x in title_lower for x in ['german', 'deutsch']):
+        result["language"] = "German"
+    elif any(x in title_lower for x in ['french', 'francais']):
+        result["language"] = "French"
+    elif any(x in title_lower for x in ['spanish', 'espanol']):
+        result["language"] = "Spanish"
+    elif any(x in title_lower for x in ['italian', 'italiano']):
+        result["language"] = "Italian"
+    else:
+        result["language"] = "English"  # Default
+
+    # === EXTRACT EDITION ===
+    if any(x in title_lower for x in ['1st edition', '1st ed', 'first edition']):
+        result["edition"] = "1st Edition"
+    elif 'shadowless' in title_lower:
+        result["edition"] = "Shadowless"
+    elif 'unlimited' in title_lower:
+        result["edition"] = "Unlimited"
+
+    # === EXTRACT VARIANT ===
+    variants_found = []
+    variant_patterns = [
+        ('Full Art', ['full art', 'fa']),
+        ('Secret Rare', ['secret rare', 'sr', 'secret']),
+        ('Special Art Rare', ['special art rare', 'sar']),
+        ('Art Rare', ['art rare', 'ar']),
+        ('Ultra Rare', ['ultra rare', 'ur']),
+        ('Illustration Rare', ['illustration rare', 'ir']),
+        ('Holo', ['holo', 'holofoil', 'holographic']),
+        ('Reverse Holo', ['reverse holo', 'reverse', 'rev holo']),
+        ('Gold Star', ['gold star']),
+        ('Shiny', ['shiny']),
+        ('Rainbow', ['rainbow', 'hyper rare']),
+        ('Alt Art', ['alt art', 'alternate art', 'alternative art']),
+        ('Promo', ['promo', 'promotional']),
+        ('EX', [' ex ', ' ex,']),  # Space-bounded to avoid matching "excellent"
+        ('GX', [' gx ', ' gx,']),
+        ('V', [' v ', ' v,']),
+        ('VMAX', ['vmax']),
+        ('VSTAR', ['vstar']),
+    ]
+    for variant_name, patterns in variant_patterns:
+        for pattern in patterns:
+            if pattern in title_lower:
+                variants_found.append(variant_name)
+                break
+    if variants_found:
+        result["variant"] = ", ".join(variants_found[:3])  # Limit to 3
+
+    # === DETECT TCG TYPE ===
+    if any(x in title_lower for x in ['pokemon', 'pikachu', 'charizard', 'mewtwo', 'blastoise', 'venusaur']):
+        result["tcg_type"] = "pokemon"
+    elif any(x in title_lower for x in ['yugioh', 'yu-gi-oh', 'blue-eyes', 'dark magician', 'exodia']):
+        result["tcg_type"] = "yugioh"
+    elif any(x in title_lower for x in ['magic', 'mtg', 'black lotus', 'mox', 'planeswalker']):
+        result["tcg_type"] = "mtg"
+    elif any(x in title_lower for x in ['one piece']):
+        result["tcg_type"] = "onepiece"
+    elif any(x in title_lower for x in ['lorcana', 'disney']):
+        result["tcg_type"] = "lorcana"
+
+    # === EXTRACT SET NAME ===
+    # Comprehensive set list for Pokemon (most common)
+    pokemon_sets = [
+        # WOTC Era (1999-2003) - highest value vintage
+        ('Base Set', ['base set', 'base-set']),
+        ('Jungle', ['jungle']),
+        ('Fossil', ['fossil']),
+        ('Team Rocket', ['team rocket']),
+        ('Gym Heroes', ['gym heroes']),
+        ('Gym Challenge', ['gym challenge']),
+        ('Neo Genesis', ['neo genesis']),
+        ('Neo Discovery', ['neo discovery']),
+        ('Neo Revelation', ['neo revelation']),
+        ('Neo Destiny', ['neo destiny']),
+        ('Legendary Collection', ['legendary collection']),
+        ('Expedition', ['expedition']),
+        ('Aquapolis', ['aquapolis']),
+        ('Skyridge', ['skyridge']),
+        # Modern Era
+        ('151', ['151', 'pokemon 151']),
+        ('Prismatic Evolutions', ['prismatic evolutions', 'prismatic evo']),
+        ('Surging Sparks', ['surging sparks']),
+        ('Stellar Crown', ['stellar crown']),
+        ('Shrouded Fable', ['shrouded fable']),
+        ('Twilight Masquerade', ['twilight masquerade']),
+        ('Temporal Forces', ['temporal forces']),
+        ('Paldean Fates', ['paldean fates']),
+        ('Paradox Rift', ['paradox rift']),
+        ('Obsidian Flames', ['obsidian flames']),
+        ('Paldea Evolved', ['paldea evolved']),
+        ('Scarlet Violet', ['scarlet violet', 'scarlet & violet', 'sv base']),
+        ('Crown Zenith', ['crown zenith']),
+        ('Silver Tempest', ['silver tempest']),
+        ('Lost Origin', ['lost origin']),
+        ('Evolving Skies', ['evolving skies']),
+        ('Celebrations', ['celebrations']),
+        ('Fusion Strike', ['fusion strike']),
+        ('Chilling Reign', ['chilling reign']),
+        ('Battle Styles', ['battle styles']),
+        ('Shining Fates', ['shining fates']),
+        ('Vivid Voltage', ['vivid voltage']),
+        ('Champions Path', ['champions path', "champion's path"]),
+        ('Hidden Fates', ['hidden fates']),
+        ('Cosmic Eclipse', ['cosmic eclipse']),
+        ('Unified Minds', ['unified minds']),
+        ('Unbroken Bonds', ['unbroken bonds']),
+        ('Team Up', ['team up']),
+        ('Burning Shadows', ['burning shadows']),
+        ('Guardians Rising', ['guardians rising']),
+        ('Sun Moon', ['sun moon', 'sun & moon']),
+        ('Evolutions', ['evolutions', 'xy evolutions']),
+        ('Generations', ['generations']),
+        ('Ancient Origins', ['ancient origins']),
+        ('Roaring Skies', ['roaring skies']),
+        ('Phantom Forces', ['phantom forces']),
+        ('Flashfire', ['flashfire']),
+        ('XY Base', ['xy base', 'xy']),
+    ]
+
+    for set_name, patterns in pokemon_sets:
+        for pattern in patterns:
+            if pattern in title_lower:
+                result["set_name"] = set_name
+                break
+        if result["set_name"]:
+            break
+
+    # === EXTRACT CARD NAME ===
+    # Try to identify the actual Pokemon/card name
+    pokemon_names = [
+        'charizard', 'pikachu', 'mewtwo', 'blastoise', 'venusaur', 'mew',
+        'gengar', 'alakazam', 'dragonite', 'gyarados', 'snorlax', 'lapras',
+        'eevee', 'umbreon', 'espeon', 'rayquaza', 'lugia', 'ho-oh',
+        'arceus', 'dialga', 'palkia', 'giratina', 'darkrai', 'celebi',
+        'jirachi', 'deoxys', 'groudon', 'kyogre', 'latios', 'latias',
+        'magikarp', 'ditto', 'tyranitar', 'salamence', 'garchomp',
+        'lucario', 'zoroark', 'greninja', 'decidueye', 'incineroar',
+        'zacian', 'zamazenta', 'eternatus', 'calyrex', 'miraidon', 'koraidon',
+    ]
+    for name in pokemon_names:
+        if name in title_lower:
+            result["card_name"] = name.title()
+            break
+
+    # === BUILD CLEAN SEARCH QUERY ===
+    # Construct optimal search query for PriceCharting API
+    query_parts = []
+
+    # Add card name if found
+    if result["card_name"]:
+        query_parts.append(result["card_name"])
+
+    # Add set name if found (critical for accurate match)
+    if result["set_name"]:
+        query_parts.append(result["set_name"])
+
+    # Add card number if found (helps narrow down)
+    if result["card_number"]:
+        query_parts.append(f"#{result['card_number']}")
+
+    # If we couldn't extract much, fall back to cleaned title
+    if len(query_parts) < 2:
+        # Remove grading info and noise, keep rest
+        clean = title_lower
+        # Remove grading
+        clean = re.sub(r'\bpsa[\s\-]?\d+(?:\.\d)?\b', ' ', clean)
+        clean = re.sub(r'\b(?:bgs|beckett)[\s\-]?\d+(?:\.\d)?\b', ' ', clean)
+        clean = re.sub(r'\bcgc[\s\-]?\d+(?:\.\d)?\b', ' ', clean)
+        # Remove noise words
+        noise = ['gem', 'mint', 'graded', 'slab', 'rare', 'look', 'wow',
+                 'invest', 'pop', 'low pop', 'authentic', 'certified',
+                 'free shipping', 'fast ship']
+        for word in noise:
+            clean = clean.replace(word, ' ')
+        clean = ' '.join(clean.split())
+        result["clean_search_query"] = clean[:80]
+    else:
+        result["clean_search_query"] = ' '.join(query_parts)
+
+    return result
+
+
+def validate_card_match(extracted: dict, product_name: str, console_name: str) -> dict:
+    """
+    Validate that a PriceCharting result matches the extracted card data.
+
+    Returns:
+        dict with: is_valid, confidence, match_details, failures
+    """
+    result = {
+        "is_valid": True,
+        "confidence": "High",
+        "match_details": [],
+        "failures": []
+    }
+
+    product_lower = product_name.lower()
+    console_lower = console_name.lower()
+
+    # === CHECK CARD NUMBER (Critical) ===
+    if extracted["card_number"]:
+        card_num = extracted["card_number"]
+        # Look for #N, /N, or just N in product name
+        num_in_product = (
+            f"#{card_num}" in product_lower or
+            f"/{card_num}" in product_lower or
+            f" {card_num}]" in product_lower or
+            f" {card_num} " in product_lower or
+            product_lower.endswith(f" {card_num}")
+        )
+        if num_in_product:
+            result["match_details"].append(f"Card #{card_num} [OK]")
+        else:
+            result["failures"].append(f"Card #{card_num} NOT in '{product_name}'")
+            result["is_valid"] = False
+
+    # === CHECK SET NAME (Critical) ===
+    if extracted["set_name"]:
+        set_name = extracted["set_name"].lower()
+        # Check both product name and console name (PriceCharting uses console for set)
+        set_in_result = (
+            set_name in product_lower or
+            set_name in console_lower or
+            # Handle variations
+            set_name.replace(' ', '') in console_lower.replace(' ', '')
+        )
+        if set_in_result:
+            result["match_details"].append(f"Set '{extracted['set_name']}' [OK]")
+        else:
+            result["failures"].append(f"Set '{extracted['set_name']}' NOT in result")
+            result["is_valid"] = False
+
+    # === CHECK CARD NAME ===
+    if extracted["card_name"]:
+        card_name = extracted["card_name"].lower()
+        if card_name in product_lower:
+            result["match_details"].append(f"Card name '{extracted['card_name']}' [OK]")
+        else:
+            result["failures"].append(f"Card name '{extracted['card_name']}' mismatch")
+            # Don't invalidate for card name alone - could be alternate spelling
+            result["confidence"] = "Medium"
+
+    # === CHECK LANGUAGE (bidirectional) ===
+    is_jp_result = any(x in console_lower for x in ['japanese', 'japan', 'jp'])
+
+    if extracted["language"] == "Japanese":
+        if is_jp_result:
+            result["match_details"].append("Japanese [OK]")
+        else:
+            result["failures"].append("Expected Japanese card, got English")
+            result["confidence"] = "Low"
+    elif extracted["language"] == "English":
+        # IMPORTANT: Reject Japanese cards when English is expected
+        if is_jp_result:
+            result["failures"].append("Got Japanese card, expected English")
+            result["is_valid"] = False  # This is a critical mismatch
+
+    # === DETERMINE FINAL CONFIDENCE ===
+    if not result["is_valid"]:
+        result["confidence"] = "None"
+    elif len(result["failures"]) > 0:
+        result["confidence"] = "Low"
+    elif len(result["match_details"]) >= 2:
+        result["confidence"] = "High"
+    else:
+        result["confidence"] = "Medium"
+
+    return result
+
+
 def get_grade_multiplier(grader: str, grade: float) -> float:
     """Get the price multiplier for a given grade."""
     if grader == "PSA":
@@ -1683,18 +2013,17 @@ def lookup_graded_card(title: str, listing_price: float = 0) -> Dict:
     """
     Look up a graded card's value using PriceCharting API.
 
-    This function:
-    1. Extracts grade info (PSA/BGS/CGC and grade number)
-    2. Searches PriceCharting for the card (without grade keywords)
-    3. Returns graded_price if available, or calculates using multipliers
+    IMPROVED VERSION: Uses structured extraction and validation to ensure
+    accurate card matching. Returns RESEARCH recommendation if match
+    confidence is too low instead of hallucinating prices.
 
     Args:
-        title: eBay listing title with grading info (e.g., "PSA 10 Charizard Base Set")
+        title: eBay listing title with grading info (e.g., "PSA 10 Charizard #4 Base Set")
         listing_price: Current listing price for margin calculation
 
     Returns:
         Dict with: found, grader, grade, card_name, raw_price, graded_price,
-                   market_price, buy_target, margin, confidence, etc.
+                   market_price, buy_target, margin, confidence, validation, etc.
     """
     result = {
         'found': False,
@@ -1703,6 +2032,7 @@ def lookup_graded_card(title: str, listing_price: float = 0) -> Dict:
         'grade': None,
         'card_name': None,
         'set_name': None,
+        'card_number': None,
         'raw_price': None,
         'graded_price': None,
         'market_price': None,
@@ -1711,48 +2041,47 @@ def lookup_graded_card(title: str, listing_price: float = 0) -> Dict:
         'multiplier': None,
         'confidence': 'None',
         'source': 'pricecharting_graded',
+        'validation': None,
+        'extracted': None,
         'error': None
     }
 
-    # Extract grade info
-    grade_info = extract_grade_info(title)
-    if not grade_info['is_graded']:
+    # === STEP 1: STRUCTURED EXTRACTION ===
+    extracted = extract_card_structured(title)
+    result['extracted'] = extracted
+
+    if not extracted['grader'] or not extracted['grade']:
         result['error'] = 'No grading info found in title'
         return result
 
     result['is_graded'] = True
-    result['grader'] = grade_info['grader']
-    result['grade'] = grade_info['grade']
+    result['grader'] = extracted['grader']
+    result['grade'] = extracted['grade']
+    result['card_number'] = extracted['card_number']
 
     # Get multiplier for this grade
-    multiplier = get_grade_multiplier(grade_info['grader'], grade_info['grade'])
+    multiplier = get_grade_multiplier(extracted['grader'], extracted['grade'])
     result['multiplier'] = multiplier
 
-    # Normalize title for search (remove grading info)
-    search_title = normalize_card_title(title)
-    print(f"[PC-GRADED] Searching for: '{search_title}' (was: {title[:50]}...)")
+    # Get clean search query from extraction
+    search_query = extracted['clean_search_query']
+    category = extracted['tcg_type'] or 'pokemon'
 
-    # Detect TCG type
-    title_lower = title.lower()
-    if any(x in title_lower for x in ['pokemon', 'charizard', 'pikachu', 'mewtwo', 'blastoise']):
-        category = 'pokemon'
-    elif any(x in title_lower for x in ['yugioh', 'yu-gi-oh', 'blue-eyes', 'dark magician']):
-        category = 'yugioh'
-    elif any(x in title_lower for x in ['magic', 'mtg', 'black lotus']):
-        category = 'mtg'
-    else:
-        category = 'pokemon'  # Default to Pokemon (most common)
+    print(f"[PC-GRADED] Structured extraction:")
+    print(f"  Card: {extracted['card_name']}, Set: {extracted['set_name']}, #{extracted['card_number']}")
+    print(f"  Grade: {extracted['grader']} {extracted['grade']}, Lang: {extracted['language']}")
+    print(f"  Search query: '{search_query}'")
 
-    # Search PriceCharting API
+    # === STEP 2: API SEARCH ===
     if not PRICECHARTING_API_KEY:
         result['error'] = 'No API key configured'
         return result
 
-    encoded_query = urllib.parse.quote(search_title[:100])
+    encoded_query = urllib.parse.quote(search_query[:100])
     url = f"https://www.pricecharting.com/api/products?t={PRICECHARTING_API_KEY}&q={encoded_query}"
 
     try:
-        print(f"[PC-GRADED] API search: {search_title[:50]}...")
+        print(f"[PC-GRADED] API search: {search_query[:50]}...")
         req = urllib.request.Request(url, headers={'User-Agent': 'eBayArbitrage/1.0'})
 
         with urllib.request.urlopen(req, timeout=10) as response:
@@ -1768,48 +2097,60 @@ def lookup_graded_card(title: str, listing_price: float = 0) -> Dict:
                 return result
 
             # Filter to cards only (not sealed products)
-            # PriceCharting uses console-name like "Pokemon Cards" for individual cards
             card_products = [p for p in products
                            if 'card' in p.get('console-name', '').lower()
                            or category in p.get('console-name', '').lower()]
 
             if not card_products:
-                card_products = products  # Fall back to all results
+                card_products = products
 
-            # Score products by matching keywords from search
-            search_words = set(word for word in search_title.split() if len(word) > 2)
+            # === STEP 3: FIND AND VALIDATE BEST MATCH ===
             best_product = None
+            best_validation = None
             best_score = -100
 
-            for p in card_products[:10]:  # Check top 10
-                product_name = p.get('product-name', '').lower()
-                product_words = set(word for word in product_name.split() if len(word) > 2)
+            for p in card_products[:15]:  # Check top 15
+                product_name = p.get('product-name', '')
+                console_name = p.get('console-name', '')
 
-                score = len(search_words & product_words) * 2
+                # Validate this candidate against our extracted data
+                validation = validate_card_match(extracted, product_name, console_name)
 
-                # Bonus for key card identifiers
-                if any(x in search_title for x in ['charizard', 'pikachu', 'mewtwo', 'blastoise']):
-                    for card in ['charizard', 'pikachu', 'mewtwo', 'blastoise']:
-                        if card in search_title.lower() and card in product_name:
-                            score += 10
-
-                # Bonus for set name match
-                set_names = ['base set', 'jungle', 'fossil', 'team rocket', 'neo genesis',
-                            'neo discovery', 'neo revelation', 'neo destiny', 'legendary collection',
-                            'evolving skies', 'hidden fates', 'celebrations', '151']
-                for set_name in set_names:
-                    if set_name in search_title.lower() and set_name in product_name:
-                        score += 5
+                # Score based on validation
+                score = 0
+                if validation['is_valid']:
+                    score = 100 + len(validation['match_details']) * 10
+                else:
+                    # Partial match - count successful matches
+                    score = len(validation['match_details']) * 10 - len(validation['failures']) * 20
 
                 if score > best_score:
                     best_score = score
                     best_product = p
+                    best_validation = validation
 
-            if not best_product or best_score < 2:
-                result['error'] = f'No good match found (best score: {best_score})'
+                # Log validation for debugging
+                print(f"[PC-GRADED] Candidate: {product_name[:40]}...")
+                print(f"  Validation: {validation['confidence']} - {validation['match_details']} | {validation['failures']}")
+
+            # === STEP 4: VALIDATE MATCH QUALITY ===
+            if not best_product:
+                result['error'] = 'No matching cards found'
                 return result
 
-            # Get full product details
+            result['validation'] = best_validation
+
+            # CRITICAL: If validation failed, don't return a price
+            if not best_validation['is_valid']:
+                result['error'] = f"Match validation failed: {', '.join(best_validation['failures'])}"
+                result['confidence'] = 'None'
+                # Still return the attempted match info for debugging
+                result['card_name'] = best_product.get('product-name', '')
+                result['set_name'] = best_product.get('console-name', '')
+                print(f"[PC-GRADED] REJECTED: Validation failed - {best_validation['failures']}")
+                return result
+
+            # === STEP 5: GET PRODUCT DETAILS ===
             product_id = best_product.get('id')
             detail_url = f"https://www.pricecharting.com/api/product?t={PRICECHARTING_API_KEY}&id={product_id}"
 
@@ -1822,8 +2163,8 @@ def lookup_graded_card(title: str, listing_price: float = 0) -> Dict:
                     return result
 
                 # Extract prices (in pennies)
-                loose_price = int(detail_data.get('loose-price', 0) or 0) / 100  # Raw/ungraded
-                graded_price = int(detail_data.get('graded-price', 0) or 0) / 100  # Graded (usually PSA 9/10)
+                loose_price = int(detail_data.get('loose-price', 0) or 0) / 100
+                graded_price = int(detail_data.get('graded-price', 0) or 0) / 100
 
                 result['card_name'] = detail_data.get('product-name', '')
                 result['set_name'] = detail_data.get('console-name', '')
@@ -1832,32 +2173,27 @@ def lookup_graded_card(title: str, listing_price: float = 0) -> Dict:
                 result['product_id'] = product_id
                 result['found'] = True
 
-                print(f"[PC-GRADED] Found: {result['card_name']} | Raw: ${loose_price:.2f}, Graded: ${graded_price:.2f}")
+                print(f"[PC-GRADED] VALIDATED MATCH: {result['card_name']}")
+                print(f"  Raw: ${loose_price:.2f}, Graded: ${graded_price:.2f}")
+                print(f"  Validation: {best_validation['match_details']}")
 
-                # Determine market price for this specific grade
-                # PriceCharting's graded-price is typically for PSA 9-10
-                # We need to adjust based on actual grade
-
-                if graded_price > 0 and grade_info['grade'] >= 9:
-                    # Use PriceCharting's graded price directly for PSA 9+
-                    if grade_info['grade'] == 10 and grade_info['grader'] == 'PSA':
-                        # PSA 10 is premium over graded-price (which is often PSA 9 average)
-                        market_price = graded_price * 1.5  # PSA 10 typically 1.5x of avg graded
-                    elif grade_info['grade'] >= 9.5 and grade_info['grader'] == 'BGS':
-                        # BGS 9.5 is similar to PSA 10
+                # === STEP 6: CALCULATE MARKET PRICE ===
+                if graded_price > 0 and extracted['grade'] >= 9:
+                    if extracted['grade'] == 10 and extracted['grader'] == 'PSA':
+                        market_price = graded_price * 1.5
+                    elif extracted['grade'] >= 9.5 and extracted['grader'] == 'BGS':
                         market_price = graded_price * 1.3
                     else:
                         market_price = graded_price
 
-                    result['confidence'] = 'High'
+                    result['confidence'] = best_validation['confidence']
                     result['source'] = 'pricecharting_graded_direct'
 
                 elif loose_price > 0:
-                    # Calculate from raw price using multiplier
                     market_price = loose_price * multiplier
-                    result['confidence'] = 'Medium'
+                    result['confidence'] = 'Medium' if best_validation['confidence'] == 'High' else 'Low'
                     result['source'] = 'pricecharting_calculated'
-                    print(f"[PC-GRADED] Calculated: ${loose_price:.2f} raw x {multiplier}x = ${market_price:.2f}")
+                    print(f"[PC-GRADED] Calculated: ${loose_price:.2f} x {multiplier}x = ${market_price:.2f}")
 
                 else:
                     result['error'] = 'No pricing data available'
@@ -1872,7 +2208,8 @@ def lookup_graded_card(title: str, listing_price: float = 0) -> Dict:
                 result['buy_target'] = buy_target
                 result['margin'] = margin
 
-                print(f"[PC-GRADED] Market: ${market_price:.2f}, Buy@70%: ${buy_target:.2f}, Margin: ${margin:.2f if margin else 0}")
+                margin_str = f"${margin:.2f}" if margin is not None else "N/A"
+                print(f"[PC-GRADED] Market: ${market_price:.2f}, Buy@70%: ${buy_target:.2f}, Margin: {margin_str}")
 
                 return result
 
