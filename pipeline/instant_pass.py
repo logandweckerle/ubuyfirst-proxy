@@ -15,31 +15,31 @@ logger = logging.getLogger(__name__)
 
 # Pre-compiled regex patterns for weight extraction
 WEIGHT_PATTERNS = [
-    re.compile(r'(\d*\.?\d+)\s*(?:gram|grams|gr)', re.IGNORECASE),
-    re.compile(r'(\d*\.?\d+)\s*g', re.IGNORECASE),
-    re.compile(r'(\d*\.?\d+)\s*(?:dwt|DWT)', re.IGNORECASE),
-    re.compile(r'(\d*\.?\d+)\s*(?:ozt|oz\.t|troy\s*oz)', re.IGNORECASE),
-    re.compile(r'(\d*\.?\d+)\s*oz', re.IGNORECASE),
+    re.compile(r'(\d*\.?\d+)\s*(?:gram|grams|gr)', re.IGNORECASE),
+    re.compile(r'(\d*\.?\d+)\s*g', re.IGNORECASE),
+    re.compile(r'(\d*\.?\d+)\s*(?:dwt|DWT)', re.IGNORECASE),
+    re.compile(r'(\d*\.?\d+)\s*(?:ozt|oz\.t|troy\s*oz)', re.IGNORECASE),
+    re.compile(r'(\d*\.?\d+)\s*oz', re.IGNORECASE),
 ]
 
 # Fractional oz patterns
-FRACTION_OZT_PATTERN = re.compile(r'(\d+)/(\d+)\s*(?:ozt|oz\.t|troy\s*oz)', re.IGNORECASE)
-FRACTION_OZ_PATTERN = re.compile(r'(\d+)/(\d+)\s*oz', re.IGNORECASE)
+FRACTION_OZT_PATTERN = re.compile(r'(\d+)/(\d+)\s*(?:ozt|oz\.t|troy\s*oz)', re.IGNORECASE)
+FRACTION_OZ_PATTERN = re.compile(r'(\d+)/(\d+)\s*oz', re.IGNORECASE)
 
 # Karat extraction patterns (pattern, karat_value)
 KARAT_PATTERNS = [
-    (re.compile(r'24\s*k(?:t|arat)?', re.IGNORECASE), 24),
-    (re.compile(r'22\s*k(?:t|arat)?', re.IGNORECASE), 22),
-    (re.compile(r'18\s*k(?:t|arat)?', re.IGNORECASE), 18),
-    (re.compile(r'14\s*k(?:t|arat)?', re.IGNORECASE), 14),
-    (re.compile(r'10\s*k(?:t|arat)?', re.IGNORECASE), 10),
-    (re.compile(r'9\s*k(?:t|arat)?', re.IGNORECASE), 9),
-    (re.compile(r'999'), 24),
-    (re.compile(r'916'), 22),
-    (re.compile(r'750'), 18),
-    (re.compile(r'585'), 14),
-    (re.compile(r'417'), 10),
-    (re.compile(r'375'), 9),
+    (re.compile(r'24\s*k(?:t|arat)?', re.IGNORECASE), 24),
+    (re.compile(r'22\s*k(?:t|arat)?', re.IGNORECASE), 22),
+    (re.compile(r'18\s*k(?:t|arat)?', re.IGNORECASE), 18),
+    (re.compile(r'14\s*k(?:t|arat)?', re.IGNORECASE), 14),
+    (re.compile(r'10\s*k(?:t|arat)?', re.IGNORECASE), 10),
+    (re.compile(r'9\s*k(?:t|arat)?', re.IGNORECASE), 9),
+    (re.compile(r'999'), 24),
+    (re.compile(r'916'), 22),
+    (re.compile(r'750'), 18),
+    (re.compile(r'585'), 14),
+    (re.compile(r'417'), 10),
+    (re.compile(r'375'), 9),
 ]
 
 # Module configuration
@@ -67,10 +67,13 @@ def get_spot_prices():
     return {}
 
 
-def extract_weight_from_title(title: str) -> tuple:
+def extract_weight_from_title(title: str, description: str = '') -> tuple:
     """
-    Extract weight from title if explicitly stated.
+    Extract weight from title OR description if explicitly stated.
     Returns (weight_grams, source) or (None, None) if not found.
+
+    IMPORTANT: Checks BOTH title AND description for weight!
+    Many sellers put weight in description like "weighs 2.5 grams"
 
     ONLY extracts clearly stated weights like "2.5g", "2.5 grams", "1/2 oz"
     Does NOT estimate - that's for AI to do.
@@ -82,10 +85,11 @@ def extract_weight_from_title(title: str) -> tuple:
 
     Uses pre-compiled patterns for performance.
     """
-    title_lower = title.lower()
+    # Check BOTH title and description for weight
+    combined_text = f"{title} {description}".lower()
 
     # Check for fractional troy oz first (e.g., "1/2 ozt", "1/4 troy oz")
-    frac_ozt_match = FRACTION_OZT_PATTERN.search(title_lower)
+    frac_ozt_match = FRACTION_OZT_PATTERN.search(combined_text)
     if frac_ozt_match:
         numerator = float(frac_ozt_match.group(1))
         denominator = float(frac_ozt_match.group(2))
@@ -95,15 +99,15 @@ def extract_weight_from_title(title: str) -> tuple:
             return grams, "stated"
 
     # Check for fractional plain oz (e.g., "1/2 oz", "1/4 oz")
-    frac_oz_match = FRACTION_OZ_PATTERN.search(title_lower)
+    frac_oz_match = FRACTION_OZ_PATTERN.search(combined_text)
     if frac_oz_match:
         numerator = float(frac_oz_match.group(1))
         denominator = float(frac_oz_match.group(2))
         if denominator > 0:
             oz_value = numerator / denominator
             # For precious metals (silver/gold coins/bullion), use troy oz (31.1g)
-            # Check for silver/gold indicators in title
-            is_precious_metal = any(kw in title_lower for kw in [
+            # Check for silver/gold indicators in text
+            is_precious_metal = any(kw in combined_text for kw in [
                 '.999', '.925', '.900', '.800', 'silver', 'gold', 'platinum',
                 'bullion', 'coin', 'bar', 'round', 'eagle', 'maple', 'libertad',
                 'krugerrand', 'philharmonic', 'britannia', 'panda', 'kookaburra',
@@ -117,7 +121,7 @@ def extract_weight_from_title(title: str) -> tuple:
 
     # Use pre-compiled patterns (ordered by specificity)
     for pattern in WEIGHT_PATTERNS:
-        match = pattern.search(title_lower)
+        match = pattern.search(combined_text)
         if match:
             weight = float(match.group(1))
             matched_text = match.group(0).lower()
@@ -201,6 +205,47 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
         if keyword in title_lower:
 
             return (f"Title contains '{keyword}'", "PASS")
+
+    # ============================================================
+    # DIAMOND/STONE JEWELRY FILTERS (Gold category)
+    # Items priced for stone value, not gold melt value
+    # Based on learning_patterns PASS data analysis
+    # ============================================================
+    if category == 'gold':
+        has_diamond = 'diamond' in title_lower
+        has_wedding_band = 'wedding band' in title_lower or 'wedding ring' in title_lower
+        has_engagement = 'engagement' in title_lower
+
+        # 1. Diamond Wedding Bands > $500 - Always priced for stone value
+        if has_diamond and has_wedding_band and price_float > 500:
+            logger.info(f"[INSTANT] PASS - Diamond wedding band @ ${price_float:.0f} (stone-priced)")
+            return (f"Diamond wedding band @ ${price_float:.0f} - priced for stones, not gold melt", "PASS")
+
+        # 2. Diamond Engagement Rings > $300 - Stone value dominates
+        if has_diamond and has_engagement and price_float > 300:
+            logger.info(f"[INSTANT] PASS - Diamond engagement ring @ ${price_float:.0f} (stone-priced)")
+            return (f"Diamond engagement ring @ ${price_float:.0f} - priced for stones, not gold melt", "PASS")
+
+        # 5. Designer Names - Priced for brand, not melt
+        designer_brands = [
+            'van cleef', 'cartier', 'tiffany', 'john hardy', 'bvlgari', 'bulgari',
+            'david yurman', 'roberto coin', 'chopard', 'buccellati', 'harry winston',
+            'graff', 'piaget', 'pomellato', 'marco bicego'
+        ]
+        for brand in designer_brands:
+            if brand in title_lower:
+                logger.info(f"[INSTANT] PASS - Designer brand '{brand}' @ ${price_float:.0f}")
+                return (f"Designer jewelry ({brand}) - priced for brand, not gold melt", "PASS")
+
+        # 6. High-price diamond items > $2000 - Definitely stone-priced
+        if has_diamond and price_float > 2000:
+            logger.info(f"[INSTANT] PASS - High-price diamond jewelry @ ${price_float:.0f}")
+            return (f"Diamond jewelry @ ${price_float:.0f} - price indicates stone value, not gold melt", "PASS")
+
+        # 7. Lab-created stones - No melt value in the stones, and items priced for stone appearance
+        if 'lab created' in title_lower or 'lab-created' in title_lower:
+            logger.info(f"[INSTANT] PASS - Lab-created stones @ ${price_float:.0f}")
+            return (f"Lab-created stones - priced for stone appearance, not gold melt", "PASS")
 
     # ============================================================
     # WEIGHTED STERLING CHECK (Title + Description)
@@ -291,7 +336,7 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
 
     if category in ['gold', 'silver']:
 
-        stated_weight, weight_source = extract_weight_from_title(title)
+        stated_weight, weight_source = extract_weight_from_title(title, data.get('description', ''))
 
         if stated_weight and weight_source == "stated":
 
@@ -460,7 +505,7 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
         has_high_nonmetal = any(kw in title_lower for kw in high_nonmetal_keywords)
 
         if has_high_nonmetal:
-            stated_weight, _ = extract_weight_from_title(title)
+            stated_weight, _ = extract_weight_from_title(title, data.get('description', ''))
             if not stated_weight:
                 logger.info(f"[JADE/STONE] PASS - High non-metal value item without stated weight: {title[:60]}")
                 return (f"JADE/CARVED STONE: Item valued for stone, not metal. No weight stated - cannot verify metal content.", "PASS")

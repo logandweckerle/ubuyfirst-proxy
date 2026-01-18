@@ -974,10 +974,17 @@ Return JSON ONLY (no markdown):
             tier1_market = tier1_result.get('marketprice', '0')
             pc_confidence = tier1_result.get('pcConfidence', 'Low')
 
+            # Safe conversion - handle 'NA', 'Unknown', etc.
             if isinstance(tier1_max_buy, str):
-                tier1_max_buy = float(tier1_max_buy.replace('$', '').replace(',', ''))
+                try:
+                    tier1_max_buy = float(tier1_max_buy.replace('$', '').replace(',', ''))
+                except (ValueError, AttributeError):
+                    tier1_max_buy = 0
             if isinstance(tier1_market, str):
-                tier1_market = float(tier1_market.replace('$', '').replace(',', ''))
+                try:
+                    tier1_market = float(tier1_market.replace('$', '').replace(',', ''))
+                except (ValueError, AttributeError):
+                    tier1_market = 0
 
             server_profit = tier1_max_buy - price
             merged['Profit'] = int(server_profit)

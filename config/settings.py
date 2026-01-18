@@ -320,7 +320,7 @@ UBF_STORE_TITLE_FILTERS = ['watch', 'pen', 'knife']
 # ============================================================
 # SELLER DETECTION
 # ============================================================
-SELLER_SPAM_WINDOW = 30       # seconds
+SELLER_SPAM_WINDOW = 10       # seconds (2 listings in 10s = spam)
 SELLER_SPAM_THRESHOLD = 2     # appearances to trigger block
 
 PROFESSIONAL_SELLER_KEYWORDS = {

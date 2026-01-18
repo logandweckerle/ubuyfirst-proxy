@@ -95,15 +95,35 @@ SILVER_PARTIAL_METAL_INDICATORS = [
 
 
 
-def detect_non_metal(title: str, description: str = "") -> Tuple[bool, str]:
+def detect_non_metal(title: str, description: str = "", item_specifics: dict = None) -> Tuple[bool, str]:
     """
     Detect if item likely has significant non-metal weight.
     These items need AI analysis for proper deductions.
     Returns (has_non_metal, detected_type)
+
+    Args:
+        item_specifics: eBay item specifics dict with MainStone, TotalCaratWeight, etc.
     """
+    # Check item specifics FIRST (most reliable)
+    if item_specifics:
+        # MainStone field (e.g., "Diamond", "Ruby", "Sapphire")
+        main_stone = str(item_specifics.get('MainStone', '') or '').lower().strip()
+        if main_stone and main_stone not in ['no stone', 'none', 'n/a', 'na', '']:
+            return True, f"MainStone: {main_stone}"
+
+        # TotalCaratWeight field (e.g., "0.50 ctw", "1.5 ct")
+        carat_weight = str(item_specifics.get('TotalCaratWeight', '') or '').strip()
+        if carat_weight and carat_weight not in ['0', '0.00', 'n/a', 'na', '']:
+            return True, f"TotalCaratWeight: {carat_weight}"
+
+        # SecondaryStone field
+        secondary_stone = str(item_specifics.get('SecondaryStone', '') or '').lower().strip()
+        if secondary_stone and secondary_stone not in ['no stone', 'none', 'n/a', 'na', '']:
+            return True, f"SecondaryStone: {secondary_stone}"
+
     text = f"{title} {description}".lower()
 
-    # Check simple substring indicators first
+    # Check simple substring indicators
     for indicator in NON_METAL_INDICATORS:
         if indicator in text:
             return True, indicator
@@ -133,6 +153,11 @@ PLATED_PATTERNS_COMPILED = [
     (re.compile(r'\bgold\s*overlay\b', re.IGNORECASE), 'gold overlay'),
     (re.compile(r'\belectroplate\b', re.IGNORECASE), 'electroplate'),
     (re.compile(r'\brolled\s*gold\b', re.IGNORECASE), 'rolled gold'),
+    # Stainless steel with gold karat = gold-plated stainless (NOT solid gold)
+    (re.compile(r'\bstainless\s*steel\b', re.IGNORECASE), 'stainless steel'),
+    # "Stamped gold" usually means gold-stamped/plated, not solid
+    (re.compile(r'\bstamped\s*gold\b', re.IGNORECASE), 'stamped gold'),
+    (re.compile(r'\bgold\s*stamped\b', re.IGNORECASE), 'gold stamped'),
 ]
 
 # Known gold filled brands - instant PASS (NOT Keystone - good brand)
@@ -159,6 +184,70 @@ def detect_plated(title: str, description: str = "") -> Tuple[bool, str]:
     for pattern, name in PLATED_PATTERNS_COMPILED:
         if pattern.search(text):
             return True, f"Plated indicator: {name}"
+
+    return False, ""
+
+
+# ============================================================
+# ITEM SPECIFICS DANGER DETECTION
+# Uses eBay item specifics (Metal, Material) to catch fakes
+# ============================================================
+
+# Danger metals - NOT solid gold/silver
+DANGER_METALS = [
+    'stainless', 'steel', 'brass', 'copper', 'bronze', 'alloy',
+    'plated', 'filled', 'tone', 'rhodium', 'nickel', 'pewter',
+    'titanium', 'tungsten', 'base metal', 'costume'
+]
+
+# Danger materials that indicate fake/plated
+DANGER_MATERIALS = [
+    'stainless', 'steel', 'brass', 'plated', 'filled',
+    'base metal', 'alloy', 'costume'
+]
+
+
+def check_item_specifics_danger(data: dict) -> Tuple[bool, str]:
+    """
+    Check eBay item specifics (Metal, Material) for danger signals.
+    Returns (is_danger, reason)
+
+    This catches items like "18K Gold Stainless Steel" where the title
+    says gold but the item specifics reveal it's actually stainless steel.
+    """
+    metal = (data.get('Metal', '') or '').lower()
+    material = (data.get('Material', '') or '').lower()
+
+    # Safe multi-tone patterns - these are REAL gold variations, NOT plated
+    # "multi-tone gold", "two-tone gold", "tri-tone gold" = real gold in multiple colors
+    safe_tone_patterns = ['multi-tone', 'two-tone', 'tri-tone', 'two tone', 'tri tone', 'multi tone']
+    is_safe_tone = any(pattern in metal for pattern in safe_tone_patterns)
+
+    # Check Metal field for danger
+    for danger in DANGER_METALS:
+        if danger in metal:
+            # Exception: "yellow gold", "white gold", "rose gold" are fine
+            if 'gold' in metal:
+                # Skip "tone" check if it's a safe multi-tone pattern
+                if danger == 'tone' and is_safe_tone:
+                    continue  # multi-tone/two-tone/tri-tone gold is real gold
+                # For other dangers with gold, check if danger word is separate from gold
+                if danger not in ['plated', 'filled', 'tone']:
+                    if danger in metal.replace('gold', '').replace('+', ' '):
+                        return True, f"Item specifics Metal='{metal}' contains '{danger}'"
+                else:
+                    # plated/filled/tone (non-safe) - this is danger
+                    if danger == 'tone' and not is_safe_tone:
+                        return True, f"Item specifics Metal='{metal}' contains '{danger}'"
+                    elif danger != 'tone':
+                        return True, f"Item specifics Metal='{metal}' contains '{danger}'"
+            else:
+                return True, f"Item specifics Metal='{metal}' contains '{danger}'"
+
+    # Check Material field for danger
+    for danger in DANGER_MATERIALS:
+        if danger in material:
+            return True, f"Item specifics Material='{material}' contains '{danger}'"
 
     return False, ""
 
@@ -230,12 +319,44 @@ PALLADIUM_PURITY_PATTERNS_COMPILED = [
 ]
 
 
-def extract_karat(title: str, description: str = "") -> Tuple[Optional[int], str]:
+def extract_karat(title: str, description: str = "", item_specifics: dict = None) -> Tuple[Optional[int], str]:
     """
-    Extract karat from title/description.
-    Returns (karat, source) where source is "title" or "description"
+    Extract karat from title/description/item_specifics.
+    Returns (karat, source) where source is "title", "description", "MetalPurity", or "Fineness"
+
+    Priority order:
+    1. Item specifics (MetalPurity, Fineness) - most reliable, from eBay database
+    2. Title - seller's main description
+    3. Description - additional details
     """
-    # Check title first (more reliable)
+    # Check item specifics FIRST (most reliable - from eBay database)
+    if item_specifics:
+        # MetalPurity field (e.g., "14K", "18K", "24K", ".925")
+        metal_purity = str(item_specifics.get('MetalPurity', '') or '').lower().strip()
+        if metal_purity:
+            # Parse karat from common formats: "14k", "18kt", "24 karat", etc.
+            for pattern, karat in KARAT_PATTERNS_COMPILED:
+                if pattern.search(metal_purity):
+                    return karat, "MetalPurity"
+
+        # Fineness field (e.g., "585", "750", "999")
+        fineness = str(item_specifics.get('Fineness', '') or '').strip()
+        if fineness:
+            # Fineness to karat mapping
+            fineness_map = {
+                '999': 24, '9999': 24,
+                '916': 22,
+                '750': 18,
+                '585': 14,
+                '417': 10,
+                '375': 9,
+            }
+            # Check for fineness number
+            for fin_val, karat in fineness_map.items():
+                if fin_val in fineness:
+                    return karat, "Fineness"
+
+    # Check title (more reliable than description)
     for pattern, karat in KARAT_PATTERNS_COMPILED:
         if pattern.search(title):
             return karat, "title"
@@ -470,7 +591,8 @@ def fast_extract_gold(
     title: str,
     price: float,
     description: str = "",
-    gold_spot_oz: float = DEFAULT_GOLD_OZ
+    gold_spot_oz: float = DEFAULT_GOLD_OZ,
+    item_specifics: dict = None
 ) -> FastExtractResult:
     """
     Perform instant server-side extraction for gold listings.
@@ -478,8 +600,22 @@ def fast_extract_gold(
 
     CRITICAL: Does NOT instant-pass items with non-metal indicators
     (pearls, stones, watches) - these need AI for weight deductions.
+
+    Args:
+        item_specifics: eBay item specifics dict with fields like Metal, MetalPurity, Fineness, etc.
+                       These are more reliable than regex extraction from title.
     """
     result = FastExtractResult()
+
+    # Step 0: Check item specifics for danger signals (plated, stainless, etc.)
+    if item_specifics:
+        is_danger, danger_reason = check_item_specifics_danger(item_specifics)
+        if is_danger:
+            result.is_plated = True
+            result.plated_reason = danger_reason
+            result.instant_pass = True
+            result.pass_reason = f"Item specifics reveal not solid gold: {danger_reason}"
+            return result
 
     # Step 1: Check for plated/filled (instant PASS - always safe)
     is_plated, plated_reason = detect_plated(title, description)
@@ -500,25 +636,49 @@ def fast_extract_gold(
 
     # Step 2: Check for non-metal components (stones, pearls, watches)
     # These need AI analysis - don't do price-based instant pass!
-    has_non_metal, non_metal_type = detect_non_metal(title, description)
+    has_non_metal, non_metal_type = detect_non_metal(title, description, item_specifics)
     if has_non_metal:
         result.has_non_metal = True
         result.non_metal_type = non_metal_type
         result.confidence -= 20  # Lower confidence, needs AI
 
-    # Step 3: Extract karat
-    karat, karat_source = extract_karat(title, description)
+    # Step 2.5: Special handling for LADIES GOLD WATCHES
+    # Ladies watches have ~3g gold case on average (2-4g range)
+    # These are often undervalued opportunities - flag them for attention
+    is_ladies_watch = ('ladies' in text or "lady's" in text or 'womens' in text or "women's" in text) and ('watch' in text)
+    is_mens_watch = ('mens' in text or "men's" in text) and ('watch' in text)
+
+    if is_ladies_watch and not result.weight_grams:
+        # Estimate 3g gold for ladies watch case (conservative middle of 2-4g range)
+        result.weight_grams = 3.0
+        result.weight_source = "ladies_watch_estimate"
+        result.confidence = max(40, result.confidence)  # Moderate confidence
+        result.has_non_metal = True
+        result.non_metal_type = "ladies_watch"
+    elif is_mens_watch and not result.weight_grams:
+        # Men's watches are typically 8-12g case, but very variable
+        # Don't estimate - too risky, let AI analyze
+        result.has_non_metal = True
+        result.non_metal_type = "mens_watch"
+
+    # Step 3: Extract karat (uses item_specifics first, then title/description)
+    karat, karat_source = extract_karat(title, description, item_specifics)
     if karat:
         result.karat = karat
         result.karat_source = karat_source
         result.confidence += 30
 
     # Step 4: Extract weight (gold rarely exceeds 500g)
-    weight, weight_source = extract_weight(title, description, max_weight=500)
-    if weight:
-        result.weight_grams = weight
-        result.weight_source = weight_source
-        result.confidence += 40
+    # Don't overwrite if we already have an estimate (e.g., ladies watch)
+    if not result.weight_grams:
+        weight, weight_source = extract_weight(title, description, max_weight=500)
+        if weight:
+            result.weight_grams = weight
+            result.weight_source = weight_source
+            result.confidence += 40
+
+    # Use result.weight_grams for calculations (may be from stated weight or estimate)
+    weight = result.weight_grams
 
     # Step 5: Calculate melt if we have both karat and weight
     if karat and weight:
@@ -532,10 +692,21 @@ def fast_extract_gold(
         # CRITICAL: Don't instant-pass if non-metal detected!
         # The stated weight includes stones/pearls - actual gold could be much less
         # OR much more profitable after proper deductions by AI
-        if has_non_metal:
+        # EXCEPTION: Ladies watch estimate is gold-only (case weight), so we CAN be confident
+        is_watch_estimate = result.weight_source == "ladies_watch_estimate"
+
+        if has_non_metal and not is_watch_estimate:
             # Just flag for AI, don't make pass/buy decision
             result.confidence = max(30, result.confidence - 20)
             # Still provide the calculations for AI context
+        elif is_watch_estimate:
+            # Ladies watch with estimated 3g gold case
+            # Can make BUY decision if profitable, but don't instant-pass (AI might find more value)
+            if profit > 30 and margin_pct > 15:
+                result.is_hot = True
+                result.hot_reason = f"Ladies watch: est ~3g {karat}K case = ${calc['melt_value']:.0f} melt, max ${calc['max_buy']:.0f}, profit ${profit:.0f}"
+                result.confidence = max(50, result.confidence)
+            # Don't instant-pass watches - AI might see scale photo with actual weight
         else:
             # Pure gold item - can make instant decisions
             if profit > 50 and margin_pct > 20:
@@ -582,17 +753,32 @@ def fast_extract_silver(
     title: str,
     price: float,
     description: str = "",
-    silver_spot_oz: float = DEFAULT_SILVER_OZ
+    silver_spot_oz: float = DEFAULT_SILVER_OZ,
+    item_specifics: dict = None
 ) -> FastExtractResult:
     """
     Perform instant server-side extraction for silver listings.
 
     CRITICAL: Does NOT instant-pass items with non-metal indicators
     (stones, beads) - these need AI for weight deductions.
+
+    Args:
+        item_specifics: eBay item specifics dict with fields like Metal, MetalPurity, Fineness, etc.
     """
     result = FastExtractResult()
 
     text = f"{title} {description}".lower()
+
+    # Step 0: Check item specifics for danger signals (plated, stainless, etc.)
+    if item_specifics:
+        metal = str(item_specifics.get('Metal', '') or '').lower()
+        # Check if Metal field indicates plated
+        if any(danger in metal for danger in ['plated', 'plate', 'epns', 'nickel']):
+            result.is_plated = True
+            result.plated_reason = f"Item specifics Metal='{metal}'"
+            result.instant_pass = True
+            result.pass_reason = f"Item specifics reveal not sterling: Metal='{metal}'"
+            return result
 
     # Step 1: Check for plated indicators (instant PASS - always safe)
     for pattern, name in SILVER_PLATED_PATTERNS_COMPILED:
@@ -613,7 +799,7 @@ def fast_extract_silver(
             # Don't return - continue to let AI handle it
 
     # Step 2: Check for non-metal components (stones, beads)
-    has_non_metal, non_metal_type = detect_non_metal(title, description)
+    has_non_metal, non_metal_type = detect_non_metal(title, description, item_specifics)
     if has_non_metal:
         result.has_non_metal = True
         result.non_metal_type = non_metal_type

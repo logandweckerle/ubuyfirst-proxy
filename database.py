@@ -800,9 +800,20 @@ SELLER_PATTERNS = {
         'description': 'Deal/bargain keywords'
     },
     'business_formal': {
-        'keywords': ['llc', 'inc', 'corp', 'jewelry', 'gold', 'silver', 'coin', 'metal'],
+        'keywords': ['llc', 'inc', 'corp', 'ltd'],
+        'score': -20,
+        'description': 'Business entity (LLC/Inc/Corp)'
+    },
+    'precious_metal_dealer': {
+        'keywords': ['jewelry', 'jeweler', 'goldand', 'silvershop', 'bullion',
+                     'numismatic', 'refinery', 'metalshop', 'pawnshop'],
         'score': -15,
-        'description': 'Business/dealer name (likely knows values)'
+        'description': 'Precious metal/jewelry dealer'
+    },
+    'coin_dealer': {
+        'keywords': ['coinshop', 'coins', 'numis', 'coindealer', 'coinexchange'],
+        'score': -15,
+        'description': 'Coin dealer (knows precious metal values)'
     },
     'gram_pricing': {
         'keywords': ['pergram', 'per-gram', 'bygram', 'gramgold', 'gramsilver'],
@@ -887,9 +898,12 @@ def analyze_seller_titles(titles: List[str], category: str = '') -> Dict[str, An
 
 
 def calculate_seller_score(seller: str, titles: List[str] = None, category: str = '',
-                           purchase_count: int = 0, ebay_data: Dict[str, Any] = None) -> Dict[str, Any]:
+                           purchase_count: int = 0, ebay_data: Dict[str, Any] = None,
+                           listing_data: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Calculate comprehensive seller profile score.
+
+    Based on analysis of 24,000+ listings with BUY rate correlation.
 
     ebay_data can include:
         - SellerBusiness: 'True' or 'False'
@@ -897,6 +911,14 @@ def calculate_seller_score(seller: str, titles: List[str] = None, category: str 
         - FeedbackScore: number of feedbacks
         - FeedbackRating: percentage positive
         - SellerRegistration: registration date string
+
+    listing_data can include:
+        - Condition: item condition string
+        - Title: listing title for keyword analysis
+        - Description: listing description (empty = casual seller bonus)
+        - BestOffer: 'true' if accepts best offer
+        - UPC: UPC code if present
+        - ConditionDescription: additional condition notes
     """
     # Get seller avatar first (new unified system)
     avatar_info = get_seller_avatar(seller, ebay_data)
@@ -980,7 +1002,106 @@ def calculate_seller_score(seller: str, titles: List[str] = None, category: str 
             ebay_score += 20  # Charity/thrift stores often misprice
             ebay_analysis['thrift_store_bonus'] = 20
 
+        # Check for dealer patterns in username (these sellers know values!)
+        # Based on analysis of seller_profiles: dealers avg 25.8 score vs individuals 56.2
+        dealer_patterns = [
+            ('llc', -20, 'LLC business entity'),
+            ('inc', -15, 'Incorporated business'),
+            (' coin', -15, 'Coin dealer'),  # space prefix to avoid "coincidence"
+            ('coins', -15, 'Coin dealer'),
+            ('goldand', -15, 'Gold dealer'),  # goldandsilver, goldandjewelry
+            ('silvershop', -15, 'Silver dealer'),
+            ('pawnshop', -15, 'Pawn shop'),
+            ('jewelrystore', -12, 'Jewelry store'),
+            ('jewelryshop', -12, 'Jewelry shop'),
+            ('exchange', -10, 'Exchange/trading business'),
+            ('bullion', -15, 'Bullion dealer'),
+            ('numismatic', -15, 'Numismatic dealer'),
+            ('refinery', -15, 'Precious metal refinery'),
+        ]
+
+        # Check store name and seller username for dealer patterns
+        check_text = f"{store_name} {seller_lower}"
+        for pattern, penalty, reason in dealer_patterns:
+            if pattern in check_text:
+                ebay_score += penalty  # penalty is negative
+                ebay_analysis['dealer_penalty'] = penalty
+                ebay_analysis['dealer_reason'] = reason
+                break  # Only apply worst match
+
     base_score += ebay_score
+
+    # === LISTING-BASED SCORING (data-driven from 24K+ listings analysis) ===
+    listing_score = 0
+    listing_analysis = {}
+    if listing_data:
+        # --- CONDITION SCORING (BUY rate correlation) ---
+        # Like new: 13.3% BUY rate | Good: 7.9% | Pre-owned Excellent: 1.7%
+        condition = (listing_data.get('Condition', '') or '').lower().replace('+', ' ')
+        condition_scores = {
+            'like new': (15, 'Like new condition (13.3% BUY rate)'),
+            'good': (10, 'Good condition (7.9% BUY rate)'),
+            'unknown': (8, 'Unknown condition (casual seller)'),
+            'very good': (5, 'Very good condition'),
+            'new': (3, 'New condition'),
+            'pre-owned - good': (-5, 'Pre-owned Good (low BUY rate)'),
+            'pre-owned - excellent': (-8, 'Pre-owned Excellent (very low BUY rate)'),
+            'for parts': (-20, 'For parts/not working'),
+        }
+        for cond_key, (cond_score, cond_reason) in condition_scores.items():
+            if cond_key in condition:
+                listing_score += cond_score
+                if cond_score != 0:
+                    listing_analysis['condition_score'] = cond_score
+                    listing_analysis['condition_reason'] = cond_reason
+                break
+
+        # --- TITLE KEYWORD SCORING ---
+        # Wearable: 12.2% BUY | Scrap: 8.5% | Tested: 6.6% | Lot: 5.8%
+        title = (listing_data.get('Title', '') or '').lower()
+        title_keywords = {
+            'wearable': (15, 'Wearable keyword (12.2% BUY rate)'),
+            'scrap': (10, 'Scrap keyword (8.5% BUY rate)'),
+            'tested': (8, 'Tested keyword (6.6% BUY rate)'),
+            'grams': (8, 'Weight in grams (verifiable)'),
+            'dwt': (8, 'Weight in DWT (verifiable)'),
+            'lot': (6, 'Lot listing (5.8% BUY rate)'),
+            'not scrap': (-10, 'Not scrap (overpriced signal)'),
+            'firm': (-5, 'Firm price (no negotiation)'),
+            'no offers': (-5, 'No offers accepted'),
+        }
+        title_bonuses = []
+        for keyword, (kw_score, kw_reason) in title_keywords.items():
+            if keyword in title:
+                listing_score += kw_score
+                if kw_score != 0:
+                    title_bonuses.append((keyword, kw_score, kw_reason))
+        if title_bonuses:
+            listing_analysis['title_keywords'] = title_bonuses
+
+        # --- LISTING CHARACTERISTICS ---
+        # Best offer: 5.4% vs 4.7% | No description: 3.7% vs 1.7%
+        best_offer = str(listing_data.get('BestOffer', '')).lower() in ['true', 'yes', '1']
+        if best_offer:
+            listing_score += 5
+            listing_analysis['best_offer_bonus'] = 5
+
+        upc = listing_data.get('UPC', '')
+        if upc and upc not in ['N/A', 'Does not apply', '']:
+            listing_score += 8
+            listing_analysis['upc_bonus'] = 8  # Verifiable product
+
+        description = listing_data.get('Description', '')
+        if not description:
+            listing_score += 5
+            listing_analysis['no_description_bonus'] = 5  # Casual seller signal
+
+        cond_desc = listing_data.get('ConditionDescription', '')
+        if cond_desc:
+            listing_score += 3
+            listing_analysis['condition_desc_bonus'] = 3
+
+    base_score += listing_score
 
     # Add avatar modifier (main scoring driver now)
     base_score += avatar_modifier
@@ -1054,6 +1175,7 @@ def calculate_seller_score(seller: str, titles: List[str] = None, category: str 
         'username_analysis': username_analysis,
         'title_analysis': title_analysis,
         'ebay_analysis': ebay_analysis,
+        'listing_analysis': listing_analysis,
         'repeat_bonus': repeat_bonus,
         'score_breakdown': {
             'base': 50,
@@ -1061,7 +1183,8 @@ def calculate_seller_score(seller: str, titles: List[str] = None, category: str 
             'username_patterns': username_analysis['score'] - 50,
             'weight_mentions': title_analysis.get('weight_score', 0),
             'repeat_bonus': repeat_bonus,
-            'ebay_data': ebay_score
+            'ebay_data': ebay_score,
+            'listing_data': listing_score
         }
     }
 
@@ -1256,12 +1379,14 @@ def populate_seller_profiles_from_purchases(purchase_db_path: str = None):
 
 
 def analyze_new_seller(seller: str, title: str = '', category: str = '',
-                       ebay_data: Dict[str, Any] = None) -> Dict[str, Any]:
+                       ebay_data: Dict[str, Any] = None,
+                       listing_data: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Analyze a new seller from a listing and optionally save their profile.
     Returns the analysis with score and recommendations.
 
     ebay_data can include SellerBusiness, SellerStore, FeedbackScore, etc.
+    listing_data can include Condition, Title, Description, BestOffer, UPC, etc.
     """
     # Check if we already have a profile (but still enhance with eBay data if provided)
     existing = get_seller_profile(seller)
@@ -1283,13 +1408,14 @@ def analyze_new_seller(seller: str, title: str = '', category: str = '',
                              'MEDIUM_PRIORITY' if existing['profile_score'] >= 55 else 'NORMAL'
         }
 
-    # Calculate fresh analysis with eBay data
+    # Calculate fresh analysis with eBay data and listing data
     analysis = calculate_seller_score(
         seller,
         [title] if title else None,
         category,
         purchase_count=existing['total_purchases'] if existing else 0,
-        ebay_data=ebay_data
+        ebay_data=ebay_data,
+        listing_data=listing_data
     )
 
     result = {
@@ -1310,5 +1436,9 @@ def analyze_new_seller(seller: str, title: str = '', category: str = '',
     # Include eBay analysis if present
     if analysis.get('ebay_analysis'):
         result['ebay_analysis'] = analysis['ebay_analysis']
+
+    # Include listing analysis if present (data-driven scoring)
+    if analysis.get('listing_analysis'):
+        result['listing_analysis'] = analysis['listing_analysis']
 
     return result

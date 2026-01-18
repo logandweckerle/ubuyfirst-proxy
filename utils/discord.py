@@ -257,14 +257,17 @@ async def send_discord_alert(
                 # TTS notification for BUY alerts (Windows only)
                 if enable_tts and recommendation == "BUY":
                     try:
-                        tts_title = title.replace('+', ' ').replace('%20', ' ')[:100]
-                        tts_text = f"Buy alert: {tts_title}. Price ${price:.0f}. Profit {profit_str}"
+                        # Clean title for TTS - remove special chars that break PowerShell
+                        tts_title = title.replace('+', ' ').replace('%20', ' ').replace('"', '').replace("'", "")[:80]
+                        tts_text = f"Buy alert. {tts_title}. Price ${price:.0f}. Profit {profit_str}"
+                        # Escape any remaining problematic characters
+                        tts_text = tts_text.replace('"', '').replace("'", "").replace('`', '')
                         ps_cmd = f'Add-Type -AssemblyName System.Speech; $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer; $speak.Rate = 2; $speak.Speak("{tts_text}")'
-                        subprocess.Popen(["powershell", "-Command", ps_cmd],
-                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                        logger.info(f"[TTS] Speaking: {tts_title[:40]}...")
+                        subprocess.Popen(["powershell", "-WindowStyle", "Hidden", "-Command", ps_cmd],
+                                       creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0)
+                        logger.warning(f"[TTS] Speaking: {tts_title[:40]}...")
                     except Exception as tts_err:
-                        logger.debug(f"[TTS] Error: {tts_err}")
+                        logger.warning(f"[TTS] Error: {tts_err}")
 
                 return True
             else:

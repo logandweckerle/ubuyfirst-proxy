@@ -93,6 +93,81 @@ def get_spot_prices():
     return config.SPOT_PRICES
 
 
+# ============================================================
+# WEIGHT SANITY CHECK
+# ============================================================
+# Typical weight ranges by item type (in grams)
+WEIGHT_LIMITS = {
+    # Gold jewelry - lighter due to expense
+    'ring': {'gold': 30, 'silver': 50},
+    'earring': {'gold': 20, 'silver': 40},
+    'pendant': {'gold': 40, 'silver': 80},
+    'charm': {'gold': 20, 'silver': 40},
+    'necklace': {'gold': 150, 'silver': 300},  # Heavy chains exist but rare
+    'chain': {'gold': 150, 'silver': 300},
+    'bracelet': {'gold': 100, 'silver': 200},
+    'bangle': {'gold': 80, 'silver': 150},
+    'brooch': {'gold': 50, 'silver': 100},
+    'pin': {'gold': 30, 'silver': 60},
+    # Silver-specific items can be heavier
+    'flatware': {'silver': 800},  # Full set can be heavy
+    'spoon': {'silver': 80},
+    'fork': {'silver': 80},
+    'knife': {'silver': 100},
+    'ladle': {'silver': 200},
+    'tray': {'silver': 1500},
+    'bowl': {'silver': 500},
+    'cup': {'silver': 200},
+    'candlestick': {'silver': 400},
+    'vase': {'silver': 500},
+}
+
+
+def check_weight_sanity(weight: float, title: str, category: str) -> tuple:
+    """
+    Check if weight is realistic for the item type.
+
+    Returns: (is_sane, message)
+    - is_sane: True if weight seems reasonable, False if suspicious
+    - message: Explanation if weight is suspicious
+    """
+    if not weight or weight <= 0:
+        return True, ""  # No weight to check
+
+    title_lower = title.lower()
+
+    # Detect item type from title
+    detected_type = None
+    for item_type in WEIGHT_LIMITS.keys():
+        if item_type in title_lower:
+            detected_type = item_type
+            break
+
+    # Also check for plurals
+    if not detected_type:
+        for item_type in WEIGHT_LIMITS.keys():
+            if item_type + 's' in title_lower or item_type + 'es' in title_lower:
+                detected_type = item_type
+                break
+
+    if not detected_type:
+        # Can't determine item type, allow it but with a general limit
+        if category == 'gold' and weight > 200:
+            return False, f"SUSPICIOUS WEIGHT: {weight}g is very heavy for gold jewelry (unknown type)"
+        elif category == 'silver' and weight > 1000:
+            return False, f"SUSPICIOUS WEIGHT: {weight}g is very heavy for silver (unknown type)"
+        return True, ""
+
+    # Get limit for this item type and category
+    limits = WEIGHT_LIMITS.get(detected_type, {})
+    max_weight = limits.get(category) or limits.get('silver', 500)  # Default to silver limit
+
+    if weight > max_weight:
+        return False, f"SUSPICIOUS WEIGHT: {weight}g exceeds typical {detected_type} limit ({max_weight}g for {category})"
+
+    return True, ""
+
+
 def validate_and_fix_margin(result: dict, listing_price, category: str, title: str = "", data: dict = None) -> dict:
 
     """
@@ -2194,23 +2269,34 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
                     elif any(nm in title_lower for nm in ['crystal', 'glass', 'bowl', 'vase', 'pitcher', 'dish', 'plate', 'candlestick', 'candelabra', 'porcelain', 'ceramic', 'wood', 'wooden']):
                         logger.info(f"[CALC] KEEPING PASS - item has non-metal component (crystal/glass/wood) - scale weight includes non-silver")
 
-                    elif correct_profit > 50:
-
-                        # Verified weight + significant profit + no AI concerns + no gemstones = override to BUY
-
-                        logger.warning(f"[CALC] OVERRIDE: PASS -> BUY (verified weight, profit ${correct_profit:.0f} > $50)")
-
-                        result['Recommendation'] = 'BUY'
-
-                        result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Verified weight shows ${correct_profit:.0f} profit - BUY]"
-
-                        current_rec = 'BUY'
-
                     else:
+                        # WEIGHT SANITY CHECK - catch implausible weights before overriding to BUY
+                        weight_is_sane, sanity_msg = check_weight_sanity(metal_weight, title, category)
 
-                        # Verified weight but modest profit - keep PASS
+                        if not weight_is_sane:
+                            # Weight seems unrealistic - force RESEARCH instead of BUY
+                            logger.warning(f"[CALC] {sanity_msg} - forcing RESEARCH")
+                            result['Recommendation'] = 'RESEARCH'
+                            result['reasoning'] = f"{sanity_msg}. Manual verification needed. " + result.get('reasoning', '')
+                            current_rec = 'RESEARCH'
 
-                        logger.info(f"[CALC] Keeping PASS - verified weight but profit only ${correct_profit:.0f}")
+                        elif correct_profit > 50:
+
+                            # Verified weight + significant profit + no AI concerns + no gemstones = override to BUY
+
+                            logger.warning(f"[CALC] OVERRIDE: PASS -> BUY (verified weight, profit ${correct_profit:.0f} > $50)")
+
+                            result['Recommendation'] = 'BUY'
+
+                            result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Verified weight shows ${correct_profit:.0f} profit - BUY]"
+
+                            current_rec = 'BUY'
+
+                        else:
+
+                            # Verified weight but modest profit - keep PASS
+
+                            logger.info(f"[CALC] Keeping PASS - verified weight but profit only ${correct_profit:.0f}")
 
                 else:
 

@@ -569,3 +569,382 @@ fetch('/api/analytics-data')
     }});
 </script>
 </body></html>"""
+
+
+def render_system_architecture(system_data: Dict[str, Any]) -> str:
+    """Render the system architecture and understanding page"""
+
+    # Extract data
+    agents = system_data.get('agents', {})
+    routes = system_data.get('routes', [])
+    databases = system_data.get('databases', [])
+    config = system_data.get('config', {})
+    stats = system_data.get('stats', {})
+    thresholds = system_data.get('thresholds', {})
+
+    # Build agents grid
+    agents_html = ""
+    for name, info in agents.items():
+        status_color = "#22c55e" if info.get('active') else "#888"
+        agents_html += f'''
+        <div class="component-card">
+            <div class="component-icon">🤖</div>
+            <div class="component-name">{name}</div>
+            <div class="component-desc">{info.get('description', '')}</div>
+            <div class="component-meta">
+                <span style="color:{status_color}">● {'Active' if info.get('active') else 'Inactive'}</span>
+                <span>Threshold: {info.get('threshold', 'N/A')}</span>
+            </div>
+        </div>'''
+
+    # Build routes list
+    routes_html = ""
+    for route in routes:
+        method_color = "#22c55e" if route.get('method') == 'GET' else "#f59e0b"
+        routes_html += f'''
+        <tr>
+            <td><span class="method-badge" style="background:{method_color}">{route.get('method', 'GET')}</span></td>
+            <td><code>{route.get('path', '')}</code></td>
+            <td>{route.get('description', '')}</td>
+        </tr>'''
+
+    # Build databases list
+    dbs_html = ""
+    for db in databases:
+        size_mb = db.get('size_mb', 0)
+        size_color = "#f59e0b" if size_mb > 1000 else "#22c55e"
+        dbs_html += f'''
+        <tr>
+            <td><strong>{db.get('name', '')}</strong></td>
+            <td>{db.get('purpose', '')}</td>
+            <td style="color:{size_color}">{size_mb:.1f} MB</td>
+            <td>{db.get('records', 'N/A')}</td>
+        </tr>'''
+
+    # Build config display
+    config_html = ""
+    for key, value in config.items():
+        config_html += f'''
+        <tr>
+            <td><code>{key}</code></td>
+            <td>{value}</td>
+        </tr>'''
+
+    # Build stats display
+    stats_html = ""
+    for key, value in stats.items():
+        stats_html += f'''
+        <div class="stat-item">
+            <div class="stat-value">{value}</div>
+            <div class="stat-label">{key}</div>
+        </div>'''
+
+    return f'''<!DOCTYPE html>
+<html><head>
+<title>System Architecture - ClaudeProxyV3</title>
+<style>
+* {{ box-sizing: border-box; }}
+body {{
+    font-family: system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+    color: #e0e0e0;
+    padding: 20px;
+    margin: 0;
+    min-height: 100vh;
+}}
+.container {{ max-width: 1600px; margin: 0 auto; }}
+h1 {{
+    color: #fff;
+    margin-bottom: 10px;
+    font-size: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}}
+.subtitle {{ color: #888; margin-bottom: 30px; font-size: 14px; }}
+.back-link {{
+    color: #6366f1;
+    text-decoration: none;
+    margin-bottom: 20px;
+    display: inline-block;
+    font-size: 14px;
+}}
+.back-link:hover {{ text-decoration: underline; }}
+
+/* Section styling */
+.section {{
+    background: rgba(26, 26, 46, 0.8);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(99, 102, 241, 0.1);
+}}
+.section-title {{
+    color: #fff;
+    font-size: 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}}
+.section-title span {{ font-size: 24px; }}
+
+/* Stats grid */
+.stats-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+}}
+.stat-item {{
+    background: rgba(37, 37, 64, 0.8);
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+}}
+.stat-value {{
+    font-size: 28px;
+    font-weight: bold;
+    color: #6366f1;
+}}
+.stat-label {{
+    color: #888;
+    font-size: 12px;
+    margin-top: 5px;
+    text-transform: uppercase;
+}}
+
+/* Component cards */
+.components-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}}
+.component-card {{
+    background: rgba(37, 37, 64, 0.8);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(99, 102, 241, 0.1);
+    transition: transform 0.2s, border-color 0.2s;
+}}
+.component-card:hover {{
+    transform: translateY(-2px);
+    border-color: rgba(99, 102, 241, 0.3);
+}}
+.component-icon {{ font-size: 32px; margin-bottom: 12px; }}
+.component-name {{
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 8px;
+}}
+.component-desc {{
+    color: #888;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}}
+.component-meta {{
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: #888;
+}}
+
+/* Tables */
+table {{
+    width: 100%;
+    border-collapse: collapse;
+}}
+th, td {{
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}}
+th {{
+    color: #888;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    background: rgba(37, 37, 64, 0.5);
+}}
+td {{ font-size: 13px; }}
+code {{
+    background: rgba(99, 102, 241, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 12px;
+}}
+
+/* Method badges */
+.method-badge {{
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #000;
+}}
+
+/* Architecture diagram */
+.arch-diagram {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 40px 20px;
+    background: rgba(37, 37, 64, 0.5);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+}}
+.arch-node {{
+    text-align: center;
+    padding: 20px;
+    min-width: 120px;
+}}
+.arch-node-icon {{ font-size: 40px; margin-bottom: 10px; }}
+.arch-node-label {{ font-size: 12px; color: #888; }}
+.arch-node-value {{ font-size: 14px; color: #fff; font-weight: 600; }}
+.arch-arrow {{
+    color: #6366f1;
+    font-size: 24px;
+    opacity: 0.6;
+}}
+
+/* File tree */
+.file-tree {{
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: #888;
+}}
+.file-tree .folder {{ color: #f59e0b; }}
+.file-tree .file {{ color: #6366f1; }}
+.file-tree .desc {{ color: #555; font-style: italic; }}
+</style>
+</head>
+<body>
+<div class="container">
+    <a href="/" class="back-link">← Back to Dashboard</a>
+    <h1>🧠 System Architecture</h1>
+    <p class="subtitle">ClaudeProxyV3 - eBay Arbitrage Intelligence System</p>
+
+    <!-- Live Stats -->
+    <div class="section">
+        <div class="section-title"><span>📊</span> Live System Stats</div>
+        <div class="stats-grid">
+            {stats_html if stats_html else '<div class="stat-item"><div class="stat-value">--</div><div class="stat-label">No stats</div></div>'}
+        </div>
+    </div>
+
+    <!-- Data Flow Diagram -->
+    <div class="section">
+        <div class="section-title"><span>🔄</span> Data Flow</div>
+        <div class="arch-diagram">
+            <div class="arch-node">
+                <div class="arch-node-icon">📡</div>
+                <div class="arch-node-value">uBuyFirst</div>
+                <div class="arch-node-label">Webhook Alerts</div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-node">
+                <div class="arch-node-icon">🔍</div>
+                <div class="arch-node-value">Category Detection</div>
+                <div class="arch-node-label">Route to Agent</div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-node">
+                <div class="arch-node-icon">🤖</div>
+                <div class="arch-node-value">AI Analysis</div>
+                <div class="arch-node-label">GPT-4o / Tier 1+2</div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-node">
+                <div class="arch-node-icon">✅</div>
+                <div class="arch-node-value">Validation</div>
+                <div class="arch-node-label">Server-side Checks</div>
+            </div>
+            <div class="arch-arrow">→</div>
+            <div class="arch-node">
+                <div class="arch-node-icon">🔔</div>
+                <div class="arch-node-value">Discord Alert</div>
+                <div class="arch-node-label">BUY/RESEARCH/PASS</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Agents -->
+    <div class="section">
+        <div class="section-title"><span>🤖</span> Category Agents</div>
+        <div class="components-grid">
+            {agents_html if agents_html else '<div class="component-card"><div class="component-desc">No agents loaded</div></div>'}
+        </div>
+    </div>
+
+    <!-- Databases -->
+    <div class="section">
+        <div class="section-title"><span>🗄️</span> Databases</div>
+        <table>
+            <thead><tr><th>Database</th><th>Purpose</th><th>Size</th><th>Records</th></tr></thead>
+            <tbody>
+                {dbs_html if dbs_html else '<tr><td colspan="4" style="text-align:center;color:#888">No database info</td></tr>'}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Project Structure -->
+    <div class="section">
+        <div class="section-title"><span>📁</span> Project Structure</div>
+        <div class="file-tree">
+<span class="folder">ClaudeProxyV3/</span>
+├── <span class="file">main.py</span> <span class="desc"># Core server, 8000+ lines, FastAPI app</span>
+├── <span class="file">database.py</span> <span class="desc"># Seller profiling, pattern storage</span>
+├── <span class="file">pricecharting_db.py</span> <span class="desc"># 117K product prices, graded card lookup</span>
+├── <span class="file">prompts.py</span> <span class="desc"># AI prompts for each category</span>
+├── <span class="file">ebay_poller.py</span> <span class="desc"># Direct eBay API polling</span>
+├── <span class="folder">agents/</span> <span class="desc"># Category-specific analysis agents</span>
+│   ├── <span class="file">gold.py, silver.py, platinum.py</span> <span class="desc"># Precious metals</span>
+│   ├── <span class="file">tcg.py, lego.py, videogames.py</span> <span class="desc"># Collectibles</span>
+│   ├── <span class="file">watch.py, knives.py, pens.py</span> <span class="desc"># Specialty items</span>
+│   └── <span class="file">base.py</span> <span class="desc"># Abstract base class</span>
+├── <span class="folder">routes/</span> <span class="desc"># API endpoint handlers</span>
+│   ├── <span class="file">analysis.py</span> <span class="desc"># Main /match_mydata endpoint</span>
+│   ├── <span class="file">ebay.py</span> <span class="desc"># eBay API routes</span>
+│   └── <span class="file">websocket.py</span> <span class="desc"># Live dashboard WebSocket</span>
+├── <span class="folder">utils/</span> <span class="desc"># Utility modules</span>
+│   ├── <span class="file">discord.py</span> <span class="desc"># Discord webhook + TTS</span>
+│   ├── <span class="file">extraction.py</span> <span class="desc"># Weight/karat extraction</span>
+│   └── <span class="file">spam_detection.py</span> <span class="desc"># Seller spam blocking</span>
+├── <span class="folder">templates/</span> <span class="desc"># HTML page renderers</span>
+├── <span class="folder">config/</span> <span class="desc"># Settings and thresholds</span>
+└── <span class="folder">pipeline/</span> <span class="desc"># Analysis pipeline components</span>
+        </div>
+    </div>
+
+    <!-- Configuration -->
+    <div class="section">
+        <div class="section-title"><span>⚙️</span> Current Configuration</div>
+        <table>
+            <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+            <tbody>
+                {config_html if config_html else '<tr><td colspan="2" style="text-align:center;color:#888">No config info</td></tr>'}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- API Routes -->
+    <div class="section">
+        <div class="section-title"><span>🛣️</span> Key API Routes</div>
+        <table>
+            <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+            <tbody>
+                {routes_html if routes_html else '<tr><td colspan="3" style="text-align:center;color:#888">No routes info</td></tr>'}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Auto-refresh stats every 30 seconds
+setTimeout(() => location.reload(), 30000);
+</script>
+</body></html>'''

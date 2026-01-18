@@ -578,9 +578,9 @@ You must manually research pricing on eBay sold listings.
 
         # We must use the correct price based on the eBay listing condition
 
-        if pc_result and pc_result.get('found') and condition:
+        if pc_result and pc_result.get('found'):
 
-            condition_lower = str(condition).lower()
+            condition_lower = str(condition or '').lower()
 
             new_price = pc_result.get('new_price', 0) or 0
 
@@ -590,7 +590,8 @@ You must manually research pricing on eBay sold listings.
 
             original_market = pc_result.get('market_price', 0)
 
-            # Determine which price tier to use based on condition
+            # Determine which price tier to use based on condition AND title
+            # Title keywords often override eBay's condition field (more accurate)
 
             # eBay condition values: New, Like New, Very Good, Good, Acceptable, For Parts
 
@@ -598,7 +599,39 @@ You must manually research pricing on eBay sold listings.
 
             condition_tier = None
 
-            if any(term in condition_lower for term in ['new', 'sealed', 'factory sealed', 'brand new', 'unopened']):
+            # === TITLE-BASED CONDITION DETECTION (Priority - more reliable than eBay field) ===
+            # Check title first for explicit condition keywords
+            title_condition = None
+
+            # NEW/SEALED indicators in title (highest priority)
+            new_keywords = ['factory sealed', 'brand new sealed', 'new sealed', 'still sealed',
+                           'shrink wrapped', 'shrinkwrapped', 'unopened', 'mint sealed', 'bnib',
+                           'new in box', 'nib', 'nisb', 'new in shrink']
+            if any(kw in title_lower for kw in new_keywords):
+                title_condition = 'New'
+                logger.info(f"[PC] TITLE indicates NEW/SEALED condition")
+
+            # CIB/COMPLETE indicators in title
+            elif any(kw in title_lower for kw in ['complete in box', 'cib', 'complete w/', 'complete with',
+                                                   'w/ box', 'with box', 'w/ manual', 'with manual',
+                                                   'box and manual', 'complete set', 'in box']):
+                title_condition = 'CIB'
+                logger.info(f"[PC] TITLE indicates CIB/COMPLETE condition")
+
+            # LOOSE indicators in title
+            elif any(kw in title_lower for kw in ['loose', 'cart only', 'cartridge only', 'disc only',
+                                                   'game only', 'no box', 'no manual', 'no case',
+                                                   'disk only', 'no instructions']):
+                title_condition = 'Loose'
+                logger.info(f"[PC] TITLE indicates LOOSE condition")
+
+            # Use title condition if detected, otherwise fall back to eBay condition field
+            effective_condition = title_condition or condition_lower
+
+            if title_condition:
+                logger.info(f"[PC] Using TITLE-based condition: {title_condition} (eBay field was: '{condition}')")
+
+            if any(term in str(effective_condition).lower() for term in ['new', 'sealed', 'factory sealed', 'brand new', 'unopened']):
 
                 # New/Sealed items - use new price
 
@@ -606,7 +639,7 @@ You must manually research pricing on eBay sold listings.
 
                 condition_tier = 'New'
 
-            elif any(term in condition_lower for term in ['like new', 'complete', 'cib', 'mint', 'excellent']):
+            elif any(term in str(effective_condition).lower() for term in ['like new', 'complete', 'cib', 'mint', 'excellent']):
 
                 # Complete/CIB items - use CIB price
 
@@ -614,7 +647,7 @@ You must manually research pricing on eBay sold listings.
 
                 condition_tier = 'CIB'
 
-            elif any(term in condition_lower for term in ['very good', 'good', 'acceptable', 'used', 'loose', 'cart', 'disc only']):
+            elif any(term in str(effective_condition).lower() for term in ['very good', 'good', 'acceptable', 'used', 'loose', 'cart', 'disc only']):
 
                 # Used/Loose items - use loose price
 
@@ -1278,6 +1311,19 @@ def validate_tcg_lego_result(result: dict, pc_result: dict, total_price: float, 
             result['reasoning'] = result.get('reasoning', '') + f" | SERVER: Graded card with verified margin ${margin:.0f} - BUY"
             logger.info(f"[TCG-GRADED] Override: RESEARCH->BUY (good margin ${margin:.0f})")
 
+        # CRITICAL: Override PASS→BUY when AI made arithmetic error (margin is actually positive)
+        elif margin >= 20 and ai_rec == 'PASS' and confidence in ['High', 'Medium']:
+            result['Recommendation'] = 'BUY'
+            result['Qualify'] = 'Yes'
+            result['reasoning'] = result.get('reasoning', '') + f" | SERVER: AI arithmetic error - margin is actually +${margin:.0f}, upgrading to BUY"
+            logger.info(f"[TCG-GRADED] Override: PASS->BUY (margin actually +${margin:.0f})")
+
+        # Moderate margin with PASS = upgrade to RESEARCH
+        elif margin >= 10 and ai_rec == 'PASS':
+            result['Recommendation'] = 'RESEARCH'
+            result['reasoning'] = result.get('reasoning', '') + f" | SERVER: Margin +${margin:.0f} warrants review"
+            logger.info(f"[TCG-GRADED] Override: PASS->RESEARCH (margin +${margin:.0f})")
+
         return result
 
     # === LEGO CONDITION CHECK - SERVER OVERRIDE ===
@@ -1715,7 +1761,27 @@ def validate_tcg_lego_result(result: dict, pc_result: dict, total_price: float, 
 
                 result['reasoning'] = result.get('reasoning', '') + f" | SERVER: Strong margin (${server_margin:.0f}) - BUY"
 
-            logger.info(f"[PC] Override: RESEARCHƒÆ’‚[PASS] ¢[PASS] ¢(margin ${decision_margin:.0f})")
+            logger.info(f"[PC] Override: RESEARCH->BUY (margin ${decision_margin:.0f})")
+
+        # CRITICAL: Override PASS→BUY when AI made arithmetic error (margin is actually positive)
+        elif decision_margin >= 25 and confidence in ['High', 'Medium'] and ai_rec == 'PASS':
+
+            result['Recommendation'] = 'BUY'
+            result['Qualify'] = 'Yes'
+
+            if quantity > 1:
+                result['reasoning'] = result.get('reasoning', '') + f" | SERVER: AI error - margin is +${decision_margin:.0f} for {quantity}x - BUY"
+            else:
+                result['reasoning'] = result.get('reasoning', '') + f" | SERVER: AI arithmetic error - margin is +${server_margin:.0f} - BUY"
+
+            logger.info(f"[PC] Override: PASS->BUY (margin actually +${decision_margin:.0f})")
+
+        # Moderate positive margin with PASS = upgrade to RESEARCH
+        elif decision_margin >= 10 and ai_rec == 'PASS':
+
+            result['Recommendation'] = 'RESEARCH'
+            result['reasoning'] = result.get('reasoning', '') + f" | SERVER: Margin +${decision_margin:.0f} warrants review"
+            logger.info(f"[PC] Override: PASS->RESEARCH (margin +${decision_margin:.0f})")
 
         # Low confidence = always RESEARCH
 

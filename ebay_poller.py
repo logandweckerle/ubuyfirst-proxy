@@ -1989,9 +1989,9 @@ async def poll_single_keyword(kw_info: Dict, callback=None) -> List[EbayListing]
 
         # Log stats
         if is_initial_baseline:
-            logger.info(f"[POLL] {keyword}: {len(listings)} items (baseline, callback disabled)")
+            logger.debug(f"[POLL] {keyword}: {len(listings)} items (baseline, callback disabled)")
         else:
-            logger.info(f"[POLL] {keyword}: {len(listings)} items fetched, filtering for new")
+            logger.debug(f"[POLL] {keyword}: {len(listings)} items fetched, filtering for new")
 
         for listing in listings:
             # Update keyword timestamp for efficient polling (track ALL items, even filtered)
@@ -2110,7 +2110,7 @@ async def poll_staggered(callback=None):
         poll_count += 1
         total_found += len(new_items)
 
-        logger.info(f"[STAGGERED] {kw_info['keyword']}: {len(new_items)} new items | next in {STAGGERED_POLL_INTERVAL}s")
+        logger.debug(f"[STAGGERED] {kw_info['keyword']}: {len(new_items)} new items | next in {STAGGERED_POLL_INTERVAL}s")
 
 #         # Send periodic status every 20 polls (about every 3 minutes)
 #         if poll_count % 20 == 0:

@@ -25,6 +25,9 @@ from fastapi.responses import HTMLResponse, JSONResponse
 if TYPE_CHECKING:
     from services.app_state import AppState
 
+# Item tracking for sold status monitoring
+from services import item_tracking
+
 logger = logging.getLogger(__name__)
 
 # Create router for analysis endpoints
@@ -440,7 +443,22 @@ async def analyze_listing(request: Request):
         view_url = data.get('ViewUrl', data.get('viewUrl', data.get('view_url', '')))
         ebay_url = checkout_url or view_url or ''
 
-        # Extract item_id from URL if not provided directly (uBuyFirst embeds it in URL)
+        # Extract item_id from various sources
+        if not item_id:
+            # Try ProductReferenceID (sometimes contains eBay item ID)
+            prod_ref = data.get('ProductReferenceID', '')
+            if prod_ref:
+                prod_ref_str = str(prod_ref).strip()
+                if prod_ref_str and prod_ref_str.isdigit() and len(prod_ref_str) >= 10:
+                    item_id = prod_ref_str
+
+        # If still no item_id, generate a hash from title+price for tracking
+        if not item_id:
+            import hashlib
+            tracking_key = f"{title}|{total_price}"
+            item_id = "ubf_" + hashlib.md5(tracking_key.encode()).hexdigest()[:12]
+            logger.debug(f"[TRACKING] Generated hash ID: {item_id}")
+
         # URL format: https://www.ebay.com/itm/297941758779?...
         if not item_id:
             url_param = data.get('URL', '')
@@ -458,6 +476,10 @@ async def analyze_listing(request: Request):
         logger.info(f"[DEBUG] ItemId: '{item_id}'")
         logger.info(f"[DEBUG] ViewUrl: '{view_url}'")
         logger.info(f"[DEBUG] ALL KEYS: {list(data.keys())}")
+
+        # DEBUG: Log SoldTime for ALL requests to detect sold items
+        _sold_time = data.get('SoldTime', '') or data.get('Sold Time', '') or ''
+        logger.warning(f"[SOLD-CHECK] Title: {title[:60]} | SoldTime: '{_sold_time}'")
 
         # ============================================================
         # SPAM DETECTION - Check for blocked sellers EARLY
@@ -548,6 +570,38 @@ async def analyze_listing(request: Request):
         }
         logger.info(f"[LISTING DATA] {listing_fields}")
 
+        # Extract item specifics fields (from eBay item specifics via uBuyFirst)
+        # These are critical for gold/silver detection - much more reliable than regex
+        item_specifics = {
+            # Metal/Purity fields - most valuable for gold/silver
+            'Metal': data.get('Metal', ''),
+            'MetalPurity': data.get('MetalPurity', '') or data.get('Metal Purity', ''),
+            'Fineness': data.get('Fineness', ''),
+            'BaseMetal': data.get('BaseMetal', '') or data.get('Base Metal', ''),
+            'Material': data.get('Material', ''),
+            # Stone fields - for deduction calculations
+            'MainStone': data.get('MainStone', '') or data.get('Main Stone', ''),
+            'MainStoneCreation': data.get('MainStoneCreation', '') or data.get('Main Stone Creation', ''),
+            'TotalCaratWeight': data.get('TotalCaratWeight', '') or data.get('Total Carat Weight', ''),
+            'SecondaryStone': data.get('SecondaryStone', '') or data.get('Secondary Stone', ''),
+            # Item type fields
+            'Type': data.get('Type', ''),
+            'Style': data.get('Style', ''),
+            'RingSize': data.get('RingSize', '') or data.get('Ring Size', ''),
+            'ItemLength': data.get('ItemLength', '') or data.get('Item Length', '') or data.get('Length', ''),
+            'ChainLength': data.get('ChainLength', '') or data.get('Chain Length', ''),
+            # Value indicators
+            'Antique': data.get('Antique', ''),
+            'Vintage': data.get('Vintage', ''),
+            'Signed': data.get('Signed', ''),
+            'Brand': data.get('Brand', ''),
+            'Designer': data.get('Designer', ''),
+        }
+        # Filter out empty values for cleaner logging
+        item_specifics_present = {k: v for k, v in item_specifics.items() if v}
+        if item_specifics_present:
+            logger.info(f"[ITEM SPECIFICS] {item_specifics_present}")
+
         # Dump ALL non-system fields to find item ID
         skip_keys = {'system_prompt', 'display_template', 'llm_provider', 'llm_model', 'llm_api_key', 'response_type', 'description', 'images'}
         all_values = {k: str(v)[:100] for k, v in data.items() if k not in skip_keys}
@@ -557,6 +611,23 @@ async def analyze_listing(request: Request):
         # CATEGORY DETECTION (needed early for seller analysis)
         # ============================================================
         category, category_reasons = _detect_category(data)
+
+        # ============================================================
+        # ITEM TRACKING - Track for sold status monitoring
+        # ============================================================
+        if item_id:
+            try:
+                item_tracking.track_item(
+                    item_id=item_id,
+                    title=title,
+                    price=total_price,
+                    category=category or "",
+                    alias=alias or "",
+                    seller_name=data.get('SellerName', '') or data.get('StoreName', ''),
+                    posted_time=data.get('PostedTime', '').replace('+', ' ')
+                )
+            except Exception as e:
+                logger.warning(f"[TRACKING] Error tracking item: {e}")
 
         # === SILVER CATEGORY LOGGING ===
         # Log all silver items for debugging missed opportunities
@@ -571,8 +642,13 @@ async def analyze_listing(request: Request):
         # ============================================================
 
         # Check if already sold (handle both field name formats)
-        sold_time = data.get('SoldTime', '') or data.get('Sold Time', '') or ''
+        sold_time_v1 = data.get('SoldTime', '')
+        sold_time_v2 = data.get('Sold Time', '')
+        sold_time = sold_time_v1 or sold_time_v2 or ''
         sold_time = sold_time.strip() if sold_time else ''
+        # Debug: Log sold time values
+        if sold_time_v1 or sold_time_v2:
+            logger.info(f"[SOLD-TIME] SoldTime='{sold_time_v1}', Sold Time='{sold_time_v2}'")
         if sold_time:
             logger.info(f"[SKIP] Item already sold at {sold_time}")
             return JSONResponse(content={
@@ -1418,9 +1494,9 @@ async def analyze_listing(request: Request):
                 silver_spot = spots.get('silver_oz', 75)
 
                 if category == 'gold':
-                    fast_result = _fast_extract_gold(title, price_float, description, gold_spot)
+                    fast_result = _fast_extract_gold(title, price_float, description, gold_spot, item_specifics)
                 else:
-                    fast_result = _fast_extract_silver(title, price_float, description, silver_spot)
+                    fast_result = _fast_extract_silver(title, price_float, description, silver_spot, item_specifics)
 
                 _timing['fast_extract'] = _time.time() - _fast_start
                 logger.info(f"[FAST] Extraction took {_timing['fast_extract']*1000:.1f}ms")
@@ -2389,6 +2465,41 @@ async def analyze_listing(request: Request):
 
             # Mark as evaluated to prevent duplicate processing
             _mark_as_evaluated(title, total_price, result)
+
+            # Update item tracking with recommendation
+            if item_id and result.get('Recommendation'):
+                try:
+                    item_tracking.update_item_recommendation(item_id, result['Recommendation'])
+                except Exception as e:
+                    logger.warning(f"[TRACKING] Error updating recommendation: {e}")
+
+            # Log patterns for learning - especially important for newer categories
+            # Log: all BUYs, all RESEARCH, and PASS for categories we're still learning
+            recommendation = result.get('Recommendation', 'PASS')
+            try:
+                price_for_logging = float(str(total_price).replace('$', '').replace(',', ''))
+            except:
+                price_for_logging = 0
+            should_log_pattern = (
+                recommendation == 'BUY' or
+                recommendation == 'RESEARCH' or
+                # Log PASS for newer/learning categories
+                category in ['lego', 'tcg', 'pokemon', 'costume', 'videogames'] or
+                # Log PASS for high-value items we might be missing
+                (recommendation == 'PASS' and price_for_logging >= 100 and category in ['gold', 'silver'])
+            )
+            if should_log_pattern:
+                try:
+                    item_tracking.log_pattern(
+                        pattern_type=recommendation,
+                        category=category,
+                        title=title,
+                        price=price_for_logging,
+                        result=result,
+                        data=data
+                    )
+                except Exception as e:
+                    logger.warning(f"[PATTERN] Error logging pattern: {e}")
 
             # ALWAYS include html in result for uBuyFirst display_template
             # This ensures JSON response has both column data AND html for display

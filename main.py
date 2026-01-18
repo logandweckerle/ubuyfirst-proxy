@@ -118,6 +118,7 @@ from utils.source_comparison import log_listing_received, get_comparison_stats, 
 # NEW: Centralized state management (Phase 1.1 refactoring)
 from services.app_state import AppState, get_app_state_from_request
 from services.error_handler import setup_error_handlers
+from services import item_tracking  # Track items for sold status monitoring
 
 # Tier 2 verification module
 from pipeline.tier2 import (
@@ -552,6 +553,14 @@ async def lifespan(app_instance: FastAPI):
     # Start AppState memory cleanup (Phase 3 improvement)
     app_state.start_cleanup_task()
     logger.info(f"[INIT] AppState cleanup task started (TTL={app_state.IN_FLIGHT_TTL}s)")
+
+    # Start item tracking for sold status monitoring
+    if EBAY_POLLER_AVAILABLE and browse_api_available():
+        item_tracking.configure_ebay(get_token_func=get_oauth_token)
+        item_tracking.start_polling(interval_seconds=300)  # Check every 5 minutes
+        logger.info("[TRACKING] Item tracking started - polling for sold items every 5 minutes")
+    else:
+        logger.info("[TRACKING] Item tracking database ready (polling disabled - no eBay API)")
 
     # Log database path
     logger.info(f"[DB] Database path: {db.path}")
@@ -2589,6 +2598,21 @@ async def _old_analyze_listing(request: Request):  # Renamed to prevent conflict
 
                 
 
+                # Extract item specifics from eBay (if available)
+                item_specifics = {
+                    'Metal': data.get('Metal', ''),
+                    'MetalPurity': data.get('MetalPurity', '') or data.get('Metal Purity', ''),
+                    'Fineness': data.get('Fineness', ''),
+                    'BaseMetal': data.get('BaseMetal', '') or data.get('Base Metal', ''),
+                    'Material': data.get('Material', ''),
+                    'MainStone': data.get('MainStone', '') or data.get('Main Stone', ''),
+                    'TotalCaratWeight': data.get('TotalCaratWeight', '') or data.get('Total Carat Weight', ''),
+                }
+                # Log if we have item specifics
+                item_specifics_present = {k: v for k, v in item_specifics.items() if v}
+                if item_specifics_present:
+                    logger.info(f"[ITEM SPECIFICS] {item_specifics_present}")
+
                 # Get current spot prices
 
                 spots = get_spot_prices()
@@ -2597,15 +2621,15 @@ async def _old_analyze_listing(request: Request):  # Renamed to prevent conflict
 
                 silver_spot = spots.get('silver_oz', 75)
 
-                
+
 
                 if category == 'gold':
 
-                    fast_result = fast_extract_gold(title, price_float, description, gold_spot)
+                    fast_result = fast_extract_gold(title, price_float, description, gold_spot, item_specifics)
 
                 else:
 
-                    fast_result = fast_extract_silver(title, price_float, description, silver_spot)
+                    fast_result = fast_extract_silver(title, price_float, description, silver_spot, item_specifics)
 
                 
 
@@ -5053,6 +5077,93 @@ async def api_memory_stats(request: Request):
     """Get AppState memory usage statistics for monitoring"""
     app_state = get_app_state_from_request(request)
     return app_state.get_memory_stats()
+
+
+# ============================================================
+# ITEM TRACKING ENDPOINTS - Fast-selling pattern analysis
+# ============================================================
+
+@app.get("/api/tracking/stats")
+async def api_tracking_stats():
+    """Get item tracking statistics including fast-sale patterns"""
+    return item_tracking.get_tracking_stats()
+
+
+@app.get("/api/tracking/fast-sales")
+async def api_tracking_fast_sales(limit: int = 50):
+    """Get items that sold within 5 minutes of listing"""
+    return item_tracking.get_fast_sales(limit=limit)
+
+
+@app.get("/api/tracking/active")
+async def api_tracking_active(limit: int = 100):
+    """Get active items currently being tracked"""
+    return item_tracking.get_active_items(limit=limit)
+
+
+@app.post("/api/tracking/resolve-now")
+async def api_tracking_resolve_now():
+    """Manually trigger eBay item ID resolution for pending items"""
+    await item_tracking.resolve_pending_items(batch_size=20)
+    stats = item_tracking.get_tracking_stats()
+    return {
+        "status": "ok",
+        "message": "Resolution completed",
+        "resolved_ids": stats.get("resolved_ids", 0),
+        "pending_resolution": stats.get("pending_resolution", 0)
+    }
+
+
+@app.post("/api/tracking/poll-now")
+async def api_tracking_poll_now():
+    """Manually trigger ID resolution + poll for sold items"""
+    # First resolve any pending IDs
+    await item_tracking.resolve_pending_items(batch_size=20)
+    # Then poll for sold status
+    await item_tracking.poll_items_for_sold_status(batch_size=50)
+    return {"status": "ok", "message": "Resolution and polling completed"}
+
+
+@app.get("/api/patterns/stats")
+async def api_pattern_stats():
+    """Get statistics about logged learning patterns"""
+    return item_tracking.get_pattern_stats()
+
+
+@app.get("/api/patterns/{category}")
+async def api_patterns_by_category(category: str, limit: int = 50):
+    """Get recent patterns for a specific category"""
+    patterns = item_tracking.get_patterns_by_category(category, limit)
+    return {"category": category, "count": len(patterns), "patterns": patterns}
+
+
+@app.post("/api/patterns/log")
+async def api_log_manual_pattern(request: Request):
+    """Manually log a pattern for learning (e.g., missed opportunity)"""
+    data = await request.json()
+
+    required = ['pattern_type', 'category', 'title', 'price']
+    for field in required:
+        if field not in data:
+            return JSONResponse(
+                content={"error": f"Missing required field: {field}"},
+                status_code=400
+            )
+
+    result = data.get('result', {})
+    notes = data.get('notes', '')
+
+    item_tracking.log_pattern(
+        pattern_type=data['pattern_type'],
+        category=data['category'],
+        title=data['title'],
+        price=float(data['price']),
+        result=result,
+        data=data,
+        notes=notes
+    )
+
+    return {"status": "ok", "message": f"Logged {data['pattern_type']} pattern"}
 
 
 @app.get("/api/pricecharting")
@@ -7508,6 +7619,8 @@ try:
         get_item_details,
 
         analyze_listing_callback,  # Callback for full AI analysis + source comparison
+
+        get_oauth_token,  # OAuth token for item tracking polling
 
     )
 
