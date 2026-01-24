@@ -5,7 +5,6 @@ Claude Proxy Server v3 - Optimized
 Enhanced with async image fetching, smart caching, and connection pooling
 
 
-
 Optimizations:
 
 1. Async parallel image fetching (httpx) - 2-4 seconds faster per listing
@@ -21,7 +20,6 @@ Optimizations:
 6. Training data capture for Tier override analysis
 
 """
-
 
 
 import os
@@ -72,7 +70,6 @@ except ImportError:
 
 from pathlib import Path
 from contextlib import asynccontextmanager
-
 
 
 from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect
@@ -250,25 +247,17 @@ from pipeline.response_builder import finalize_result
 # NOTE: Regex patterns for weight/karat extraction moved to pipeline/instant_pass.py
 
 
-
 # Import our optimized modules
 
 from config import (
 
     HOST, PORT, CLAUDE_API_KEY, MODEL_FAST, MODEL_FULL,
-
     COST_PER_CALL_HAIKU, COST_PER_CALL_SONNET, CACHE, SPOT_PRICES, DB_PATH,
-
     EBAY_APP_ID, EBAY_CERT_ID, DISCORD_WEBHOOK_URL, TIER2_ENABLED, TIER2_MIN_MARGIN,
-
     IMAGES, INSTANT_PASS_KEYWORDS, INSTANT_PASS_PRICE_THRESHOLDS,
-
     UBF_TITLE_FILTERS, UBF_LOCATION_FILTERS, UBF_FEEDBACK_RULES, UBF_STORE_TITLE_FILTERS,
-
     TIER2_PROVIDER, OPENAI_API_KEY, OPENAI_TIER2_MODEL, COST_PER_CALL_OPENAI,
-
     COST_PER_CALL_GPT4O, COST_PER_CALL_GPT4O_MINI,
-
     PARALLEL_MODE, SKIP_TIER2_FOR_HOT
 
 )
@@ -276,7 +265,6 @@ from config import (
 from database import (
 
     db, save_listing, log_incoming_listing, update_pattern_outcome,
-
     get_analytics, get_pattern_analytics, extract_title_keywords, get_db_debug_info,
 
     # Seller profiling
@@ -320,9 +308,7 @@ def get_agent_prompt(category: str) -> str:
 try:
 
     from fast_extract import fast_extract_gold, fast_extract_silver, FastExtractResult
-
     FAST_EXTRACT_AVAILABLE = True
-
     print("[FAST] Fast extraction module loaded - instant gold/silver calculations")
 
 except ImportError as e:
@@ -330,13 +316,10 @@ except ImportError as e:
     FAST_EXTRACT_AVAILABLE = False
     fast_extract_gold = None
     fast_extract_silver = None
-
     print(f"[FAST] Fast extraction not available: {e}")
 
 
-
 # httpx imported for eBay API and Discord webhooks (already available)
-
 
 
 # PriceCharting Database Integration for TCG and LEGO
@@ -344,27 +327,18 @@ except ImportError as e:
 try:
 
     from pricecharting_db import (
-
         lookup_product as pc_lookup, 
-
         get_db_stats as pc_get_stats,
-
         refresh_database as pc_refresh,
-
         start_background_refresh as pc_start_refresh
-
     )
-
     PRICECHARTING_AVAILABLE = True
-
     print("[PC] PriceCharting database module loaded")
 
 except ImportError as e:
 
     PRICECHARTING_AVAILABLE = False
-
     print(f"[PC] PriceCharting database not available: {e}")
-
     print("[PC]   To enable: place pricecharting_db.py in this folder")
 
 # Configure PriceCharting routes module
@@ -396,21 +370,15 @@ configure_sellers(
 try:
 
     from bricklink_api import lookup_set as bricklink_lookup, is_available as bricklink_available
-
     BRICKLINK_AVAILABLE = bricklink_available()
-
     if BRICKLINK_AVAILABLE:
-
         print("[BRICKLINK] API configured for Designer Program sets")
-
     else:
-
         print("[BRICKLINK] API not configured (add credentials to .env)")
 
 except Exception as e:
 
     BRICKLINK_AVAILABLE = False
-
     print(f"[BRICKLINK] Module not available: {e}")
 
 # Configure PriceCharting validation module
@@ -437,16 +405,12 @@ configure_instant_pass(
 logging.basicConfig(
 
     level=logging.INFO,
-
     format='%(asctime)s [%(levelname)s] %(message)s',
-
     datefmt='%H:%M:%S'
 
 )
 
 logger = logging.getLogger(__name__)
-
-
 
 
 # ============================================================
@@ -458,7 +422,6 @@ async def lifespan(app_instance: FastAPI):
     """Modern lifespan handler replacing deprecated on_event"""
     # === STARTUP ===
     global IN_FLIGHT_LOCK
-
     logger.info("=" * 60)
     logger.info("Claude Proxy v3 - Optimized Starting...")
     logger.info("=" * 60)
@@ -564,10 +527,8 @@ async def lifespan(app_instance: FastAPI):
             logger.info(f"[API] eBay Direct API poller auto-started for: {poll_categories} (full analysis + Discord alerts)")
         except Exception as e:
             logger.error(f"[API] Failed to start eBay poller: {e}")
-
     logger.info(f"Server ready at http://{HOST}:{PORT}")
     logger.info("=" * 60)
-
     yield  # App runs here
 
     # === SHUTDOWN ===
@@ -628,7 +589,6 @@ client = create_anthropic_client(CLAUDE_API_KEY)
 openai_client = create_openai_client(OPENAI_API_KEY, OPENAI_TIER2_MODEL)
 
 
-
 # Model selection for Tier 1 (category-aware)
 
 # Gold/Silver: GPT-4o (smarter, better at weight estimation and scale reading)
@@ -640,7 +600,6 @@ TIER1_MODEL_GOLD_SILVER = "gpt-4o-mini"  # Mini for Tier 1 (cheaper), Tier 2 use
 TIER1_MODEL_DEFAULT = "gpt-4o-mini"  # Mini for other categories
 
 TIER1_MODEL_FALLBACK = MODEL_FAST   # Haiku fallback if OpenAI fails
-
 
 
 # ============================================================
@@ -714,141 +673,90 @@ from services.deduplication import (
 def log_training_override(
 
     title: str,
-
     price: float,
-
     category: str,
-
     tier1_result: Dict,
-
     tier2_result: Dict,
-
     override_type: str,
-
     listing_data: Dict = None
 
 ):
 
     """
-
     Log Tier 1 -> Tier 2 override events for training analysis.
 
     
 
     Creates a JSONL file with:
-
     - Input context (title, price, category, listing data)
-
     - Tier 1 output (what Tier1 said)
-
     - Tier 2 output (what Sonnet corrected to)
-
     - Override reason
 
     
 
     This data can be used to:
-
     1. Identify patterns where Haiku fails
-
     2. Create fine-tuning examples
-
     3. Improve prompts based on common errors
 
     """
-
     try:
-
         training_record = {
-
             "timestamp": datetime.utcnow().isoformat(),
-
             "override_type": override_type,  # "BUY_TO_PASS", "BUY_TO_RESEARCH", "RESEARCH_TO_PASS", etc.
 
             
 
             # Input context
-
             "input": {
-
                 "title": title,
-
                 "price": price,
-
                 "category": category,
-
                 "listing_fields": {k: v for k, v in (listing_data or {}).items() 
-
                                   if k not in ['images', 'system_prompt', 'display_template']}
-
             },
 
             
 
             # Tier 1 (Haiku) output - what was WRONG
-
             "tier1_output": {
-
                 "recommendation": tier1_result.get('Recommendation', 'Unknown'),
-
                 "profit": tier1_result.get('Profit', tier1_result.get('Margin', 'N/A')),
-
                 "confidence": tier1_result.get('confidence', 'N/A'),
-
                 "reasoning": tier1_result.get('reasoning', '')[:500],
-
                 "weight": tier1_result.get('goldweight', tier1_result.get('weight', 'N/A')),
-
                 "market_price": tier1_result.get('marketprice', tier1_result.get('meltvalue', 'N/A')),
-
                 "max_buy": tier1_result.get('maxBuy', 'N/A'),
-
             },
 
             
 
             # Tier 2 (Sonnet) output - what was CORRECT
-
             "tier2_output": {
-
                 "recommendation": tier2_result.get('Recommendation', 'Unknown'),
-
                 "profit": tier2_result.get('Profit', tier2_result.get('Margin', 'N/A')),
-
                 "confidence": tier2_result.get('confidence', 'N/A'),
-
                 "reasoning": tier2_result.get('reasoning', '')[:500],
-
                 "tier2_reason": tier2_result.get('tier2_reason', ''),
-
                 "tier2_override": tier2_result.get('tier2_override', False),
-
             },
 
             
 
             # Analysis of what went wrong
-
             "error_analysis": {
-
                 "tier1_rec": tier1_result.get('Recommendation'),
-
                 "tier2_rec": tier2_result.get('Recommendation'),
-
                 "sanity_override": tier2_result.get('tier2_sanity_override', ''),
-
                 "weight_correction": tier2_result.get('tier2_weight_correction', ''),
-
             }
-
         }
 
         
 
         # Append to JSONL file
-
         with open(TRAINING_LOG_PATH, 'a', encoding='utf-8') as f:
-
             f.write(json.dumps(training_record, ensure_ascii=False) + '\n')
 
         
@@ -858,11 +766,7 @@ def log_training_override(
         
 
     except Exception as e:
-
         logger.error(f"[TRAINING] Error logging override: {e}")
-
-
-
 
 
 # ============================================================
@@ -907,9 +811,6 @@ async def send_discord_alert(
     )
 
 
-
-
-
 # ============================================================
 # CONFIGURE TIER 2 MODULE
 # ============================================================
@@ -947,9 +848,7 @@ configure_tier2(
 # STARTUP EVENT MOVED TO LIFESPAN HANDLER ABOVE
 
 
-
 # SHUTDOWN EVENT MOVED TO LIFESPAN HANDLER ABOVE
-
 
 
 # ============================================================
@@ -960,34 +859,13 @@ from services.response_wrapper import (
 )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 def _trim_listings():
 
     """Keep only last 100 listings in memory"""
-
     if len(STATS["listings"]) > 100:
-
         sorted_ids = sorted(STATS["listings"].keys(), key=lambda x: STATS["listings"][x]["timestamp"])
-
         for old_id in sorted_ids[:-100]:
-
             del STATS["listings"][old_id]
-
-
-
-
 
 
 # NOTE: PriceCharting validation functions moved to pipeline/pricecharting_validation.py
@@ -1001,25 +879,17 @@ def _trim_listings():
 async def analyze_listing(request: Request):
 
     """Main analysis endpoint - processes eBay listings"""
-
     logger.info("=" * 60)
-
     logger.info("[match_mydata] Endpoint called")
-
     logger.info("=" * 60)
 
     
 
     # Log ALL request details
-
     logger.info(f"[REQUEST] Method: {request.method}")
-
     logger.info(f"[REQUEST] URL: {request.url}")
-
     logger.info(f"[REQUEST] Headers:")
-
     for key, value in request.headers.items():
-
         logger.info(f"    {key}: {value}")
 
     
@@ -1047,7 +917,6 @@ async def analyze_listing(request: Request):
         spam_response = check_spam(data, check_seller_spam)
         if spam_response:
             return spam_response
-
         dedup_response = check_dedup(title, total_price)
         if dedup_response:
             return dedup_response
@@ -1074,7 +943,6 @@ async def analyze_listing(request: Request):
         sold_response = check_sold(data)
         if sold_response:
             return sold_response
-
         listing_enhancements = build_enhancements(data, analyze_new_seller)
         freshness_minutes = listing_enhancements.get("freshness_minutes")
         seller_name = listing_enhancements.get("seller_name", "")
@@ -1090,11 +958,8 @@ async def analyze_listing(request: Request):
         
 
         # Start timing for performance analysis
-
         import time as _time
-
         _start_time = _time.time()
-
         _timing = {}
 
         
@@ -1147,21 +1012,15 @@ async def analyze_listing(request: Request):
         # FULL ANALYSIS
 
         # ============================================================
-
         STATS["api_calls"] += 1
-
         STATS["session_cost"] += COST_PER_CALL_HAIKU
 
         
 
         # Detect category
-
         category, category_reasons = detect_category(data)
-
         logger.info(f"Category: {category}")
-
         _timing['category'] = _time.time() - _start_time
-
         logger.info(f"[TIMING] Category detect + setup: {_timing['category']*1000:.0f}ms")
 
 
@@ -1209,55 +1068,35 @@ async def analyze_listing(request: Request):
         
 
         # PriceCharting lookup for TCG and LEGO
-
         pc_result = None
-
         pc_context = ""
-
         if category in ["tcg", "lego", "videogames"]:
-
             try:
-
                 price_float = float(str(total_price).replace('$', '').replace(',', ''))
 
                 # Extract UPC if available (most accurate lookup method)
-
                 upc = data.get('UPC', '') or data.get('upc', '')
-
                 if upc:
-
                     logger.info(f"[PC] UPC found: {upc}")
 
                 
 
                 # Extract condition for price tier selection (critical for video games!)
-
                 condition = data.get('Condition', '') or data.get('condition', '')
-
                 if condition:
-
                     logger.info(f"[PC] Condition: {condition}")
 
                 
 
                 # Extract quantity for multi-item listings
-
                 quantity = 1
-
                 qty_raw = data.get('Quantity', '') or data.get('quantity', '')
-
                 if qty_raw:
-
                     try:
-
                         quantity = int(float(str(qty_raw).replace(',', '')))
-
                         if quantity > 1:
-
                             logger.info(f"[PC] Quantity: {quantity} items")
-
                     except:
-
                         quantity = 1
 
                 # === LOT QUANTITY DETECTION FROM TITLE ===
@@ -1291,11 +1130,8 @@ async def analyze_listing(request: Request):
                 
 
                 _pc_start = _time.time()
-
                 pc_result, pc_context = get_pricecharting_context(title, price_float, category, upc, quantity, condition)
-
                 _timing['pricecharting'] = _time.time() - _pc_start
-
                 logger.info(f"[TIMING] PriceCharting lookup: {_timing['pricecharting']*1000:.0f}ms")
 
                 # === PRICE OVERRIDE CHECK - Manual market prices take precedence ===
@@ -1314,9 +1150,7 @@ async def analyze_listing(request: Request):
                     pc_result['margin'] = override_margin
                     pc_result['product_name'] = override.get('notes', override['product_key'])
                     pc_result['override_applied'] = True
-
                     logger.info(f"[OVERRIDE] Applied: {override['product_key']} -> market ${override_market}, max buy ${override_buy_target:.0f}, margin ${override_margin:.0f}")
-
 
 
                 # Quick pass check
@@ -1326,12 +1160,10 @@ async def analyze_listing(request: Request):
                 )
                 if pc_quick_response:
                     return pc_quick_response
-
             except Exception as e:
                 logger.error(f"[PC] Price parsing error: {e}")
 
         # Log for pattern analysis
-
         log_incoming_listing(title, float(str(total_price).replace('$', '').replace(',', '') or 0), category, alias)
 
 
@@ -1342,14 +1174,12 @@ async def analyze_listing(request: Request):
         )
         if agent_qp_response:
             return agent_qp_response
-
         textbook_response = await check_textbook(
             category, data, total_price, title, get_agent,
             render_result_html, cache, STATS, response_type
         )
         if textbook_response:
             return textbook_response
-
         gold_qp_response = check_gold_price_per_gram(
             category, title, total_price, render_result_html, cache, STATS, response_type
         )
@@ -1366,17 +1196,11 @@ async def analyze_listing(request: Request):
         # Runs BEFORE AI to provide instant math on verified data
 
         # ============================================================
-
         fast_result = None
-
         if FAST_EXTRACT_AVAILABLE and category in ['gold', 'silver']:
-
             try:
-
                 _fast_start = _time.time()
-
                 price_float = float(str(total_price).replace('$', '').replace(',', ''))
-
                 description = data.get('Description', '') or data.get('description', '')
 
                 # Also check ConditionDescription
@@ -1429,51 +1253,33 @@ async def analyze_listing(request: Request):
                     logger.info(f"[ITEM SPECIFICS] {item_specifics_present}")
 
                 # Get current spot prices
-
                 spots = get_spot_prices()
-
                 gold_spot = spots.get('gold_oz', 4350)
-
                 silver_spot = spots.get('silver_oz', 75)
 
 
-
                 if category == 'gold':
-
                     fast_result = fast_extract_gold(title, price_float, description, gold_spot, item_specifics)
-
                 else:
-
                     fast_result = fast_extract_silver(title, price_float, description, silver_spot, item_specifics)
 
                 
 
                 _timing['fast_extract'] = _time.time() - _fast_start
-
                 logger.info(f"[FAST] Extraction took {_timing['fast_extract']*1000:.1f}ms")
 
                 
 
                 # Log what we found
-
                 if fast_result.weight_grams:
-
                     logger.info(f"[FAST] Weight: {fast_result.weight_grams}g from {fast_result.weight_source}")
-
                 if fast_result.karat:
-
                     logger.info(f"[FAST] Karat: {fast_result.karat}K from {fast_result.karat_source}")
-
                 if fast_result.melt_value:
-
                     logger.info(f"[FAST] Melt: ${fast_result.melt_value:.0f}, Max: ${fast_result.max_buy:.0f}")
-
                 if fast_result.is_hot:
-
                     logger.info(f"[FAST] HOT DEAL: {fast_result.hot_reason}")
-
                 if getattr(fast_result, 'has_non_metal', False):
-
                     logger.info(f"[FAST] NON-METAL DETECTED: '{fast_result.non_metal_type}' - needs AI for weight deductions")
 
                 
@@ -1485,7 +1291,6 @@ async def analyze_listing(request: Request):
                 )
                 if fast_extract_response:
                     return fast_extract_response
-
             except Exception as e:
                 logger.error(f"[FAST] Extraction error: {e}")
                 fast_result = None
@@ -1501,11 +1306,8 @@ async def analyze_listing(request: Request):
         # ============================================================
 
 
-
         # Store raw image URLs
-
         raw_image_urls = data.get('images', [])
-
         images = []
 
 
@@ -1515,10 +1317,8 @@ async def analyze_listing(request: Request):
         # - Has non-metal content (AI needs to assess deductions)
         # - Weight from estimate (needs visual verification)
         # Skip images if we have clean verified weight + clear math result
-
         needs_images_for_tier1 = False
         skip_ai_entirely = False
-
         if category in ['gold', 'silver']:
             if fast_result is None:
                 # No fast extraction - need AI with images
@@ -1540,7 +1340,6 @@ async def analyze_listing(request: Request):
                 # Verified weight + price 30%+ over max buy = clear PASS, skip AI entirely
                 skip_ai_entirely = True
                 logger.info(f"[LAZY] SKIP AI: verified weight {fast_result.weight_grams}g, price ${price_float:.0f} > maxBuy ${fast_result.max_buy:.0f} x 1.3")
-
                 quick_result = {
                     'Qualify': 'No',
                     'Recommendation': 'PASS',
@@ -1555,14 +1354,11 @@ async def analyze_listing(request: Request):
                     'confidence': fast_result.confidence,
                     'category': category,
                 }
-
                 html = render_result_html(quick_result, category, title)
                 cache.set(title, total_price, quick_result, html, "PASS")
                 STATS["pass_count"] += 1
-
                 _timing['total'] = _time.time() - _start_time
                 logger.info(f"[LAZY] Saved {2 + 4:.0f}+ seconds (no images, no AI) - PASS in {_timing['total']*1000:.0f}ms")
-
                 if response_type == 'json':
                     return JSONResponse(content=quick_result)
                 return HTMLResponse(content=html)
@@ -1570,79 +1366,49 @@ async def analyze_listing(request: Request):
                 # Have verified weight, price is close - need AI to verify
                 needs_images_for_tier1 = True
                 logger.info(f"[LAZY] Need images: price ${price_float:.0f} near maxBuy ${fast_result.max_buy:.0f}, need AI verification")
-
         if needs_images_for_tier1 and raw_image_urls:
-
             _img_start = _time.time()
 
             # Gold/silver: Use first_last selection (scale photos often at end of eBay listings)
 
             # More images + larger size for better scale reading with GPT-4o
-
             max_imgs = getattr(IMAGES, 'max_images_gold_silver', 5)
-
             img_size = getattr(IMAGES, 'resize_for_gold_silver', 512)
-
             logger.info(f"[TIER1] Fetching up to {max_imgs} images for GPT-4o (gold/silver - first+last for scale photos)...")
-
             images = await process_image_list(
-
                 raw_image_urls,
-
                 max_size=img_size,
-
                 max_count=max_imgs,
-
                 selection="first_last"  # Scale photos often at end of eBay listings!
-
             )
-
             _timing['images'] = _time.time() - _img_start
-
             logger.info(f"[TIMING] Image fetch + resize: {_timing['images']*1000:.0f}ms ({len(images)} images)")
 
         
 
         # Build prompt
-
         category_prompt = get_category_prompt(category)
-
         listing_text = format_listing_data(data)
 
         
 
         # Inject FAST EXTRACT data if available - AI doesn't need to re-calculate
-
         fast_context = ""
-
         if fast_result and (fast_result.weight_grams or fast_result.karat or fast_result.melt_value):
-
             fast_context = "\n\n=== SERVER PRE-CALCULATED (VERIFIED FROM TITLE) ===\n"
-
             if fast_result.karat:
-
                 fast_context += f"VERIFIED KARAT: {fast_result.karat}K (from {fast_result.karat_source})\n"
-
             if fast_result.weight_grams:
-
                 fast_context += f"VERIFIED WEIGHT: {fast_result.weight_grams}g (from {fast_result.weight_source})\n"
-
             if fast_result.melt_value:
-
                 fast_context += f"CALCULATED MELT: ${fast_result.melt_value:.0f}\n"
-
                 fast_context += f"CALCULATED MAX BUY: ${fast_result.max_buy:.0f}\n"
-
             if fast_result.is_hot:
-
                 fast_context += f"HOT DEAL FLAG: {fast_result.hot_reason}\n"
 
 
-
             # CRITICAL: Alert AI if non-metal detected - weight needs deductions!
-
             if getattr(fast_result, 'has_non_metal', False):
-
                 fast_context += f"\n⚠️ NON-METAL DETECTED: '{fast_result.non_metal_type}'\n"
 
                 # If we have stated weight, tell AI to deduct FROM it, not estimate higher
@@ -1654,13 +1420,9 @@ async def analyze_listing(request: Request):
                     fast_context += "The stated weight likely INCLUDES non-metal components!\n"
                     fast_context += "You MUST deduct weight for stones/pearls/movement/beads before calculating melt.\n"
                     fast_context += "The pre-calculated melt above assumes ALL weight is metal - RECALCULATE after deductions!\n"
-
             else:
-
                 fast_context += "USE THESE VALUES - they are extracted from title and verified.\n"
-
                 fast_context += "Only override if you see CONFLICTING info in images (different weight on scale).\n"
-
             logger.info(f"[FAST] Injecting verified data into AI prompt")
 
         # === FLATWARE WEIGHT ESTIMATION ===
@@ -1674,7 +1436,6 @@ async def analyze_listing(request: Request):
                     sterling_rate = spots.get('sterling', 2.50)
                     est_melt = estimated_weight * sterling_rate
                     max_buy_est = est_melt * 0.75
-
                     flatware_context = "\n\n=== FLATWARE WEIGHT ESTIMATE (NO WEIGHT IN TITLE) ===\n"
                     flatware_context += f"DETECTED: {flat_qty}x {piece_type.replace('_', ' ').title()}\n"
                     flatware_context += f"ESTIMATED WEIGHT: {estimated_weight:.0f}g (based on typical flatware sizes)\n"
@@ -1683,40 +1444,27 @@ async def analyze_listing(request: Request):
                     flatware_context += "⚠️ WEIGHT IS ESTIMATED - Use images to verify piece type/size.\n"
                     flatware_context += "If listing price < max buy estimate, recommend BUY or RESEARCH.\n"
                     flatware_context += "Flatware from known makers (Dominick & Haff, Gorham, etc.) is solid sterling.\n"
-
                     fast_context += flatware_context
                     logger.info(f"[FLATWARE] Injecting estimate into prompt: {flat_qty}x {piece_type} = {estimated_weight:.0f}g")
             except Exception as e:
                 logger.warning(f"[FLATWARE] Detection error: {e}")
 
         # Inject PriceCharting context for TCG/LEGO/videogames
-
         if pc_context:
-
             user_message = f"{category_prompt}\n\n{pc_context}{fast_context}\n\n{listing_text}"
-
             logger.info("[PC] Injected PriceCharting context into prompt")
-
         elif fast_context:
-
             user_message = f"{category_prompt}{fast_context}\n\n{listing_text}"
-
         else:
-
             user_message = f"{category_prompt}\n\n{listing_text}"
 
         
 
         # Build message content - include images for gold/silver
-
         if images:
-
             message_content = [{"type": "text", "text": user_message}]
-
             message_content.extend(images[:5])  # Max 5 images
-
         else:
-
             message_content = user_message
 
         
@@ -1741,25 +1489,16 @@ async def analyze_listing(request: Request):
                 process_image_list(raw_image_urls, max_size=IMAGES.resize_for_tier2, selection="first_last")
             )
             logger.debug(f"[OPTIMIZATION] Pre-fetching Tier 2 images in background...")
-
         _tier1_start = _time.time()
 
 
-
         # Select model based on category
-
         if category in ('gold', 'silver'):
-
             tier1_model = TIER1_MODEL_GOLD_SILVER
-
             tier1_cost = COST_PER_CALL_GPT4O
-
         else:
-
             tier1_model = TIER1_MODEL_DEFAULT
-
             tier1_cost = COST_PER_CALL_GPT4O_MINI
-
 
 
         if openai_client:
@@ -1773,148 +1512,88 @@ async def analyze_listing(request: Request):
                     "confidence": "Low",
                     "budget_skip": True,
                 }
-
             logger.info(f"[TIER1] Calling {tier1_model} for {category}...")
 
             
 
             # Convert images to OpenAI format if present
-
             openai_messages = []
 
             # Gold/silver: Use HIGH detail for better scale reading, more tokens for reasoning
 
             # Other categories: Use LOW detail for speed
-
             is_precious_metal = category in ('gold', 'silver')
-
             image_detail = "low"  # All Tier 1 uses low detail - Tier 2 verifies with high detail
-
             max_tokens = 800 if is_precious_metal else 500  # More tokens for complex gold/silver reasoning
 
 
-
             if images:
-
                 openai_content = [{"type": "text", "text": user_message}]
-
                 for img in images[:6]:  # Allow up to 6 images
-
                     if img.get("type") == "image":
 
                         # Convert Claude format to OpenAI format
-
                         openai_content.append({
-
                             "type": "image_url",
-
                             "image_url": {
-
                                 "url": f"data:{img['source']['media_type']};base64,{img['source']['data']}",
-
                                 "detail": image_detail
-
                             }
-
                         })
-
                 openai_messages = [{"role": "user", "content": openai_content}]
-
             else:
-
                 openai_messages = [{"role": "user", "content": user_message}]
 
 
-
             try:
-
                 response = await openai_client.chat.completions.create(
-
                     model=tier1_model,
-
                     max_tokens=max_tokens,
-
                     response_format={"type": "json_object"},  # Force JSON output
-
                     messages=[
-
                         {"role": "system", "content": get_agent_prompt(category)},
-
                         *openai_messages
-
                     ]
-
                 )
-
                 raw_response = response.choices[0].message.content
-
                 if raw_response:
-
                     raw_response = raw_response.strip()
-
                 else:
-
                     logger.error(f"[TIER1] GPT-4o returned empty response!")
-
                     raw_response = '{"Recommendation": "RESEARCH", "reasoning": "Empty AI response"}'
-
                 STATS["session_cost"] += tier1_cost
                 record_openai_cost(tier1_cost)  # Track hourly budget
-
                 tier1_model_used = tier1_model.upper()
-
             except Exception as e:
-
                 logger.error(f"[TIER1] {tier1_model} failed, falling back to Haiku: {e}")
 
                 # Fallback to Haiku
-
                 response = await client.messages.create(
-
                     model=MODEL_FAST,
-
                     max_tokens=500,
-
                     system=get_agent_prompt(category),
-
                     messages=[{"role": "user", "content": message_content}]
-
                 )
-
                 raw_response = response.content[0].text.strip()
-
                 STATS["session_cost"] += COST_PER_CALL_HAIKU
-
                 tier1_model_used = "Haiku (fallback)"
-
         else:
 
             # Fallback to Haiku if OpenAI client not available
-
             logger.info(f"[TIER1] Calling Haiku for {category} (OpenAI not configured)...")
-
             response = await client.messages.create(
-
                 model=MODEL_FAST,
-
                 max_tokens=500,
-
                 system=get_agent_prompt(category),
-
                 messages=[{"role": "user", "content": message_content}]
-
             )
-
             raw_response = response.content[0].text.strip()
-
             STATS["session_cost"] += COST_PER_CALL_HAIKU
-
             tier1_model_used = "Haiku"
 
         
 
         _timing['tier1'] = _time.time() - _tier1_start
-
         logger.info(f"[TIMING] Tier 1 ({tier1_model_used}): {_timing['tier1']*1000:.0f}ms")
 
         
@@ -1924,13 +1603,10 @@ async def analyze_listing(request: Request):
         
 
         try:
-
             result = json.loads(response_text)
 
 
-
             if 'reasoning' in result:
-
                 result['reasoning'] = result['reasoning'].encode('ascii', 'ignore').decode('ascii')
 
 
@@ -1941,59 +1617,39 @@ async def analyze_listing(request: Request):
                 result = agent.validate_response(result)
 
             # Add listing price to result for display
-
             result['listingPrice'] = total_price
 
 
-
             # === CAPTURE TIER 1 ORIGINAL RECOMMENDATION BEFORE ANY VALIDATION ===
-
             tier1_original_rec = result.get('Recommendation', 'RESEARCH')
-
             logger.info(f"[TIER1] {tier1_model_used} original recommendation: {tier1_original_rec}")
 
             
 
             # SERVER-SIDE MATH VALIDATION: Recalculate margin and fix if AI got it wrong
-
             _validation_start = _time.time()
-
             result = validate_and_fix_margin(result, total_price, category, title, data)
-
             _timing['validation'] = _time.time() - _validation_start
-
             logger.info(f"[TIMING] Validation: {_timing['validation']*1000:.0f}ms")
 
             
 
             # TCG/LEGO VALIDATION: Normalize keys and override with PriceCharting data if available
-
             if category in ["tcg", "lego"]:
-
                 try:
-
                     price_float = float(str(total_price).replace('$', '').replace(',', ''))
-
                     result = validate_tcg_lego_result(result, pc_result, price_float, category, title)
-
                 except Exception as e:
-
                     logger.error(f"[PC] TCG/LEGO validation error: {e}")
 
             
 
             # VIDEO GAMES VALIDATION: Check math and professional sellers
-
             if category == "videogames":
-
                 try:
-
                     price_float = float(str(total_price).replace('$', '').replace(',', ''))
-
                     result = validate_videogame_result(result, pc_result, price_float, data)
-
                 except Exception as e:
-
                     logger.error(f"[VG] Video game validation error: {e}")
 
             
@@ -2015,61 +1671,42 @@ async def analyze_listing(request: Request):
             
 
             # Check if we have a HOT deal from fast_extract (verified math)
-
             is_hot_deal = fast_result and fast_result.is_hot if fast_result else False
 
             
 
             # Force Tier 2 for gold/silver items where Haiku couldn't estimate weight
-
             gold_weight_na = result.get('goldweight', '') in ['NA', 'na', '', None, '0']
-
             silver_weight_na = result.get('silverweight', '') in ['NA', 'na', '', None, '0'] 
-
             weight_na = result.get('weight', '') in ['NA', 'na', '', None, '0']
-
             force_tier2_for_na_weight = (
-
                 category in ['gold', 'silver'] and 
-
                 (gold_weight_na or silver_weight_na or weight_na) and
-
                 float(str(total_price).replace('$', '').replace(',', '') or 0) > 100
-
             )
 
             
 
             if force_tier2_for_na_weight:
-
                 logger.info(f"[TIER2] Forcing Tier 2: Gold/silver item with NA weight - needs image analysis")
 
             
 
             # Determine if Tier 2 should run
-
             should_run_tier2 = (
-
                 TIER2_ENABLED and 
-
                 (tier1_original_rec in ("BUY", "RESEARCH") or recommendation in ("BUY", "RESEARCH") or force_tier2_for_na_weight)
-
             )
 
             
 
             # Skip Tier 2 for HOT deals if configured (math is verified)
-
             if is_hot_deal and SKIP_TIER2_FOR_HOT:
-
                 logger.info(f"[TIER2] HOT DEAL - Skipping Tier 2 (verified math from title)")
-
                 should_run_tier2 = False
 
                 # Add HOT flag to result
-
                 result['hot_deal'] = True
-
                 result['reasoning'] = f"HOT DEAL (verified): {fast_result.hot_reason}\n" + result.get('reasoning', '')
 
             
@@ -2085,7 +1722,6 @@ async def analyze_listing(request: Request):
             # ============================================================
 
             # Check if this is a VERIFIED deal that doesn't need Tier 2
-
             weight_source = result.get('weightSource', 'estimated')
 
             # SERVER-SIDE VALIDATION: Verify AI's "stated" weight claim against actual title
@@ -2100,52 +1736,32 @@ async def analyze_listing(request: Request):
                     weight_source = 'estimate'  # Override to estimate - this prevents fast-tracking
                     result['weightSource'] = 'estimate'
                     result['weight_validation_override'] = f"AI claimed '{original_source}' but no weight in title"
-
             profit_val = 0
-
             try:
-
                 profit_str = result.get('Profit', result.get('Margin', '0'))
-
                 profit_val = float(str(profit_str).replace('$', '').replace('+', '').replace(',', ''))
-
             except:
-
                 pass
-
 
 
             # Skip Tier 2 for verified deals: stated weight + significant profit + BUY recommendation
             # NOTE: 'scale' is NOT trusted for fast-track because AI scale reading is unreliable
             # Only trust weight that's explicitly stated in the title text itself
             # NOTE: API listings NEVER fast-track - they need full Tier 2 verification for stone detection
-
             is_from_api = data.get('source') == 'ebay_api'
-
             is_verified_deal = (
-
                 category in ['gold', 'silver'] and
-
                 weight_source in ['stated', 'title'] and  # Removed 'description' and 'scale' - less reliable
-
                 profit_val >= 75 and  # At least $75 profit
-
                 recommendation == 'BUY' and
-
                 not is_from_api  # API listings always need Tier 2 verification
-
             )
 
 
-
             if is_verified_deal:
-
                 logger.info(f"[FAST-TRACK] Verified deal: {weight_source} weight, ${profit_val:.0f} profit - SKIPPING Tier 2")
-
                 should_run_tier2 = False
-
                 result['fast_tracked'] = True
-
                 result['reasoning'] = f"[FAST-TRACK: Verified {weight_source} weight, ${profit_val:.0f} profit]\n" + result.get('reasoning', '')
 
             # OPTIMIZATION: Skip Tier 2 for high-confidence PASS (no need to re-verify obvious rejections)
@@ -2158,64 +1774,42 @@ async def analyze_listing(request: Request):
                     tier1_conf_val = int(tier1_conf)
             except:
                 pass
-
             if should_run_tier2 and recommendation == 'PASS' and tier1_conf_val >= 80:
                 logger.info(f"[OPTIMIZATION] Skipping Tier 2 - High confidence PASS ({tier1_conf_val}%)")
                 should_run_tier2 = False
                 result['high_conf_skip'] = True
-
             use_parallel = False  # Don't use background parallel - either skip Tier 2 or wait for it
-
 
 
             if should_run_tier2 and use_parallel:
 
                 # DISABLED: This block no longer executes
-
                 logger.info(f"[PARALLEL] Starting background Sonnet verification (gold/silver - speed matters)...")
-
                 logger.info(f"[PARALLEL] Returning Haiku result immediately for SPEED")
-
 
 
                 price_float = float(str(total_price).replace('$', '').replace(',', ''))
 
 
-
                 # Start Sonnet in background (non-blocking)
-
                 asyncio.create_task(background_sonnet_verify(
-
                     title=title,
-
                     price=price_float,
-
                     category=category,
-
                     haiku_result=result.copy(),
-
                     raw_image_urls=raw_image_urls,
-
                     data=data,
-
                     fast_result=fast_result
-
                 ))
 
 
-
                 # Mark result as pending verification
-
                 result['tier2_status'] = 'PENDING'
-
                 result['reasoning'] = f"[HAIKU - Sonnet verifying in background]\n{result.get('reasoning', '')}"
 
 
-
                 # DON'T wait for Tier 2 - continue to return Haiku result
-
                 should_run_tier2 = False  # Skip the sequential Tier 2 below
-
 
 
             if should_run_tier2 and category in ['lego', 'tcg', 'videogames', 'gold', 'silver']:
@@ -2223,7 +1817,6 @@ async def analyze_listing(request: Request):
                 # For LEGO/TCG/VideoGames: ALWAYS wait for Sonnet before returning BUY
 
                 # PriceCharting prices can be wrong (wrong condition tier, outdated, etc.)
-
                 logger.info(f"[TIER2] ⏳ WAITING for Sonnet verification ({category} - PriceCharting needs validation)...")
 
                 # Don't set should_run_tier2 = False - let it continue to sequential mode below
@@ -2240,11 +1833,8 @@ async def analyze_listing(request: Request):
             if not should_run_tier2 and tier2_images_task and not tier2_images_task.done():
                 tier2_images_task.cancel()
                 logger.debug(f"[OPTIMIZATION] Cancelled unused image pre-fetch")
-
             if should_run_tier2:
-
                 logger.info(f"[TIER2] *** MANDATORY SONNET VERIFICATION STARTING ***")
-
                 logger.info(f"[TIER1] Tier1: {tier1_original_rec}, Post-validation: {recommendation} - triggering Tier 2 verification...")
 
                 
@@ -2252,9 +1842,7 @@ async def analyze_listing(request: Request):
                 # Fetch images for Sonnet using first_last strategy
 
                 # Scale photos are often at the END of eBay listings
-
                 _img_start = _time.time()
-
                 if tier2_images_task:
                     # OPTIMIZATION: Use pre-fetched images (started during Tier 1)
                     images = await tier2_images_task
@@ -2264,75 +1852,45 @@ async def analyze_listing(request: Request):
                     # Use first_last selection: first 3 + last 3 images (scale photos often at end)
                     images = await process_image_list(raw_image_urls, max_size=IMAGES.resize_for_tier2, selection="first_last")
                     logger.info(f"[TIER2] Fetched {len(images)} images @ {IMAGES.resize_for_tier2}px")
-
                 _timing['images'] = _time.time() - _img_start
-
                 logger.info(f"[TIMING] Image fetch (for Tier2): {_timing['images']*1000:.0f}ms")
 
                 
 
                 price_float = float(str(total_price).replace('$', '').replace(',', ''))
-
                 _tier2_start = _time.time()
 
                 
 
                 # Use OpenAI or Claude based on config
-
                 if TIER2_PROVIDER == "openai" and openai_client:
-
                     logger.info(f"[TIER2] Using OpenAI {OPENAI_TIER2_MODEL} for FAST verification...")
-
                     result = await tier2_reanalyze_openai(
-
                         title=title,
-
                         price=price_float,
-
                         category=category,
-
                         tier1_result=result,
-
                         images=images,
-
                         data=data,
-
                         system_prompt=get_agent_prompt(category)
-
                     )
-
                     _timing['tier2'] = _time.time() - _tier2_start
-
                     logger.info(f"[TIMING] Tier 2 OpenAI: {_timing['tier2']*1000:.0f}ms")
-
                 else:
-
                     result = await tier2_reanalyze(
-
                         title=title,
-
                         price=price_float,
-
                         category=category,
-
                         tier1_result=result,
-
                         images=images,
-
                         data=data,
-
                         system_prompt=get_agent_prompt(category)
-
                     )
-
                     _timing['tier2'] = _time.time() - _tier2_start
-
                     logger.info(f"[TIMING] Tier 2 Sonnet: {_timing['tier2']*1000:.0f}ms")
 
                 # Update recommendation after Tier 2
-
                 recommendation = result.get('Recommendation', 'RESEARCH')
-
                 logger.info(f"[TIER2] Final recommendation: {recommendation}")
 
 
@@ -2344,7 +1902,6 @@ async def analyze_listing(request: Request):
                     listing_price = float(str(total_price).replace('$', '').replace(',', ''))
                     user_market = user_price_correction['market_price']
                     deal_threshold = user_market * 0.65  # Need 35% margin for BUY
-
                     if listing_price >= deal_threshold:
                         old_rec = recommendation
                         recommendation = "PASS"
@@ -2362,17 +1919,11 @@ async def analyze_listing(request: Request):
                     logger.warning(f"[PRICE OVERRIDE] Error applying correction: {e}")
 
             # Update stats
-
             if recommendation == "BUY":
-
                 STATS["buy_count"] += 1
-
             elif recommendation == "PASS":
-
                 STATS["pass_count"] += 1
-
             else:
-
                 STATS["research_count"] += 1
 
             
@@ -2380,7 +1931,6 @@ async def analyze_listing(request: Request):
             # Create listing record
 
             # Include image URLs but not full base64 data
-
             input_data_clean = {k: v for k, v in data.items() if k != 'images'}
 
             
@@ -2388,201 +1938,136 @@ async def analyze_listing(request: Request):
             # Extract just the URLs from images for thumbnail
 
             # uBuyFirst sends images as HTTP URLs or data URLs
-
             raw_images = data.get('images', [])
-
             if raw_images:
-
                 image_urls = []
-
                 for img in raw_images[:3]:  # Just first 3 URLs
-
                     if isinstance(img, str):
-
                         if img.startswith('http'):
-
                             image_urls.append(img)
 
                         # Skip data URLs - too large for thumbnails
-
                     elif isinstance(img, dict):
 
                         # Handle dict format {'url': '...', 'URL': '...'}
-
                         url = img.get('url', img.get('URL', img.get('src', '')))
-
                         if url and url.startswith('http'):
-
                             image_urls.append(url)
-
                 if image_urls:
-
                     input_data_clean['images'] = image_urls
-
                     logger.info(f"[THUMBNAIL] Stored {len(image_urls)} image URLs for deal")
 
             
 
             # Get eBay item ID and gallery URL for thumbnails
-
             ebay_item_id = data.get('ItemId', data.get('itemId', ''))
-
             gallery_url = data.get('GalleryURL', data.get('galleryURL', data.get('PictureURL', '')))
-
             ebay_view_url = data.get('ViewUrl', data.get('CheckoutUrl', ''))
 
             
 
             # Store these for the API
-
             input_data_clean['ebay_item_id'] = ebay_item_id
-
             input_data_clean['gallery_url'] = gallery_url
-
             input_data_clean['ebay_url'] = ebay_view_url
 
             
 
             if gallery_url:
-
                 logger.info(f"[THUMBNAIL] GalleryURL: {gallery_url[:60]}...")
 
             
 
             listing_record = {
-
                 "id": listing_id,
-
                 "timestamp": timestamp,
-
                 "title": title,
-
                 "total_price": total_price,
-
                 "category": category,
-
                 "recommendation": recommendation,
-
                 "margin": result.get('Profit', result.get('Margin', 'NA')),
-
                 "confidence": result.get('confidence', 'NA'),
-
                 "reasoning": result.get('reasoning', ''),
-
                 "raw_response": raw_response,
-
                 "input_data": input_data_clean
-
             }
 
             
 
             STATS["listings"][listing_id] = listing_record
-
             _trim_listings()
 
             
 
             # Save to database
-
             save_listing(listing_record)
 
             
 
             # Broadcast to live dashboard via WebSocket
-
             try:
-
                 await broadcast_new_listing(
-
                     listing={"title": title, "price": total_price, "category": category},
-
                     analysis=result
-
                 )
-
                 logger.debug(f"[WS] Broadcasted listing to live dashboard")
-
             except Exception as e:
-
                 logger.debug(f"[WS] Broadcast error (no clients?): {e}")
 
             
 
             # Update pattern analytics with margin and confidence
-
             margin_val = result.get('Profit', result.get('Margin', '0'))
-
             conf_val = result.get('confidence', '')
-
             update_pattern_outcome(title, category, recommendation, margin_val, conf_val, alias)
 
             
 
             # Add price for display
-
             result['listingPrice'] = total_price
 
             
 
             # Add category to result
-
             result['category'] = category
 
             
 
             # Add default pcMatch for TCG/LEGO if not set
-
             if category in ["tcg", "lego"] and 'pcMatch' not in result:
-
                 result['pcMatch'] = 'No'
-
                 result['pcProduct'] = ''
-
                 result['pcConfidence'] = ''
 
             
 
             # Render HTML
-
             html = render_result_html(result, category, title)
 
             
 
             # Store in smart cache
-
             cache.set(title, total_price, result, html, recommendation, category)
 
             
 
             # Signal completion to any waiting requests
-
             request_key = f"{title}|{total_price}"
-
             if request_key in IN_FLIGHT:
-
                 IN_FLIGHT_RESULTS[request_key] = (result, html)
-
                 IN_FLIGHT[request_key].set()
-
                 logger.info(f"[IN-FLIGHT] Signaled completion for waiting requests")
 
                 # Clean up after a delay (let waiting requests grab the result)
-
                 async def cleanup_in_flight(key):
-
                     await asyncio.sleep(5)
-
                     IN_FLIGHT.pop(key, None)
-
                     IN_FLIGHT_RESULTS.pop(key, None)
-
                 asyncio.create_task(cleanup_in_flight(request_key))
 
             
 
             logger.info(f"Result: {recommendation}")
-
             logger.info(f"[RESPONSE] Keys: {list(result.keys())}")
 
             
@@ -2600,36 +2085,26 @@ async def analyze_listing(request: Request):
             
 
             # Check if this is parallel mode (Sonnet running in background)
-
             is_parallel_pending = result.get('tier2_status') == 'PENDING'
 
             
 
             # Check if this is from API - API handler sends its own Discord alerts
             is_from_api = data.get('source') == 'ebay_api'
-
             if is_parallel_pending:
 
                 # SKIP Discord here - background Sonnet will send alert after verification
-
                 logger.info(f"[DISCORD] Skipping immediate alert - Sonnet verifying in background")
-
                 logger.info(f"[DISCORD] Tier1 said {recommendation} but waiting for Sonnet confirmation")
-
             elif is_from_api:
                 # SKIP Discord here - API handler sends its own alert with [API] prefix
                 logger.info(f"[DISCORD] Skipping - API listing has its own Discord handler")
-
             elif recommendation == "BUY":
-
                 logger.info(f"[DISCORD] Post-Tier2 recommendation: {recommendation} (Tier1 was: {tier1_original_rec})")
-
                 try:
 
                     # Get list price (ItemPrice) for eBay lookup - NOT TotalPrice which includes shipping
-
                     item_price_str = data.get('ItemPrice', data.get('TotalPrice', '0'))
-
                     list_price = float(str(item_price_str).replace('$', '').replace(',', ''))
 
                     
@@ -2662,55 +2137,34 @@ async def analyze_listing(request: Request):
                     
 
                     # Get first image URL from RAW data (not processed base64)
-
                     first_image = None
-
                     raw_images = data.get('images', [])
-
                     if raw_images:
-
                         for img in raw_images:
-
                             if isinstance(img, str) and img.startswith('http'):
-
                                 first_image = img
-
                                 break
-
                             elif isinstance(img, dict):
-
                                 url = img.get('url', img.get('URL', img.get('src', '')))
-
                                 if url and url.startswith('http'):
-
                                     first_image = url
-
                                     break
 
                     
 
                     if first_image:
-
                         logger.info(f"[DISCORD] Thumbnail URL: {first_image[:60]}...")
 
                     
 
                     # Extract profit from result
-
                     profit_val = result.get('Profit', result.get('profit', result.get('estimatedProfit', 0)))
-
                     try:
-
                         if isinstance(profit_val, str):
-
                             profit_val = float(profit_val.replace('$', '').replace(',', '').replace('%', '').replace('+', ''))
-
                         else:
-
                             profit_val = float(profit_val) if profit_val else 0
-
                     except:
-
                         profit_val = 0
 
                     
@@ -2720,27 +2174,16 @@ async def analyze_listing(request: Request):
                     
 
                     # Build extra data for category-specific fields
-
                     extra_data = {}
-
                     if category == 'gold':
-
                         extra_data['karat'] = result.get('karat', '')
-
                         extra_data['weight'] = result.get('goldweight', result.get('weight', ''))
-
                         extra_data['melt'] = result.get('meltvalue', '')
-
                     elif category == 'silver':
-
                         extra_data['weight'] = result.get('weight', '')
-
                         extra_data['melt'] = result.get('meltvalue', '')
-
                     elif category in ['lego', 'tcg', 'videogames']:
-
                         extra_data['market_price'] = result.get('marketprice', result.get('market_price', ''))
-
                         extra_data['set_number'] = result.get('SetNumber', result.get('set_number', ''))
 
 
@@ -2760,47 +2203,30 @@ async def analyze_listing(request: Request):
                     }
 
                     # Send Discord alert (non-blocking)
-
                     asyncio.create_task(send_discord_alert(
-
                         title=title,
-
                         price=price_float,
-
                         recommendation=recommendation,
-
                         category=category,
-
                         profit=profit_val,
-
                         margin=str(margin_str),
-
                         reasoning=result.get('reasoning', ''),
-
                         ebay_url=ebay_item_url,
-
                         image_url=first_image,
-
                         confidence=result.get('confidence', ''),
-
                         extra_data=extra_data,
-
                         seller_info=seller_info,
-
                         listing_info=listing_info
-
                     ))
 
                     
 
                 except Exception as e:
-
                     logger.error(f"[DISCORD] Alert error: {e}")
 
             
 
             # Use saved response_type (saved early in the function)
-
             logger.info(f"[RESPONSE] response_type: {response_type}")
 
             # === HIGH-VALUE GOLD JEWELRY CHECK ===
@@ -2841,7 +2267,6 @@ async def analyze_listing(request: Request):
 
                     # Skip override if price is 50%+ above max buy - clearly overpriced, no opportunity
                     is_clearly_overpriced = max_buy_val > 0 and price_val > max_buy_val * 1.5
-
                     if is_clearly_overpriced:
                         logger.info(f"[HIGH-VALUE GOLD] Skipping override - clearly overpriced: ${price_val:.0f} vs maxBuy ${max_buy_val:.0f} (margin: -${price_val - max_buy_val:.0f})")
                     elif price_val > 300 and has_karat and (has_premium or has_scale_hint or has_scale_in_desc) and not is_lab_diamond:
@@ -2864,7 +2289,6 @@ async def analyze_listing(request: Request):
                 # Calculate server confidence score
                 server_score = 60  # Base score
                 score_reasons = ["Base: 60"]
-
                 weight_source = result.get('weightSource', 'estimate').lower()
                 weight_val = result.get('weight', result.get('goldweight', ''))
                 has_weight = weight_val and str(weight_val) not in ['NA', '--', 'Unknown', '', '0', 'None']
@@ -2934,7 +2358,6 @@ async def analyze_listing(request: Request):
                         no_weight_deduction = total_wt > 0 and gold_wt > 0 and gold_wt >= total_wt * 0.75
                     except (ValueError, TypeError):
                         no_weight_deduction = False
-
                     if not has_cameo_deduction or no_weight_deduction:
                         # AI didn't properly deduct cameo shell weight - force RESEARCH
                         server_score -= 40
@@ -2991,7 +2414,6 @@ async def analyze_listing(request: Request):
                         html = render_result_html(result, category, title)
                 except Exception as e:
                     logger.error(f"[EXPENSIVE MIXED LOT] Check error: {e}")
-
             logger.info(f"[RESPONSE] FINAL Recommendation: {result.get('Recommendation')} (this should be post-Tier2)")
 
             
@@ -3006,45 +2428,26 @@ async def analyze_listing(request: Request):
             
 
         except json.JSONDecodeError as e:
-
             logger.error(f"JSON parse error: {e}")
-
             logger.error(f"[DEBUG] Raw response was: {raw_response[:500] if raw_response else 'EMPTY'}")
-
             logger.error(f"[DEBUG] Sanitized response was: {response_text[:500] if response_text else 'EMPTY'}")
-
             error_result = {
-
                 "Qualify": "No", "Recommendation": "RESEARCH",
-
                 "reasoning": f"Parse error - manual review needed",
-
                 "confidence": "Low"
-
             }
-
             return JSONResponse(content=error_result)
 
             
 
     except Exception as e:
-
         logger.error(f"Error: {e}")
-
         traceback.print_exc()
-
         error_result = {
-
             "Qualify": "No", "Recommendation": "ERROR",
-
             "reasoning": f"Error: {str(e)[:50]}"
-
         }
-
         return JSONResponse(content=error_result)
-
-
-
 
 
 # ============================================================
@@ -3075,8 +2478,6 @@ async def analyze_listing(request: Request):
 RELOAD_HISTORY = []
 
 
-
-
 # EBAY DIRECT API POLLER
 
 # ============================================================
@@ -3086,47 +2487,28 @@ RELOAD_HISTORY = []
 try:
 
     from ebay_poller import (
-
         get_api_stats as ebay_get_stats,
-
         get_new_listings as ebay_get_new,
-
         start_polling as ebay_start_polling,
-
         stop_polling as ebay_stop_polling,
-
         search_ebay,
-
         browse_api_available,
-
         SEARCH_CONFIGS as EBAY_SEARCH_CONFIGS,
-
         clear_seen_listings as ebay_clear_seen,
-
         get_item_description,
-
         get_item_details,
-
         analyze_listing_callback,  # Callback for full AI analysis + source comparison
-
         get_oauth_token,  # OAuth token for item tracking polling
-
     )
-
     EBAY_POLLER_AVAILABLE = True
-
     if browse_api_available():
-
         print("[EBAY] eBay poller loaded - Browse API enabled")
-
     else:
-
         print("[EBAY] eBay poller loaded - Finding API only (add EBAY_CERT_ID for Browse API)")
 
 except ImportError as e:
 
     EBAY_POLLER_AVAILABLE = False
-
     print(f"[EBAY] eBay poller not available: {e}")
 
 # Configure eBay routes module
