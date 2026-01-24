@@ -693,6 +693,31 @@ if _UBUYFIRST_KEYWORDS:
         logger.info(f"[EBAY API] Using {len(_UBUYFIRST_KEYWORDS['watch'])} uBuyFirst watch keywords")
 
 # ============================================================
+# KEYWORD SET FILTERING
+# ============================================================
+# Use KEYWORD_SET env var to run only a subset of categories:
+#   "precious_metals" = gold, silver, platinum, palladium, coin_scrap, watch (Main PC)
+#   "collectibles" = tcg, lego, textbook (Mini PC)
+#   "all" or unset = everything (default)
+KEYWORD_SET = os.getenv("KEYWORD_SET", "all").lower()
+
+_KEYWORD_SETS = {
+    "precious_metals": ["gold", "silver", "platinum", "palladium", "coin_scrap", "watch"],
+    "collectibles": ["tcg", "lego", "textbook"],
+}
+
+if KEYWORD_SET in _KEYWORD_SETS:
+    allowed = _KEYWORD_SETS[KEYWORD_SET]
+    removed = [k for k in list(SEARCH_CONFIGS.keys()) if k not in allowed]
+    for key in removed:
+        del SEARCH_CONFIGS[key]
+    logger.info(f"[EBAY API] KEYWORD_SET={KEYWORD_SET}: Running {list(SEARCH_CONFIGS.keys())} (removed {removed})")
+elif KEYWORD_SET != "all":
+    logger.warning(f"[EBAY API] Unknown KEYWORD_SET '{KEYWORD_SET}' - using all categories")
+else:
+    logger.info(f"[EBAY API] KEYWORD_SET=all: Running all {len(SEARCH_CONFIGS)} categories")
+
+# ============================================================
 # DATA CLASSES
 # ============================================================
 
