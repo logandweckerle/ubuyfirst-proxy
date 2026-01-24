@@ -1,0 +1,48 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# Databases
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# IDE
+.vscode/
+.idea/
+
+# Claude/AI temp files
+.claude/
+tmpclaude-*
+
+# Windows
+nul
+desktop.ini
+
+# Logs
+*.log
+
+# Runtime state
+api_stats.json
+alerted_asins.json
+discord_sent_alerts.json
+blocked_sellers.json
+price_overrides.json
+user_prices.json
+
+# Data files
+training_overrides.jsonl
+source_comparison.jsonl
+purchases.jsonl
+additional_blocked_sellers.txt
+blocked_sellers.txt
+
+# Pipeline temp
+pipeline/instant_pass_extracted.txt
+
+# Archives
+archive/

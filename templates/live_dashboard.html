@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ShadowSnipe Live</title>
+
+    <style>
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+
+            color: #fff;
+
+            min-height: 100vh;
+
+            padding: 20px;
+
+        }
+
+        .header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin-bottom: 20px;
+
+            padding-bottom: 15px;
+
+            border-bottom: 2px solid #00ff88;
+
+        }
+
+        .header h1 {
+
+            color: #00ff88;
+
+            font-size: 28px;
+
+        }
+
+        .header h1 span { color: #fff; }
+
+        .status-bar {
+
+            display: flex;
+
+            gap: 20px;
+
+            align-items: center;
+
+        }
+
+        .status-item {
+
+            background: rgba(255,255,255,0.1);
+
+            padding: 8px 15px;
+
+            border-radius: 20px;
+
+            font-size: 14px;
+
+        }
+
+        .status-item.connected { background: rgba(40, 167, 69, 0.3); color: #28a745; }
+
+        .status-item.disconnected { background: rgba(220, 53, 69, 0.3); color: #dc3545; }
+
+        .controls {
+
+            display: flex;
+
+            gap: 10px;
+
+            margin-bottom: 20px;
+
+        }
+
+        .btn {
+
+            padding: 10px 20px;
+
+            border: none;
+
+            border-radius: 8px;
+
+            cursor: pointer;
+
+            font-size: 14px;
+
+            font-weight: bold;
+
+            transition: all 0.2s;
+
+        }
+
+        .btn-primary { background: #00ff88; color: #000; }
+
+        .btn-primary:hover { background: #00cc6a; }
+
+        .btn-danger { background: #dc3545; color: #fff; }
+
+        .btn-warning { background: #ffc107; color: #000; }
+
+        .btn-secondary { background: #6c757d; color: #fff; }
+
+        
+
+        .tts-toggle {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            background: rgba(255,255,255,0.1);
+
+            padding: 10px 15px;
+
+            border-radius: 8px;
+
+        }
+
+        .tts-toggle input[type="checkbox"] {
+
+            width: 20px;
+
+            height: 20px;
+
+            cursor: pointer;
+
+        }
+
+        
+
+        .listings-container {
+
+            display: grid;
+
+            gap: 15px;
+
+        }
+
+        .listing-card {
+
+            background: rgba(255,255,255,0.05);
+
+            border-radius: 12px;
+
+            padding: 20px;
+
+            border-left: 5px solid #6c757d;
+
+            transition: all 0.3s;
+
+        }
+
+        .listing-card.buy {
+
+            border-left-color: #28a745;
+
+            background: rgba(40, 167, 69, 0.1);
+
+            animation: pulse-green 2s ease-in-out;
+
+        }
+
+        .listing-card.pass {
+
+            border-left-color: #dc3545;
+
+            background: rgba(220, 53, 69, 0.05);
+
+        }
+
+        .listing-card.research {
+
+            border-left-color: #ffc107;
+
+            background: rgba(255, 193, 7, 0.1);
+
+        }
+
+        @keyframes pulse-green {
+
+            0%, 100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
+
+            50% { box-shadow: 0 0 20px 10px rgba(40, 167, 69, 0.3); }
+
+        }
+
+        .listing-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: flex-start;
+
+            margin-bottom: 10px;
+
+        }
+
+        .listing-title {
+
+            font-size: 16px;
+
+            font-weight: 500;
+
+            flex: 1;
+
+            margin-right: 15px;
+
+        }
+
+        .listing-rec {
+
+            font-size: 18px;
+
+            font-weight: bold;
+
+            padding: 5px 15px;
+
+            border-radius: 20px;
+
+        }
+
+        .listing-rec.buy { background: #28a745; color: #fff; }
+
+        .listing-rec.pass { background: #dc3545; color: #fff; }
+
+        .listing-rec.research { background: #ffc107; color: #000; }
+
+        .listing-details {
+
+            display: grid;
+
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+
+            gap: 10px;
+
+            margin-top: 15px;
+
+        }
+
+        .detail-item {
+
+            background: rgba(255,255,255,0.05);
+
+            padding: 10px;
+
+            border-radius: 8px;
+
+            text-align: center;
+
+        }
+
+        .detail-label { font-size: 11px; color: #888; text-transform: uppercase; }
+
+        .detail-value { font-size: 16px; font-weight: bold; margin-top: 5px; }
+
+        .listing-time {
+
+            font-size: 12px;
+
+            color: #666;
+
+            margin-top: 10px;
+
+        }
+
+        .empty-state {
+
+            text-align: center;
+
+            padding: 60px 20px;
+
+            color: #666;
+
+        }
+
+        .empty-state h2 { color: #00ff88; margin-bottom: 10px; }
+
+        
+
+        #tts-status {
+
+            position: fixed;
+
+            bottom: 20px;
+
+            right: 20px;
+
+            background: rgba(0,0,0,0.8);
+
+            padding: 10px 20px;
+
+            border-radius: 8px;
+
+            font-size: 14px;
+
+            display: none;
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="header">
+
+        <h1> <span>ShadowSnipe</span> Live</h1>
+
+        <div class="status-bar">
+
+            <div id="ws-status" class="status-item disconnected">● Disconnected</div>
+
+            <div id="listing-count" class="status-item">0 listings</div>
+
+        </div>
+
+    </div>
+
+    
+
+    <div class="controls">
+
+        <button class="btn btn-primary" onclick="clearListings()">️ Clear</button>
+
+        <button class="btn btn-secondary" onclick="testTTS()"> Test Sound</button>
+
+        <div class="tts-toggle">
+
+            <input type="checkbox" id="tts-enabled" checked>
+
+            <label for="tts-enabled"> Voice Alerts for BUY</label>
+
+        </div>
+
+        <div class="tts-toggle">
+
+            <input type="checkbox" id="sound-enabled" checked>
+
+            <label for="sound-enabled"> Sound for BUY</label>
+
+        </div>
+
+    </div>
+
+    
+
+    <div id="listings" class="listings-container">
+
+        <div class="empty-state">
+
+            <h2>Waiting for listings...</h2>
+
+            <p>Listings will appear here in real-time as they're analyzed</p>
+
+        </div>
+
+    </div>
+
+    
+
+    <div id="tts-status"></div>
+
+    
+
+    <script>
+
+        let ws = null;
+
+        let listingCount = 0;
+
+        let reconnectAttempts = 0;
+
+        const maxReconnectAttempts = 10;
+
+        
+
+        // Initialize Speech Synthesis
+
+        let voices = [];
+
+        if ('speechSynthesis' in window) {
+
+            voices = window.speechSynthesis.getVoices();
+
+            window.speechSynthesis.onvoiceschanged = () => {
+
+                voices = window.speechSynthesis.getVoices();
+
+            };
+
+        }
+
+        
+
+        function speak(text) {
+
+            if (!document.getElementById('tts-enabled').checked) return;
+
+            if (!('speechSynthesis' in window)) {
+
+                console.log('TTS not supported');
+
+                return;
+
+            }
+
+            
+
+            window.speechSynthesis.cancel();
+
+            
+
+            const msg = new SpeechSynthesisUtterance();
+
+            msg.text = text;
+
+            msg.rate = 1.1;
+
+            msg.pitch = 1.0;
+
+            msg.volume = 1.0;
+
+            
+
+            // Try to use an English voice
+
+            if (voices.length > 0) {
+
+                const englishVoice = voices.find(v => v.lang.startsWith('en'));
+
+                if (englishVoice) msg.voice = englishVoice;
+
+            }
+
+            
+
+            showTTSStatus('Speaking: ' + text.substring(0, 50) + '...');
+
+            window.speechSynthesis.speak(msg);
+
+        }
+
+        
+
+        function playSound() {
+
+            if (!document.getElementById('sound-enabled').checked) return;
+
+            
+
+            // Create a simple beep using Web Audio API
+
+            try {
+
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+                const oscillator = audioCtx.createOscillator();
+
+                const gainNode = audioCtx.createGain();
+
+                
+
+                oscillator.connect(gainNode);
+
+                gainNode.connect(audioCtx.destination);
+
+                
+
+                oscillator.frequency.value = 800;
+
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+                
+
+                oscillator.start(audioCtx.currentTime);
+
+                oscillator.stop(audioCtx.currentTime + 0.5);
+
+            } catch (e) {
+
+                console.log('Audio error:', e);
+
+            }
+
+        }
+
+        
+
+        function testTTS() {
+
+            playSound();
+
+            speak('Buy alert! This is a test of the voice alert system.');
+
+        }
+
+        
+
+        function showTTSStatus(text) {
+
+            const status = document.getElementById('tts-status');
+
+            status.textContent = text;
+
+            status.style.display = 'block';
+
+            setTimeout(() => { status.style.display = 'none'; }, 3000);
+
+        }
+
+        
+
+        function connect() {
+
+            const wsUrl = 'ws://' + window.location.host + '/ws';
+
+            ws = new WebSocket(wsUrl);
+
+            
+
+            ws.onopen = () => {
+
+                console.log('WebSocket connected');
+
+                document.getElementById('ws-status').className = 'status-item connected';
+
+                document.getElementById('ws-status').textContent = '● Connected';
+
+                reconnectAttempts = 0;
+
+            };
+
+            
+
+            ws.onclose = () => {
+
+                console.log('WebSocket disconnected');
+
+                document.getElementById('ws-status').className = 'status-item disconnected';
+
+                document.getElementById('ws-status').textContent = '● Disconnected';
+
+                
+
+                // Attempt to reconnect
+
+                if (reconnectAttempts < maxReconnectAttempts) {
+
+                    reconnectAttempts++;
+
+                    setTimeout(connect, 2000 * reconnectAttempts);
+
+                }
+
+            };
+
+            
+
+            ws.onerror = (error) => {
+
+                console.error('WebSocket error:', error);
+
+            };
+
+            
+
+            ws.onmessage = (event) => {
+
+                try {
+
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'new_listing') {
+
+                        addListing(data);
+
+                    }
+
+                } catch (e) {
+
+                    console.error('Parse error:', e);
+
+                }
+
+            };
+
+        }
+
+        
+
+        function addListing(data) {
+
+            console.log('[DASHBOARD] Received data:', JSON.stringify(data, null, 2));
+
+            
+
+            const container = document.getElementById('listings');
+
+            
+
+            // Remove empty state if present
+
+            const emptyState = container.querySelector('.empty-state');
+
+            if (emptyState) emptyState.remove();
+
+            
+
+            const listing = data.listing || {};
+
+            const analysis = data.analysis || {};
+
+            
+
+            console.log('[DASHBOARD] listing object:', listing);
+
+            console.log('[DASHBOARD] analysis object:', analysis);
+
+            
+
+            const title = (listing.title || analysis.title || 'Unknown').replace(/[+]/g, ' ');
+
+            const rec = (analysis.Recommendation || analysis.recommendation || 'UNKNOWN').toUpperCase();
+
+            const recClass = rec.toLowerCase();
+
+            const price = listing.price || analysis.listingPrice || '--';
+
+            const profit = analysis.Profit || analysis.profit || analysis.Margin || analysis.margin || '--';
+
+            const category = analysis.category || listing.category || '--';
+
+            const confidence = analysis.confidence || '--';
+
+            const weight = analysis.weight || analysis.goldweight || analysis.silverweight || 'NA';
+
+            const melt = analysis.meltvalue || analysis.melt || analysis.MeltValue || '--';
+
+            const weightSource = analysis.weightSource || 'unknown';
+
+            const itemId = listing.ItemId || listing.item_id || listing.id || Date.now();
+
+            const url = listing.url || listing.ViewUrl || '';
+
+            const thumbnail = listing.PictureURL || listing.GalleryURL || listing.thumbnail_url || '';
+
+            console.log('[DASHBOARD] Parsed values:', {title, price, rec, profit, category, weight, melt, thumbnail});
+
+            
+
+            // Store listing data for purchase logging
+
+            const ebayUrl = url || 'https://www.ebay.com/itm/' + itemId;
+
+            const listingData = JSON.stringify({
+
+                listing: { title, price, category, item_id: itemId, url: ebayUrl, thumbnail },
+
+                analysis: { 
+
+                    recommendation: rec, profit, confidence, weight, 
+
+                    weightSource, melt, karat: analysis.karat || '',
+
+                    itemtype: analysis.itemtype || '', maxBuy: analysis.maxBuy || '',
+
+                    reasoning: analysis.reasoning || ''
+
+                }
+
+            });
+
+            
+
+            // Create card
+
+            const card = document.createElement('div');
+
+            card.className = 'listing-card ' + recClass;
+
+            card.innerHTML = `
+
+                <div class="listing-header" style="display:flex;gap:12px;align-items:flex-start;">
+
+                    ${thumbnail ? `<img src="${thumbnail}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+
+                    <div style="flex:1;min-width:0;">
+
+                        <div class="listing-title">${escapeHtml(title)}</div>
+
+                        <div class="listing-rec ${recClass}">${rec}</div>
+
+                    </div>
+
+                </div>
+
+                <div class="listing-details">
+
+                    <div class="detail-item">
+
+                        <div class="detail-label">Price</div>
+
+                        <div class="detail-value">$${price}</div>
+
+                    </div>
+
+                    <div class="detail-item">
+
+                        <div class="detail-label">Profit</div>
+
+                        <div class="detail-value" style="color: ${parseFloat(profit) >= 0 ? '#28a745' : '#dc3545'}">$${profit}</div>
+
+                    </div>
+
+                    <div class="detail-item">
+
+                        <div class="detail-label">Weight</div>
+
+                        <div class="detail-value">${weight}</div>
+
+                    </div>
+
+                    <div class="detail-item">
+
+                        <div class="detail-label">Melt</div>
+
+                        <div class="detail-value">$${melt}</div>
+
+                    </div>
+
+                    <div class="detail-item">
+
+                        <div class="detail-label">Category</div>
+
+                        <div class="detail-value">${category}</div>
+
+                    </div>
+
+                    <div class="detail-item">
+
+                        <div class="detail-label">Confidence</div>
+
+                        <div class="detail-value">${confidence}</div>
+
+                    </div>
+
+                </div>
+
+                <div class="listing-actions" style="margin-top:12px;display:flex;gap:10px;align-items:center;">
+
+                    <button class="btn-bought" onclick='logPurchase(${listingData.replace(/'/g, "&#39;")}, this)' 
+
+                            style="background:#22c55e;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">
+
+                        I Bought This
+
+                    </button>
+
+                    <a href="${ebayUrl}" target="_blank" style="color:#6366f1;font-size:12px;">View on eBay</a>
+
+                </div>
+
+                <div class="listing-time">${new Date().toLocaleTimeString()}</div>
+
+            `;
+
+            
+
+            // Add to top of container
+
+            container.insertBefore(card, container.firstChild);
+
+            
+
+            // Update count
+
+            listingCount++;
+
+            document.getElementById('listing-count').textContent = listingCount + ' listings';
+
+            
+
+            // TTS and sound for BUY alerts
+
+            if (rec === 'BUY') {
+
+                playSound();
+
+                // Clean title for speech - title already has + replaced with spaces
+
+                const cleanTitle = title.replace(/[^a-zA-Z0-9\\s]/g, ' ').substring(0, 80);
+
+                speak('Buy alert! ' + cleanTitle);
+
+            }
+
+            
+
+            // Limit to 50 listings
+
+            while (container.children.length > 50) {
+
+                container.removeChild(container.lastChild);
+
+            }
+
+        }
+
+        
+
+        function clearListings() {
+
+            const container = document.getElementById('listings');
+
+            container.innerHTML = `
+
+                <div class="empty-state">
+
+                    <h2>Waiting for listings...</h2>
+
+                    <p>Listings will appear here in real-time as they're analyzed</p>
+
+                </div>
+
+            `;
+
+            listingCount = 0;
+
+            document.getElementById('listing-count').textContent = '0 listings';
+
+        }
+
+        
+
+        function escapeHtml(text) {
+
+            const div = document.createElement('div');
+
+            div.textContent = text;
+
+            return div.innerHTML;
+
+        }
+
+        
+
+        async function logPurchase(data, btn) {
+
+            try {
+
+                btn.disabled = true;
+
+                btn.textContent = 'Logging...';
+
+                
+
+                const response = await fetch('/api/log-purchase', {
+
+                    method: 'POST',
+
+                    headers: { 'Content-Type': 'application/json' },
+
+                    body: JSON.stringify(data)
+
+                });
+
+                
+
+                const result = await response.json();
+
+                
+
+                if (result.status === 'logged') {
+
+                    btn.textContent = 'Logged!';
+
+                    btn.style.background = '#6366f1';
+
+                    showTTSStatus('Purchase logged successfully!');
+
+                } else {
+
+                    btn.textContent = 'Error';
+
+                    btn.style.background = '#dc3545';
+
+                }
+
+            } catch (e) {
+
+                console.error('Log purchase error:', e);
+
+                btn.textContent = 'Error';
+
+                btn.style.background = '#dc3545';
+
+            }
+
+        }
+
+        
+
+        // Connect on page load
+
+        connect();
+
+    </script>
+
+</body>
+
+</html>
