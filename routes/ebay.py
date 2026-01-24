@@ -139,6 +139,7 @@ _analyze_listing_callback = None  # Callback for full AI analysis
 _get_spot_prices = None
 _send_discord_alert = None
 _EBAY_POLLER_AVAILABLE = False
+_get_api_buy_wins_stats = None
 
 
 def configure_ebay(
@@ -157,13 +158,14 @@ def configure_ebay(
     send_discord_alert: Callable,
     EBAY_POLLER_AVAILABLE: bool,
     analyze_listing_callback: Callable = None,  # Callback for full AI analysis
+    get_api_buy_wins_stats: Callable = None,
 ):
     """Configure the eBay module with all required dependencies."""
     global _search_ebay, _ebay_get_stats, _ebay_start_polling, _ebay_stop_polling
     global _ebay_clear_seen, _get_item_description, _get_item_details
     global _browse_api_available, _EBAY_SEARCH_CONFIGS
     global _get_spot_prices, _send_discord_alert, _EBAY_POLLER_AVAILABLE
-    global _analyze_listing_callback
+    global _analyze_listing_callback, _get_api_buy_wins_stats
 
     _search_ebay = search_ebay
     _ebay_get_stats = ebay_get_stats
@@ -178,6 +180,7 @@ def configure_ebay(
     _send_discord_alert = send_discord_alert
     _EBAY_POLLER_AVAILABLE = EBAY_POLLER_AVAILABLE
     _analyze_listing_callback = analyze_listing_callback
+    _get_api_buy_wins_stats = get_api_buy_wins_stats
 
     logger.info("[EBAY ROUTES] Module configured")
 
@@ -329,6 +332,15 @@ async def ebay_stats():
         "stats": stats,
         "categories_configured": list(_EBAY_SEARCH_CONFIGS.keys()) if _EBAY_POLLER_AVAILABLE else [],
     })
+
+
+@router.get("/api-wins")
+async def ebay_api_wins():
+    """Get Direct API BUY wins - items found by API before uBuyFirst"""
+    if _get_api_buy_wins_stats:
+        stats = _get_api_buy_wins_stats()
+        return JSONResponse({"status": "ok", "api_buy_wins": stats})
+    return JSONResponse({"status": "ok", "api_buy_wins": []})
 
 
 @router.get("/search")
