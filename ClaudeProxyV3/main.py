@@ -4189,6 +4189,31 @@ async def _old_analyze_listing(request: Request):  # Renamed to prevent conflict
                     server_score -= 10
                     score_reasons.append("Stone deduction: -10")
 
+                # CAMEO CHECK: Shell is NOT gold - AI must deduct shell weight
+                title_lower = title.lower() if title else ''
+                if 'cameo' in title_lower and category == 'gold':
+                    stone_ded_str = str(stone_deduction).lower() if stone_deduction else ''
+                    ded_digits = ''.join(c for c in stone_ded_str if c in '0123456789.')
+                    ded_grams = float(ded_digits) if ded_digits and ded_digits != '.' else 0
+                    has_cameo_deduction = stone_ded_str not in ['0', 'na', '--', '', 'none'] and ded_grams >= 1.5
+
+                    # Also check if AI used full weight as gold weight (no meaningful deduction)
+                    try:
+                        total_wt = float(str(result.get('weight', '0')).replace('g', '').strip() or '0')
+                        gold_wt = float(str(result.get('goldweight', '0')).replace('g', '').strip() or '0')
+                        no_weight_deduction = total_wt > 0 and gold_wt > 0 and gold_wt >= total_wt * 0.75
+                    except (ValueError, TypeError):
+                        no_weight_deduction = False
+
+                    if not has_cameo_deduction or no_weight_deduction:
+                        # AI didn't properly deduct cameo shell weight - force RESEARCH
+                        server_score -= 40
+                        score_reasons.append("Cameo: no proper shell deduction: -40")
+                        logger.warning(f"[CAMEO CHECK] Shell weight not deducted! weight={result.get('weight')}, goldweight={result.get('goldweight')}, stoneDeduction='{stone_deduction}', title='{title[:60]}'")
+                    else:
+                        server_score -= 5
+                        score_reasons.append("Cameo (shell deducted): -5")
+
                 # Store calculated score in result
                 result['serverConfidence'] = server_score
                 result['serverScoreBreakdown'] = " | ".join(score_reasons)

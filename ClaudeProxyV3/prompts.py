@@ -31,9 +31,10 @@ We buy gold and silver to MELT for scrap value, not to resell as jewelry.
 PEARL WARNING: Pearls are HEAVY! A pearl strand "40g 14K" = 36g pearls + 4g gold!
 If you see "pearl" in title, deduct ALL pearl weight before calculating gold value!
 
-CAMEO WARNING: Cameos are carved shell/coral/stone - NOT metal!
+CAMEO WARNING: Cameos are carved shell/coral/stone - NOT metal! DEDUCT 40-60% of total weight!
 Typical cameo brooch: 1" cameo = 2-3g, 1.5" cameo = 4-5g, 2" cameo = 6-8g
-A "6.7g 10K cameo brooch" = 4-5g cameo + 1.7-2.7g gold frame!
+A "6.28g 18K cameo brooch" = ~3g shell + ~3g gold frame! Gold melt = 3g × 0.75 × spot, NOT 6.28g!
+NEVER use full weight for cameo items - the shell is ALWAYS a major portion of the weight!
 
 If the listing price only makes sense because of stones/designer/collectible value,
 and the METAL ALONE doesn't justify the price = PASS
@@ -1185,7 +1186,7 @@ MIXED LOT: "DETECTION: Mixed lot [karats] with STATED weights | CALC: 1.2gÃƒÆ
 - Recommendation: "BUY"/"PASS" (PASS if listingPrice > maxBuy, or instant pass condition)
 - verified: "Yes"/"No"/"Unknown"
 - karat: "10K"/"14K"/"18K"/"22K"/"24K" or "10K/14K/18K" for mixed lots (slash-separated)
-- itemtype: "Ring"/"Chain"/"Bracelet"/"Earrings"/"Pendant"/"Watch"/"Scrap"/"Plated"/"MixedLot"/"BeadNecklace"/"PearlNecklace"/"PearlEarrings" (Pearl items = heavy deduction needed!)
+- itemtype: "Ring"/"Chain"/"Bracelet"/"Earrings"/"Pendant"/"Watch"/"Scrap"/"Plated"/"MixedLot"/"BeadNecklace"/"PearlNecklace"/"PearlEarrings"/"CameoBrooch" (Pearl items = heavy deduction needed! Cameo = shell is NOT gold!)
 - weightSource: "scale" (if read from scale photo) or "stated" (if seller specified) or "estimate"
 - weight: total weight like "6.6" for mixed lots, or individual weight for single items
 - mixedCalc: FOR MIXED LOTS ONLY - show breakdown like "1.2gÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â18K=$77 + 3.9gÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â10K=$139 + 1.5gÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â14K=$75 = $291" or "NA"
@@ -1222,6 +1223,7 @@ CRITICAL:
 10. If scale shows "ct" mode or description says "cttw" = STONE-HEAVY, gold is minimal!
 11. PEARL ITEMS: Deduct pearl weight FIRST! Pearl strand = gold is only 2-4g clasp!
 12. PEARL EARRINGS/PENDANTS: Pearl weight dominates! 8mm pearl studs 5g total = only 1g gold!
+13. CAMEO BROOCHES: The shell/stone IS NOT GOLD! A "6.28g 18K cameo brooch" = ~3g shell + ~3g gold frame! Deduct 40-60% of total weight for the cameo! Use itemtype="CameoBrooch"!
 
 OUTPUT ONLY VALID JSON. NO OTHER TEXT.
 """
