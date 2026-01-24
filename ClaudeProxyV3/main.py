@@ -28,6 +28,11 @@ import os
 
 import sys
 
+# Add project root to path so services/, pipeline/, routes/ can be found
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
 import re
 
 import csv
@@ -378,6 +383,8 @@ try:
 except ImportError as e:
 
     FAST_EXTRACT_AVAILABLE = False
+    fast_extract_gold = None
+    fast_extract_silver = None
 
     print(f"[FAST] Fast extraction not available: {e}")
 
@@ -653,9 +660,8 @@ app = FastAPI(
 async def favicon():
     return Response(status_code=204)
 
-# Include analysis router (main /match_mydata endpoint)
-# NOTE: Router included but routes won't work until configure_analysis() is called
-app.include_router(analysis_router)
+# Analysis router disabled - using main.py endpoint with create_openai_response wrapper
+# app.include_router(analysis_router)
 app.include_router(ebay_router)
 app.include_router(pricecharting_router)
 app.include_router(sellers_router)
@@ -1278,15 +1284,11 @@ def create_openai_response(result: dict) -> dict:
 
 # ============================================================
 # MAIN ANALYSIS ENDPOINT
-# NOTE: This function has been MOVED to routes/analysis.py
-# The router is included above and configure_analysis() is called below render_result_html
-# Decorators commented out to prevent route conflicts with the router
 # ============================================================
 
-# @app.post("/match_mydata")  # MOVED TO routes/analysis.py
-# @app.get("/match_mydata")   # MOVED TO routes/analysis.py
-
-async def _old_analyze_listing(request: Request):  # Renamed to prevent conflicts
+@app.post("/match_mydata")
+@app.get("/match_mydata")
+async def analyze_listing(request: Request):
 
     """Main analysis endpoint - processes eBay listings"""
 

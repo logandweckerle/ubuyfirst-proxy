@@ -15,7 +15,10 @@ from typing import Dict, Optional
 # ============================================================
 try:
     from dotenv import load_dotenv
+    # Try .env in package dir first, then project root
     env_path = Path(__file__).parent.parent / ".env"
+    if not env_path.exists():
+        env_path = Path(__file__).parent.parent.parent / ".env"
     if env_path.exists():
         load_dotenv(env_path)
         print(f"[CONFIG] Loaded .env from {env_path}")
