@@ -360,6 +360,7 @@ DECREASES:
 | Poor/blurry photos | -10 |
 
 IMPORTANT: If weightSource = "estimate", confidence MAXIMUM is 50!
+NOTE: If weight is clearly stated in the title (e.g., "180 Grams"), use weightSource = "stated" (NOT "estimate").
 
 Final score: 0-100 (output as integer)
 
@@ -371,8 +372,8 @@ Final score: 0-100 (output as integer)
 - Recommendation: "BUY"/"PASS" (PASS if listingPrice > maxBuy)
 - verified: "Yes"/"No"/"Unknown"
 - itemtype: "Flatware"/"Hollowware"/"Weighted"/"Jewelry"/"Plated"/"NotSilver"/"Beaded"
-- weightSource: "scale" (if read from scale photo) or "estimate" (if guessed)
-- weight: total weight like "120" (number from scale) or "45" (estimate)
+- weightSource: "scale" (if read from scale photo) or "stated" (if seller specified weight in title/description) or "estimate" (if guessed)
+- weight: total weight like "120" (number from scale) or "180" (stated in title) or "45" (estimate)
 - stoneDeduction: "4g turquoise" or "0" or "NA"
 - silverweight: weight after deduction
 - pricepergram: listing price / silverweight
@@ -380,7 +381,7 @@ Final score: 0-100 (output as integer)
 - maxBuy: meltvalue ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.70 (our ceiling - don't pay more than this)
 - sellPrice: meltvalue ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.82 (what refiner pays us)
 - Profit: sellPrice - listingPrice (actual money in our pocket)
-- confidence: MUST BE INTEGER 0-100 - if weightSource="scale" start at 85, if "estimate" start at 45
+- confidence: MUST BE INTEGER 0-100 - if weightSource="scale" start at 85, if "stated" start at 70, if "estimate" start at 45
 - confidenceBreakdown: "Base 60 + scale 25 + 925 visible 10 - stone 10 = 85" OR "Base 60 - no scale 15 = 45"
 - reasoning: MUST show DETECTION | STONES | CALC | PROFIT | DECISION
 
@@ -388,8 +389,9 @@ CRITICAL:
 - meltvalue, maxBuy, sellPrice, Profit MUST be actual numbers!
 - confidence MUST be a number like 75, NOT a word like "High"!
 - Profit = sellPrice (82% of melt) - listingPrice
-- If you read weight from a SCALE PHOTO, weightSource = "scale" (higher confidence)
-- If you ESTIMATED weight, weightSource = "estimate" (lower confidence)
+- If you read weight from a SCALE PHOTO, weightSource = "scale" (highest confidence)
+- If weight is STATED in the title/description (e.g., "180 Grams"), weightSource = "stated" (high confidence)
+- If you ESTIMATED weight, weightSource = "estimate" (lower confidence, capped at 50)
 
 === FINAL RULES ===
 1. If listingPrice > maxBuy = ALWAYS PASS (price exceeds our ceiling)

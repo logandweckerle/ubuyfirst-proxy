@@ -4153,14 +4153,26 @@ async def _old_analyze_listing(request: Request):  # Renamed to prevent conflict
                     server_score -= 40  # Severe penalty for no weight at all
                     score_reasons.append("No weight: -40")
 
-                # Karat verification
-                karat = result.get('karat', '')
-                if karat and str(karat) not in ['NA', '--', 'Unknown', '', 'None']:
-                    server_score += 10
-                    score_reasons.append(f"Karat {karat}: +10")
-                else:
-                    server_score -= 10
-                    score_reasons.append("No karat: -10")
+                # Purity verification (karat for gold, itemtype for silver)
+                if category == 'gold':
+                    karat = result.get('karat', '')
+                    if karat and str(karat) not in ['NA', '--', 'Unknown', '', 'None']:
+                        server_score += 10
+                        score_reasons.append(f"Karat {karat}: +10")
+                    else:
+                        server_score -= 10
+                        score_reasons.append("No karat: -10")
+                else:  # silver
+                    itemtype = result.get('itemtype', '')
+                    if itemtype and str(itemtype) not in ['NA', '--', 'Unknown', '', 'None', 'Plated', 'NotSilver']:
+                        server_score += 10
+                        score_reasons.append(f"Silver type {itemtype}: +10")
+                    elif itemtype in ['Plated', 'NotSilver']:
+                        server_score -= 20
+                        score_reasons.append(f"Not silver ({itemtype}): -20")
+                    else:
+                        server_score -= 10
+                        score_reasons.append("No itemtype: -10")
 
                 # Fake risk
                 fakerisk = result.get('fakerisk', '').lower()
