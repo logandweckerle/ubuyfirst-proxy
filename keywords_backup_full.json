@@ -1,0 +1,149 @@
+{
+  "description": "Full keyword backup - all categories combined (archived 2026-01-23)",
+  "gold": {
+    "keywords": [
+      "8k gold", "8kt gold", "9k gold", "9kt gold",
+      "8k scrap", "9k scrap", "375 gold", "375 scrap",
+      "10k grams", "10kt grams", "10k scrap", "10kt scrap",
+      "10k bracelet", "10k ring", "10k chain", "10k lot",
+      "10k necklace", "417 gold", "417 scrap",
+      "14k grams", "14kt grams", "14k gram", "14k scrap", "14kt scrap",
+      "14k bracelet", "14kt bracelet", "14k lot", "14k ring", "14k chain",
+      "14k necklace", "14k watch", "14k vintage", "14k diamond", "14k charm",
+      "14k pendant", "14k earrings", "14k bangle",
+      "585 gold", "585 grams", "585 scrap", "583 gold",
+      "18k grams", "18kt grams", "18k gram", "18k scrap", "18kt scrap",
+      "18k bracelet", "18kt bracelet", "18k lot", "18k ring", "18k chain",
+      "18k necklace", "750 gold", "750 grams", "750 scrap",
+      "22k gold", "22kt gold", "22k scrap", "22k bracelet",
+      "916 gold", "950 gold", "24k gold", "fine gold",
+      "scrap gold", "gold scrap lot", "gold jewelry lot",
+      "karat gold scrap", "solid gold lot",
+      "gold nugget", "gold nuggets", "placer gold", "raw gold",
+      "natural gold nugget", "alaska gold nugget", "california gold",
+      "dental gold", "dental scrap gold", "gold crowns", "dental gold lot"
+    ],
+    "category_ids": ["281", "162134", "3360", "262022", "10290"],
+    "price_min": 50,
+    "price_max": 10000
+  },
+  "silver": {
+    "keywords": [
+      "sterling scrap", "sterling lot", "sterling flatware", "sterling grams",
+      "scrap lot sterling", "scrap lot 925", "925 scrap lot", "silver scrap lot",
+      "925 scrap", "925 grams", "sterling gorham", "sterling towle",
+      "sterling bowl", "sterling tea", "800 silver", "800 grams",
+      "830 silver", "900 silver", "coin silver", "mexican silver",
+      "navajo sterling", "native sterling", "sterling turquoise"
+    ],
+    "category_ids": ["163271", "20081", "1", "281", "20096", "262022", "262025"],
+    "price_min": 30,
+    "price_max": 10000
+  },
+  "platinum": {
+    "keywords": [
+      "platinum ring", "platinum band", "platinum wedding",
+      "platinum bracelet", "platinum necklace", "platinum chain",
+      "platinum scrap", "platinum lot", "platinum grams",
+      "PT950 ring", "PT950 band", "950 platinum",
+      "PT900 ring", "PT900 band", "900 platinum",
+      "platinum diamond", "platinum vintage", "platinum estate",
+      "iridium platinum"
+    ],
+    "category_ids": ["281", "164315", "110633", "262022"],
+    "price_min": 100,
+    "price_max": 15000
+  },
+  "palladium": {
+    "keywords": [
+      "palladium ring", "palladium band", "palladium wedding",
+      "palladium scrap", "PD950", "950 palladium", "PD500",
+      "palladium lot", "palladium grams"
+    ],
+    "category_ids": ["281", "164315", "262022"],
+    "price_min": 100,
+    "price_max": 10000
+  },
+  "coin_scrap": {
+    "keywords": [
+      "junk silver lot", "90% silver lot", "90% silver coins",
+      "silver coin lot", "constitutional silver", "pre-1965 silver",
+      "walking liberty lot", "mercury dime lot", "silver quarter lot",
+      "silver half dollar lot", "barber silver lot", "peace dollar lot",
+      "morgan dollar lot", "silver dollar lot cull",
+      "gold coin scrap", "gold coin damaged", "gold coin lot cull",
+      "silver bar scrap", "silver rounds lot", "generic silver lot"
+    ],
+    "category_ids": ["39482", "39489", "145410", "163116"],
+    "price_min": 50,
+    "price_max": 10000
+  },
+  "tcg": {
+    "keywords": [
+      "evolving skies booster box", "hidden fates etb", "celebrations upc",
+      "151 booster box pokemon", "prismatic evolutions booster",
+      "crown zenith etb", "shining fates etb",
+      "surging sparks booster box", "stellar crown booster box",
+      "shrouded fable booster", "temporal forces booster box",
+      "paldea evolved booster box", "obsidian flames booster box",
+      "japanese booster box pokemon", "ultra premium collection pokemon",
+      "pokemon booster case", "pokemon sealed lot",
+      "modern horizons 3 booster box", "modern horizons 2 booster box",
+      "double masters booster box", "commander masters booster",
+      "murders at karlov manor collector", "outlaws thunder junction collector",
+      "mtg collector booster box", "mtg draft booster box",
+      "mtg set booster box", "mtg sealed lot",
+      "yugioh booster box sealed", "yugioh case sealed",
+      "yugioh collection sealed", "yugioh display box",
+      "booster box sealed", "elite trainer box sealed", "etb sealed"
+    ],
+    "category_ids": ["183454", "183453", "183456", "2536", "261044", "261045"],
+    "price_min": 40,
+    "price_max": 15000
+  },
+  "lego": {
+    "keywords": [
+      "lego sealed", "lego new", "lego retired", "lego ucs",
+      "lego star wars", "lego technic", "lego creator"
+    ],
+    "category_ids": ["19006"],
+    "price_min": 50,
+    "price_max": 10000
+  },
+  "watch": {
+    "keywords": [
+      "heuer chronograph", "heuer autavia", "wakmann chronograph",
+      "omega chronostop", "breitling chronograph", "zodiac sea-chron",
+      "citizen bullhead", "vintage chronograph",
+      "zodiac sea wolf", "bulova devil diver", "bulova oceanographer",
+      "bulova 666", "vintage diver watch",
+      "omega vintage", "omega seamaster", "longines vintage",
+      "hamilton vintage", "tudor vintage", "gruen vintage",
+      "14k gold watch", "18k gold watch", "solid gold watch",
+      "gold pocket watch", "14k pocket watch", "18k pocket watch",
+      "elgin pocket watch", "waltham pocket watch", "hamilton pocket watch",
+      "illinois pocket watch", "railroad pocket watch",
+      "wakmann", "ulysse nardin", "girard perregaux", "universal geneve",
+      "alsta", "enicar", "jules jurgensen"
+    ],
+    "category_ids": ["31387", "3937", "14324"],
+    "price_min": 30,
+    "price_max": 5000
+  },
+  "textbook": {
+    "keywords": [
+      "pearson textbook", "mcgraw hill textbook", "cengage textbook",
+      "wiley textbook", "pearson isbn", "mcgraw-hill isbn",
+      "organic chemistry textbook", "calculus textbook",
+      "anatomy physiology textbook", "biology textbook",
+      "accounting textbook", "physics textbook",
+      "nursing textbook", "medical textbook",
+      "engineering textbook", "computer science textbook",
+      "college textbook isbn", "university textbook",
+      "11th edition textbook", "12th edition textbook"
+    ],
+    "category_ids": ["267"],
+    "price_min": 10,
+    "price_max": 150
+  }
+}
