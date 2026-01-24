@@ -227,80 +227,7 @@ from pipeline.instant_pass import (
 
 # Import path configs from centralized config
 from config import TRAINING_LOG_PATH, PURCHASE_LOG_PATH, API_ANALYSIS_ENABLED, PRICE_OVERRIDES_PATH
-PRICE_OVERRIDES = {}
-
-def load_price_overrides():
-    """Load manual price overrides from JSON file"""
-    global PRICE_OVERRIDES
-    try:
-        if PRICE_OVERRIDES_PATH.exists():
-            with open(PRICE_OVERRIDES_PATH, 'r') as f:
-                PRICE_OVERRIDES = json.load(f)
-            logging.info(f"[OVERRIDES] Loaded price overrides: {sum(len(v) for k,v in PRICE_OVERRIDES.items() if isinstance(v, dict) and k != '_info' and k != '_format')} products")
-    except Exception as e:
-        logging.error(f"[OVERRIDES] Failed to load: {e}")
-        PRICE_OVERRIDES = {}
-
-def check_price_override(title: str, category: str) -> Optional[dict]:
-    """Check if title matches a price override, return override dict or None"""
-    if not PRICE_OVERRIDES or not title:
-        return None
-
-    title_lower = title.lower()
-
-    # Common TCG abbreviation expansions - match both abbreviations and full forms
-    TCG_EXPANSIONS = {
-        'etb': ['etb', 'elite trainer box'],
-        'bb': ['bb', 'booster box'],
-        'upc': ['upc', 'ultra premium collection'],
-        'pc': ['pc', 'premium collection'],
-    }
-
-    def term_matches(term: str, text: str) -> bool:
-        """Check if a term matches - handles abbreviation expansion"""
-        if term in TCG_EXPANSIONS:
-            return any(exp in text for exp in TCG_EXPANSIONS[term])
-        return term in text
-
-    # Map category to override keys
-    category_keys = {
-        'tcg': ['pokemon', 'mtg', 'yugioh', 'onepiece'],
-        'lego': ['lego'],
-        'videogames': ['videogames'],
-    }
-
-    keys_to_check = category_keys.get(category, [])
-
-    for key in keys_to_check:
-        if key not in PRICE_OVERRIDES:
-            continue
-        overrides = PRICE_OVERRIDES[key]
-        if not isinstance(overrides, dict):
-            continue
-
-        for product_key, override_data in overrides.items():
-            if product_key.startswith('_'):
-                continue
-            if not isinstance(override_data, dict):
-                continue
-
-            # Convert product key to search terms (e.g., "phantasmal_flames_etb" -> ["phantasmal", "flames", "etb"])
-            search_terms = product_key.replace('_', ' ').split()
-
-            # Check if ALL terms appear in title (with abbreviation expansion)
-            if all(term_matches(term, title_lower) for term in search_terms):
-                logging.info(f"[OVERRIDE] Matched '{product_key}' -> ${override_data.get('market_price', 0)}")
-                return {
-                    'product_key': product_key,
-                    'market_price': override_data.get('market_price', 0),
-                    'notes': override_data.get('notes', ''),
-                    'category': key
-                }
-
-    return None
-
-# Load overrides at startup
-load_price_overrides()
+from services.price_overrides import PRICE_OVERRIDES, load_price_overrides, check_price_override
 
 # NOTE: Regex patterns for weight/karat extraction moved to pipeline/instant_pass.py
 
@@ -673,31 +600,10 @@ app.include_router(costume_router)
 app.include_router(analytics_router)
 app.include_router(websocket_router)
 
-# Claude client - using AsyncAnthropic for parallel request processing
-
-client = anthropic.AsyncAnthropic(api_key=CLAUDE_API_KEY)
-
-
-
-# OpenAI client - used for ALL Tier 1 analysis (GPT-4o-mini) and Tier 2 verification
-
-openai_client = None
-
-if OPENAI_API_KEY:
-
-    try:
-
-        from openai import AsyncOpenAI
-
-        openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
-
-        print(f"[INIT] OpenAI client initialized (GPT-4o-mini for ALL Tier 1, {OPENAI_TIER2_MODEL} for Tier 2)")
-
-    except ImportError:
-
-        print("[INIT] WARNING: openai package not installed. Run: pip install openai")
-
-        print("[INIT] All categories will fall back to Haiku")
+# AI Clients (extracted to services/clients.py)
+from services.clients import create_anthropic_client, create_openai_client
+client = create_anthropic_client(CLAUDE_API_KEY)
+openai_client = create_openai_client(OPENAI_API_KEY, OPENAI_TIER2_MODEL)
 
 
 
@@ -766,55 +672,10 @@ configure_validation(
 configure_ebay_lookup(ebay_app_id=EBAY_APP_ID)
 
 
-# ============================================================
-# RECENTLY EVALUATED ITEMS - prevents duplicate processing
-# ============================================================
-RECENTLY_EVALUATED: Dict[str, Dict] = {}  # {item_key: {'timestamp': float, 'result': dict}}
-RECENTLY_EVALUATED_WINDOW = 600  # 10 minutes - don't re-evaluate same item within this window
-
-def get_evaluated_item_key(title: str, price) -> str:
-    """Create a unique key for an item based on title and price."""
-    # Normalize title: lowercase, strip whitespace, replace + with space
-    normalized = title[:80].lower().strip().replace('+', ' ').replace('%20', ' ')
-    # Convert price to float if it's a string
-    try:
-        price_float = float(str(price).replace('$', '').replace(',', '').strip())
-    except (ValueError, TypeError):
-        price_float = 0.0
-    return f"{normalized}_{price_float:.2f}"
-
-def check_recently_evaluated(title: str, price) -> Optional[Dict]:
-    """
-    Check if item was recently evaluated.
-    Returns cached result if found, None otherwise.
-    """
-    import time as _time_module
-    current_time = _time_module.time()
-    item_key = get_evaluated_item_key(title, price)
-
-    # Clean expired entries
-    expired = [k for k, v in RECENTLY_EVALUATED.items()
-               if current_time - v['timestamp'] > RECENTLY_EVALUATED_WINDOW]
-    for k in expired:
-        del RECENTLY_EVALUATED[k]
-
-    # Check if this item was recently evaluated
-    if item_key in RECENTLY_EVALUATED:
-        cached = RECENTLY_EVALUATED[item_key]
-        age = current_time - cached['timestamp']
-        logger.info(f"[DEDUP] Found recent evaluation ({age:.0f}s ago): {title[:40]}...")
-        return cached['result']
-
-    return None
-
-def mark_as_evaluated(title: str, price, result: Dict):
-    """Mark an item as evaluated with its result."""
-    import time as _time_module
-    item_key = get_evaluated_item_key(title, price)
-    RECENTLY_EVALUATED[item_key] = {
-        'timestamp': _time_module.time(),
-        'result': result
-    }
+# Deduplication (extracted to services/deduplication.py)
+from services.deduplication import (
+    RECENTLY_EVALUATED, check_recently_evaluated, mark_as_evaluated, get_evaluated_item_key
+)
 
 
 # NOTE: eBay lookup functions moved to services/ebay_lookup.py
@@ -1071,134 +932,20 @@ configure_tier2(
 
 # ============================================================
 
-# HELPER FUNCTIONS
+# HELPER FUNCTIONS (extracted to services/response_wrapper.py)
+from services.response_wrapper import (
+    create_openai_response, format_listing_data, sanitize_json_response, parse_reasoning
+)
 
-# ============================================================
 
-def format_listing_data(data: dict) -> str:
 
-    """Format listing data for AI prompt"""
 
-    lines = ["LISTING DATA:"]
 
-    for key, value in data.items():
 
-        if value and key != 'images':
-            # Decode URL-encoded + signs to spaces for AI readability
-            display_value = str(value).replace('+', ' ') if isinstance(value, str) and '+' in value else value
-            lines.append(f"- {key}: {display_value}")
 
-    return "\n".join(lines)
 
 
 
-
-
-def sanitize_json_response(text: str) -> str:
-
-    """Clean up AI response for JSON parsing"""
-
-    if text.startswith("```"):
-
-        lines = text.split("\n")
-
-        text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
-
-    text = text.replace("```json", "").replace("```", "")
-
-    
-
-    replacements = {
-
-        "'": "'", "'": "'", """: '"', """: '"',
-
-        "x ": "-", "x ƒÆ’‚[PASS] ¢": "->", "x ¢": "x", "x ": "...", "\u00a0": " ",
-
-    }
-
-    for old, new in replacements.items():
-
-        text = text.replace(old, new)
-
-
-
-    # Try to extract JSON object if there's extra text before/after
-
-    if text and '{' in text:
-
-        start = text.find('{')
-
-        end = text.rfind('}') + 1
-
-        if start < end:
-
-            text = text[start:end]
-
-
-
-    # Try to parse - if it works, return as-is
-
-    try:
-
-        json.loads(text)
-
-        return text.strip()
-
-    except:
-
-        # Only do aggressive ASCII cleanup if JSON parse fails
-
-        text = text.encode('ascii', 'ignore').decode('ascii')
-
-        text = " ".join(text.split())
-
-        return text.strip()
-
-
-
-
-
-def parse_reasoning(reasoning: str) -> dict:
-
-    """Parse structured reasoning into components"""
-
-    parts = {"detection": "", "calc": "", "decision": "", "concerns": "", "profit": "", "raw": reasoning}
-
-    
-
-    if "|" in reasoning:
-
-        sections = reasoning.split("|")
-
-        for section in sections:
-
-            section = section.strip()
-
-            upper = section.upper()
-
-            if upper.startswith("DETECTION:"):
-
-                parts["detection"] = section[10:].strip()
-
-            elif upper.startswith("CALC:"):
-
-                parts["calc"] = section[5:].strip()
-
-            elif upper.startswith("DECISION:"):
-
-                parts["decision"] = section[9:].strip()
-
-            elif upper.startswith("CONCERNS:"):
-
-                parts["concerns"] = section[9:].strip()
-
-            elif upper.startswith("PROFIT:"):
-
-                parts["profit"] = section[7:].strip()
-
-    
-
-    return parts
 
 
 
@@ -1216,65 +963,6 @@ def _trim_listings():
 
             del STATS["listings"][old_id]
 
-
-
-
-
-def create_openai_response(result: dict) -> dict:
-
-    """
-
-    Wrap analysis result in OpenAI chat completion format.
-
-    This is REQUIRED for uBuyFirst columns to populate.
-
-    uBuyFirst parses this JSON and extracts fields for AI columns.
-
-    """
-
-    # Convert result dict to JSON string (this is what goes in 'content')
-
-    content_json = json.dumps(result)
-
-    
-
-    return {
-
-        "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
-
-        "object": "chat.completion",
-
-        "created": int(datetime.now().timestamp()),
-
-        "model": MODEL_FAST,
-
-        "choices": [{
-
-            "index": 0,
-
-            "message": {
-
-                "role": "assistant",
-
-                "content": content_json
-
-            },
-
-            "finish_reason": "stop"
-
-        }],
-
-        "usage": {
-
-            "prompt_tokens": 100,
-
-            "completion_tokens": 50,
-
-            "total_tokens": 150
-
-        }
-
-    }
 
 
 
