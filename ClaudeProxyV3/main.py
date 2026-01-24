@@ -229,6 +229,20 @@ from pipeline.instant_pass import (
 from config import TRAINING_LOG_PATH, PURCHASE_LOG_PATH, API_ANALYSIS_ENABLED, PRICE_OVERRIDES_PATH
 from services.price_overrides import PRICE_OVERRIDES, load_price_overrides, check_price_override
 
+# Pipeline modules (Phase B extraction)
+from pipeline.request_parser import parse_analysis_request, extract_listing_fields, log_request_fields
+from pipeline.pre_checks import (
+    check_spam, check_dedup, check_sold, check_disabled,
+    check_queue_mode, check_cache, check_in_flight,
+)
+from pipeline.listing_enrichment import build_enhancements, log_race_item as pipeline_log_race_item
+from pipeline.fast_pass import (
+    check_user_price_db, check_pc_quick_pass, check_agent_quick_pass,
+    check_textbook, check_gold_price_per_gram, check_fast_extract_pass,
+    check_lazy_image_skip, determine_image_needs,
+)
+from pipeline.response_builder import finalize_result
+
 # NOTE: Regex patterns for weight/karat extraction moved to pipeline/instant_pass.py
 
 
@@ -1004,174 +1018,32 @@ async def analyze_listing(request: Request):
 
     try:
 
-        data = {}
-
+        # Parse request data
+        data = await parse_analysis_request(request)
+        fields = extract_listing_fields(data)
+        title = fields["title"]
+        total_price = fields["total_price"]
+        alias = fields["alias"]
+        response_type = fields["response_type"]
+        listing_id = fields["listing_id"]
+        timestamp = fields["timestamp"]
+        item_id = fields["item_id"]
+        ebay_url = fields["ebay_url"]
         images = []
 
-        
-
-        # Parse request data
-
-        query_data = dict(request.query_params)
-
-        if query_data:
-
-            data = query_data
-
-            logger.info(f"[REQUEST] Query params count: {len(query_data)}")
-
-        
-
-        # Read body for POST requests
-
-        body = b""
-
-        if not data:
-
-            try:
-
-                body = await request.body()
-
-                logger.info(f"[REQUEST] Body length: {len(body)} bytes")
-
-                if len(body) < 500:
-
-                    logger.info(f"[REQUEST] Body content: {body[:500]}")
-
-            except Exception as e:
-
-                logger.warning(f"Failed to read body: {e}")
-
-        
-
-        # Parse JSON body
-
-        if not data and body:
-
-            try:
-
-                json_data = json.loads(body)
-
-                if isinstance(json_data, dict):
-
-                    data = json_data
-
-                    logger.info("[REQUEST] Parsed as JSON")
-
-                    # Log critical fields
-
-                    logger.info(f"[REQUEST] response_type: {data.get('response_type', 'NOT SET')}")
-
-                    logger.info(f"[REQUEST] llm_provider: {data.get('llm_provider', 'NOT SET')}")
-
-                    logger.info(f"[REQUEST] llm_model: {data.get('llm_model', 'NOT SET')}")
-
-                    if 'system_prompt' in data:
-
-                        logger.info(f"[REQUEST] system_prompt length: {len(str(data.get('system_prompt', '')))}")
-
-                    if 'display_template' in data:
-
-                        logger.info(f"[REQUEST] display_template length: {len(str(data.get('display_template', '')))}")
-
-            except Exception:
-
-                pass
-
-        
-
-        # Parse URL-encoded body
-
-        if not data and body:
-
-            try:
-
-                parsed = parse_qs(body.decode('utf-8', errors='ignore'))
-
-                if parsed:
-
-                    data = {k: v[0] if len(v) == 1 else v for k, v in parsed.items()}
-
-                    logger.info("[REQUEST] Parsed as URL-encoded")
-
-            except Exception:
-
-                pass
-
-        
-
-        title = data.get('Title', 'No title')[:80]
-
-        total_price = data.get('TotalPrice', data.get('ItemPrice', '0'))
-
-        alias = data.get('Alias', '')  # Search term from uBuyFirst
-
-        response_type = data.get('response_type', 'html')  # Save early!
-
-        listing_id = str(uuid.uuid4())[:8]
-
-        timestamp = datetime.now().isoformat()
-
-        
-
-        # Debug: Check for CheckoutUrl/ItemId fields
-
-        checkout_url = data.get('CheckoutUrl', data.get('checkoutUrl', data.get('checkout_url', '')))
-
-        item_id = data.get('ItemId', data.get('itemId', data.get('item_id', '')))
-
-        view_url = data.get('ViewUrl', data.get('viewUrl', data.get('view_url', '')))
-
-        ebay_url = checkout_url or view_url or ''
-
-        
-
-        logger.info(f"Title: {title[:50]}")
-
-        logger.info(f"Price: ${total_price}")
-
-        logger.info(f"[SAVED] response_type: {response_type}")
-
-        logger.info(f"[DEBUG] CheckoutUrl: '{checkout_url}'")
-
-        logger.info(f"[DEBUG] ItemId: '{item_id}'")
-
-        logger.info(f"[DEBUG] ViewUrl: '{view_url}'")
-
-        logger.info(f"[DEBUG] ALL KEYS: {list(data.keys())}")
 
         # ============================================================
-        # SPAM DETECTION - Check for blocked sellers EARLY
         # ============================================================
-        spam_seller_name = data.get('SellerName', '') or data.get('StoreName', '')
-        is_blocked, newly_blocked = check_seller_spam(spam_seller_name)
-
-        if is_blocked:
-            if newly_blocked:
-                logger.warning(f"[SPAM] NEW BLOCK: '{spam_seller_name}' - rapid-fire listing detected")
-            else:
-                logger.info(f"[SPAM] INSTANT PASS: '{spam_seller_name}' is blocked")
-
-            return JSONResponse(content={
-                "Recommendation": "PASS",
-                "Qualify": "No",
-                "reasoning": f"Blocked seller (spam): {spam_seller_name}",
-                "confidence": "High",
-                "blocked_seller": True,
-                "seller_name": spam_seller_name,
-                "newly_blocked": newly_blocked
-            })
-
+        # SPAM + DEDUP CHECKS
         # ============================================================
-        # DEDUPLICATION - Check if we've recently evaluated this item
-        # ============================================================
-        cached_result = check_recently_evaluated(title, total_price)
-        if cached_result:
-            logger.info(f"[DEDUP] Returning cached result: {cached_result.get('Recommendation', 'UNKNOWN')}")
-            cached_result['dedup_cached'] = True
-            return JSONResponse(content=cached_result)
+        spam_response = check_spam(data, check_seller_spam)
+        if spam_response:
+            return spam_response
 
-        # ============================================================
+        dedup_response = check_dedup(title, total_price)
+        if dedup_response:
+            return dedup_response
+
         # PRICE CORRECTIONS - Check user's logged market prices
         # ============================================================
         user_price_correction = None
@@ -1183,183 +1055,29 @@ async def analyze_listing(request: Request):
             except Exception as e:
                 logger.warning(f"[PRICE CHECK] Error checking corrections: {e}")
 
-        # Log seller-related fields for profiling
-        seller_fields = {
-            'SellerName': data.get('SellerName', ''),
-            'SellerBusiness': data.get('SellerBusiness', ''),
-            'SellerStore': data.get('SellerStore', ''),
-            'SellerCountry': data.get('SellerCountry', ''),
-            'SellerRegistration': data.get('SellerRegistration', ''),
-            'StoreName': data.get('StoreName', ''),
-            'FeedbackScore': data.get('FeedbackScore', ''),
-            'FeedbackRating': data.get('FeedbackRating', ''),
-            'EbayWebsite': data.get('EbayWebsite', ''),
-        }
-        logger.info(f"[SELLER DATA] {seller_fields}")
+        # Log request fields for profiling
+        log_request_fields(data)
 
-        # Log other potentially useful fields
-        listing_fields = {
-            'PostedTime': data.get('PostedTime', ''),
-            'ListingType': data.get('ListingType', ''),
-            'BestOffer': data.get('BestOffer', ''),
-            'Returns': data.get('Returns', ''),
-            'Quantity': data.get('Quantity', ''),
-            'FromCountry': data.get('FromCountry', ''),
-            'Condition': data.get('Condition', ''),
-            'ItemPrice': data.get('ItemPrice', ''),
-            'SoldTime': data.get('SoldTime', ''),
-            'Authenticity': data.get('Authenticity', ''),
-            'TitleMatch': data.get('TitleMatch', ''),
-            'Term': data.get('Term', ''),
-        }
-        logger.info(f"[LISTING DATA] {listing_fields}")
-
-        # Dump ALL non-system fields to find item ID
-        skip_keys = {'system_prompt', 'display_template', 'llm_provider', 'llm_model', 'llm_api_key', 'response_type', 'description', 'images'}
-        all_values = {k: str(v)[:100] for k, v in data.items() if k not in skip_keys}
-        logger.info(f"[ALL VALUES] {all_values}")
 
         # ============================================================
-        # LISTING ENHANCEMENTS - Freshness, Sold check, Seller scoring
         # ============================================================
+        # LISTING ENHANCEMENTS
+        # ============================================================
+        sold_response = check_sold(data)
+        if sold_response:
+            return sold_response
 
-        # Check if already sold (handle both field name formats)
-        sold_time = data.get('SoldTime', '') or data.get('Sold Time', '') or ''
-        sold_time = sold_time.strip() if sold_time else ''
-        if sold_time:
-            logger.info(f"[SKIP] Item already sold at {sold_time}")
-            return JSONResponse(content={
-                "Recommendation": "SKIP",
-                "reasoning": f"Item already sold at {sold_time}",
-                "skipped": True,
-                "sold_time": sold_time
-            })
+        listing_enhancements = build_enhancements(data, analyze_new_seller)
+        freshness_minutes = listing_enhancements.get("freshness_minutes")
+        seller_name = listing_enhancements.get("seller_name", "")
 
-        # Calculate freshness from PostedTime
-        freshness_minutes = None
-        freshness_score = 50  # Default
-        posted_time_str = data.get('PostedTime', '').replace('+', ' ')
-        if posted_time_str:
-            try:
-                # Parse format like "1/7/2026 10:26:36 AM"
-                from datetime import datetime as dt_parse
-                posted_time = dt_parse.strptime(posted_time_str.strip(), '%m/%d/%Y %I:%M:%S %p')
-                freshness_minutes = (dt_parse.now() - posted_time).total_seconds() / 60
-
-                # Score based on freshness (newer = higher score)
-                if freshness_minutes < 2:
-                    freshness_score = 100  # Super fresh!
-                elif freshness_minutes < 5:
-                    freshness_score = 90
-                elif freshness_minutes < 15:
-                    freshness_score = 75
-                elif freshness_minutes < 30:
-                    freshness_score = 60
-                elif freshness_minutes < 60:
-                    freshness_score = 40
-                else:
-                    freshness_score = 20  # Stale
-
-                logger.info(f"[FRESHNESS] Posted {freshness_minutes:.1f} min ago, score: {freshness_score}")
-            except Exception as e:
-                logger.debug(f"[FRESHNESS] Could not parse PostedTime: {e}")
-
-        # Extract BestOffer flag
-        best_offer = str(data.get('BestOffer', '')).lower() == 'true'
-        if best_offer:
-            logger.info(f"[BEST OFFER] Seller accepts offers - negotiation possible")
-
-        # Calculate seller score with eBay data
-        seller_name = data.get('SellerName', '')
-        seller_score = 50
-        seller_type = 'unknown'
-        seller_recommendation = 'NORMAL'
-
-        if seller_name:
-            try:
-                ebay_seller_data = {
-                    'SellerBusiness': data.get('SellerBusiness', ''),
-                    'SellerStore': data.get('SellerStore', ''),
-                    'StoreName': data.get('StoreName', ''),
-                    'FeedbackScore': data.get('FeedbackScore', ''),
-                    'FeedbackRating': data.get('FeedbackRating', ''),
-                    'SellerRegistration': data.get('SellerRegistration', ''),
-                }
-                seller_analysis = analyze_new_seller(
-                    seller=seller_name,
-                    title=title,
-                    category=category if category else '',
-                    ebay_data=ebay_seller_data
-                )
-                seller_score = seller_analysis.get('score', 50)
-                seller_type = seller_analysis.get('type', 'unknown')
-                seller_recommendation = seller_analysis.get('recommendation', 'NORMAL')
-
-                if seller_score >= 70:
-                    logger.info(f"[SELLER] HIGH VALUE: {seller_name} (score:{seller_score}, type:{seller_type})")
-                elif seller_score <= 35:
-                    logger.info(f"[SELLER] LOW VALUE (dealer): {seller_name} (score:{seller_score})")
-            except Exception as e:
-                logger.debug(f"[SELLER] Could not analyze seller: {e}")
-
-        # Store enhancement data for response
-        listing_enhancements = {
-            'freshness_minutes': freshness_minutes,
-            'freshness_score': freshness_score,
-            'best_offer': best_offer,
-            'seller_score': seller_score,
-            'seller_type': seller_type,
-            'seller_recommendation': seller_recommendation,
-            'seller_name': seller_name,
-        }
 
         # ============================================================
-
-        # RACE COMPARISON - Log item from uBuyFirst
-
-        # ============================================================
-
-        try:
-
-            price_float = float(str(total_price).replace('$', '').replace(',', ''))
-
-            # Use ItemId if available, otherwise create hash from title+price
-
-            race_item_id = item_id if item_id else f"ubf_{hash(title + str(price_float)) % 10000000:07d}"
-
-            log_race_item(
-
-                item_id=race_item_id,
-
-                source="ubuyfirst",
-
-                title=title,
-
-                price=price_float,
-
-                category=data.get('CategoryName', 'Unknown'),
-
-            )
-
-            logger.info(f"[RACE] Logged item {race_item_id} from uBuyFirst: {title[:40]}")
-
-            # Log to source comparison system for latency tracking
-            log_listing_received(
-                item_id=race_item_id,
-                source="ubf",
-                posted_time=data.get('PostedTime', ''),
-                title=title,
-                price=price_float,
-                category=data.get('CategoryName', 'Unknown'),
-            )
-
-            # Log to race mode if active
-            latency_ms = int(freshness_minutes * 60 * 1000) if freshness_minutes else 999999
-            race_log_ubf_item(race_item_id, title, price_float, seller_name, latency_ms)
-
-        except Exception as e:
-
-            logger.warning(f"[RACE] Failed to log item: {e}")
+        # Race comparison logging
+        pipeline_log_race_item(
+            data, title, total_price, item_id, freshness_minutes, seller_name,
+            log_race_item, log_listing_received, race_log_ubf_item
+        )
 
         
 
@@ -1379,279 +1097,44 @@ async def analyze_listing(request: Request):
 
         # ============================================================
 
-        # CHECK SMART CACHE FIRST
+        # ============================================================
+        # SMART CACHE CHECK
+        # ============================================================
+        cache_response = check_cache(title, total_price, response_type, cache, data, detect_category, STATS)
+        if cache_response:
+            return cache_response
+
+
+        # ============================================================
+        # IN-FLIGHT DEDUP
+        # ============================================================
+        is_first_request, inflight_response = await check_in_flight(
+            title, total_price, response_type, IN_FLIGHT, IN_FLIGHT_RESULTS, IN_FLIGHT_LOCK
+        )
+        if inflight_response:
+            return inflight_response
 
         # ============================================================
 
-        cached = cache.get(title, total_price)
-
-        if cached:
-
-            result, html = cached
-
-            
-
-            # Detect category to check if we should trust the cache
-
-            category_check, _ = detect_category(data)
-
-            
-
-            # For video games: Don't trust cached BUY results without PC verification
-
-            # This prevents serving stale results from before PC integration
-
-            if category_check == 'videogames' and result.get('Recommendation') == 'BUY':
-
-                if result.get('pcMatch') != 'Yes':
-
-                    logger.warning(f"[CACHE] Skipping cached video game BUY without PC verification")
-
-                    # Fall through to re-analyze
-
-                else:
-
-                    # SANITY CHECK: If cached market price is very high, it might be AI-hallucinated
-
-                    try:
-
-                        cached_market = float(str(result.get('marketprice', '0')).replace('$', '').replace(',', ''))
-
-                        cached_profit = float(str(result.get('Profit', '0')).replace('$', '').replace('+', '').replace(',', ''))
-
-                        listing_price = float(str(total_price).replace('$', '').replace(',', ''))
-
-                        
-
-                        # If market > $300 and profit > $100, cache might have bad data
-
-                        if cached_market > 300 and cached_profit > 100:
-
-                            logger.warning(f"[CACHE] SUSPICIOUS: market=${cached_market:.0f}, profit=${cached_profit:.0f} - re-verifying")
-
-                            # Fall through to re-analyze instead of trusting cache
-
-                        else:
-
-                            STATS["cache_hits"] += 1
-
-                            logger.info(f"[CACHE HIT] Returning cached {result.get('Recommendation', 'UNKNOWN')} (PC verified)")
-
-                            if response_type == 'json':
-
-                                return JSONResponse(content=result)
-
-                            else:
-
-                                return HTMLResponse(content=html)
-
-                    except:
-
-                        # If we can't parse prices, trust the cache
-
-                        STATS["cache_hits"] += 1
-
-                        logger.info(f"[CACHE HIT] Returning cached {result.get('Recommendation', 'UNKNOWN')} (PC verified)")
-
-                        if response_type == 'json':
-
-                            return JSONResponse(content=result)
-
-                        else:
-
-                            return HTMLResponse(content=html)
-
-            else:
-
-                STATS["cache_hits"] += 1
-
-                logger.info(f"[CACHE HIT] Returning cached {result.get('Recommendation', 'UNKNOWN')}")
-
-                # Return based on response_type
-
-                if response_type == 'json':
-
-                    logger.info("[CACHE HIT] Returning JSON (response_type=json)")
-
-                    return JSONResponse(content=result)
-
-                else:
-
-                    logger.info("[CACHE HIT] Returning HTML (response_type=html)")
-
-                    return HTMLResponse(content=html)
-
-        
-
         # ============================================================
-
-        # IN-FLIGHT REQUEST DEDUPLICATION
-
-        # If same listing is already being processed, wait for it
-
-        # This prevents duplicate Haiku+Sonnet calls for HTML/JSON dual requests
-
-        # ============================================================
-
-        request_key = f"{title}|{total_price}"
-
-        should_wait = False
-
-        event = None
-
-        
-
-        async with IN_FLIGHT_LOCK:
-
-            if request_key in IN_FLIGHT and not IN_FLIGHT[request_key].is_set():
-
-                # Another request is already processing this SAME listing
-
-                logger.info(f"[IN-FLIGHT] Same listing already processing, will wait...")
-
-                event = IN_FLIGHT[request_key]
-
-                should_wait = True
-
-            elif request_key not in IN_FLIGHT:
-
-                # We're the first request for this listing - register it
-
-                event = asyncio.Event()
-
-                IN_FLIGHT[request_key] = event
-
-                IN_FLIGHT_RESULTS[request_key] = None
-
-                logger.debug(f"[IN-FLIGHT] First request for this listing, processing...")
-
-        
-
-        # If we should wait for another request processing the same listing
-
-        if should_wait and event:
-
-            try:
-
-                await asyncio.wait_for(event.wait(), timeout=30.0)
-
-                # Get the result from the first request
-
-                if request_key in IN_FLIGHT_RESULTS and IN_FLIGHT_RESULTS[request_key]:
-
-                    result, html = IN_FLIGHT_RESULTS[request_key]
-
-                    logger.info(f"[IN-FLIGHT] Got result: {result.get('Recommendation', 'UNKNOWN')}")
-
-                    if response_type == 'json':
-
-                        return JSONResponse(content=result)
-
-                    else:
-
-                        return HTMLResponse(content=html)
-
-            except asyncio.TimeoutError:
-
-                logger.warning(f"[IN-FLIGHT] Timeout - processing independently")
-
-            # Fall through to process ourselves if something went wrong
-
-        
-
-        # Flag to track if we need to signal completion
-
-        is_first_request = request_key in IN_FLIGHT and not IN_FLIGHT[request_key].is_set()
-
-        
-
-        # ============================================================
-
         # DISABLED CHECK
+        # ============================================================
+        disabled_response = check_disabled(ENABLED, STATS)
+        if disabled_response:
+            return disabled_response
+
 
         # ============================================================
-
-        if not ENABLED:
-
-            logger.info("DISABLED - Returning placeholder")
-
-            STATS["skipped"] += 1
-
-            disabled_result = {
-
-                "Qualify": "No",
-
-                "Recommendation": "DISABLED",
-
-                "reasoning": "Proxy disabled - enable at localhost:8000"
-
-            }
-
-            return JSONResponse(content=disabled_result)
-
-        
-
+        # QUEUE MODE
         # ============================================================
+        queue_response = check_queue_mode(
+            QUEUE_MODE, data, title, total_price, listing_id, timestamp,
+            None, None, LISTING_QUEUE, alias, detect_category, log_incoming_listing,
+            _render_queued_html
+        )
+        if queue_response:
+            return queue_response
 
-        # QUEUE MODE - Store for manual review
-
-        # ============================================================
-
-        if QUEUE_MODE:
-
-            category, category_reasons = detect_category(data)
-
-            log_incoming_listing(title, float(str(total_price).replace('$', '').replace(',', '') or 0), category, alias)
-
-            
-
-            # Store raw image URLs for later (don't fetch yet - saves time)
-
-            raw_images = data.get('images', [])
-
-            if raw_images:
-
-                first_img = raw_images[0] if raw_images else None
-
-                if first_img:
-
-                    img_preview = str(first_img)[:100] if isinstance(first_img, str) else str(type(first_img))
-
-                    logger.info(f"[IMAGES] First image format: {img_preview}...")
-
-            
-
-            LISTING_QUEUE[listing_id] = {
-
-                "id": listing_id,
-
-                "timestamp": timestamp,
-
-                "title": title,
-
-                "total_price": total_price,
-
-                "category": category,
-
-                "category_reasons": category_reasons,
-
-                "data": data,
-
-                "raw_images": raw_images,
-
-                "status": "queued"
-
-            }
-
-            
-
-            logger.info(f"QUEUED for review - Category: {category}")
-
-            return HTMLResponse(content=_render_queued_html(category, listing_id, title, str(total_price)))
-
-        
-
-        # ============================================================
 
         # FULL ANALYSIS
 
@@ -1675,190 +1158,45 @@ async def analyze_listing(request: Request):
 
 
         # ============================================================
+        # ============================================================
         # USER PRICE DATABASE CHECK
-        # Check if we have a user-provided market value for this item
         # ============================================================
-        user_price_match = lookup_user_price(title)
-        if user_price_match:
-            matched_name, price_data = user_price_match
-            user_market_value = price_data['market_value']
-            user_max_buy = price_data['max_buy']
-
-            try:
-                listing_price = float(str(total_price).replace('$', '').replace(',', ''))
-            except:
-                listing_price = 0
-
-            if listing_price > 0:
-                profit = user_market_value - listing_price
-                roi = (profit / listing_price) * 100 if listing_price > 0 else 0
-
-                if listing_price <= user_max_buy:
-                    # INSTANT BUY - price is at or below our max buy threshold
-                    logger.info(f"[USER-PRICE] MATCH: {matched_name} -> Market ${user_market_value}, Max Buy ${user_max_buy}")
-                    logger.info(f"[USER-PRICE] BUY! Price ${listing_price} <= Max ${user_max_buy} (Profit ${profit:.2f}, ROI {roi:.0f}%)")
-
-                    result = {
-                        "Recommendation": "BUY",
-                        "Qualify": "Yes",
-                        "reasoning": f"USER PRICE MATCH: {matched_name}. Market ${user_market_value}, listing ${listing_price} = ${profit:.2f} profit ({roi:.0f}% ROI)",
-                        "confidence": 95,
-                        "marketprice": f"${user_market_value:.2f}",
-                        "Profit": f"+${profit:.2f}",
-                        "ROI": f"{roi:.0f}%",
-                        "userPriceMatch": True,
-                        "matchedItem": matched_name,
-                        "maxBuy": f"${user_max_buy:.2f}",
-                        "category": category,
-                        **listing_enhancements
-                    }
-
-                    html = render_result_html(result, category, title)
-                    cache.set(title, total_price, result, html)
-
-                    if response_type == 'json':
-                        return JSONResponse(content=result)
-                    else:
-                        return HTMLResponse(content=html)
-
-                elif listing_price <= user_market_value * 0.85:
-                    # RESEARCH - price is good but above our strict threshold
-                    logger.info(f"[USER-PRICE] RESEARCH: Price ${listing_price} > Max ${user_max_buy} but < 85% market")
-
-                    result = {
-                        "Recommendation": "RESEARCH",
-                        "Qualify": "Maybe",
-                        "reasoning": f"USER PRICE MATCH: {matched_name}. Market ${user_market_value}, but price ${listing_price} > max buy ${user_max_buy}. Still {roi:.0f}% ROI if accurate.",
-                        "confidence": 75,
-                        "marketprice": f"${user_market_value:.2f}",
-                        "Profit": f"+${profit:.2f}",
-                        "ROI": f"{roi:.0f}%",
-                        "userPriceMatch": True,
-                        "matchedItem": matched_name,
-                        "maxBuy": f"${user_max_buy:.2f}",
-                        "category": category,
-                        **listing_enhancements
-                    }
-
-                    html = render_result_html(result, category, title)
-                    cache.set(title, total_price, result, html)
-
-                    if response_type == 'json':
-                        return JSONResponse(content=result)
-                    else:
-                        return HTMLResponse(content=html)
-                else:
-                    # Price too high - PASS
-                    # CRITICAL: Must return here to prevent PriceCharting from overriding
-                    logger.info(f"[USER-PRICE] PASS: Price ${listing_price} too high (market ${user_market_value})")
-
-                    result = {
-                        "Recommendation": "PASS",
-                        "Qualify": "No",
-                        "reasoning": f"USER PRICE MATCH: {matched_name}. Market ${user_market_value}, max buy ${user_max_buy}, but listing ${listing_price} is too high.",
-                        "confidence": 90,
-                        "marketprice": f"${user_market_value:.2f}",
-                        "Profit": f"-${listing_price - user_max_buy:.2f}",
-                        "userPriceMatch": True,
-                        "matchedItem": matched_name,
-                        "maxBuy": f"${user_max_buy:.2f}",
-                        "category": category,
-                        **listing_enhancements
-                    }
-
-                    html = render_result_html(result, category, title)
-                    cache.set(title, total_price, result, html)
-
-                    if response_type == 'json':
-                        return JSONResponse(content=result)
-                    else:
-                        return HTMLResponse(content=html)
-
-        # ============================================================
-
-        # INSTANT PASS CHECK (No AI needed - pure rule-based)
-
-        # ============================================================
-
-        instant_pass_result = check_instant_pass(title, total_price, category, data)
-
-        if instant_pass_result:
-
-            reason, rec = instant_pass_result
-
-            logger.info(f"[INSTANT PASS] {reason}")
-
-            
-
-            # Build complete result with all fields uBuyFirst expects
-
-            result = {
-
-                "Recommendation": "PASS",
-
-                "Qualify": "No",
-
-                "reasoning": f"INSTANT PASS: {reason}",
-
-                "confidence": 95,
-
-                "instantPass": True,
-
-                # Gold/Silver fields
-
-                "karat": "NA",
-
-                "weight": "NA",
-
-                "goldweight": "NA",
-
-                "silverweight": "NA",
-
-                "meltvalue": "NA",
-
-                "maxBuy": "NA",
-
-                "sellPrice": "NA",
-
-                "Profit": "NA",
-
-                "Margin": "NA",
-
-                "pricePerGram": "NA",
-
-                "fakerisk": "NA",
-
-                "itemtype": "NA",
-
-                "stoneDeduction": "0",
-
-                "weightSource": "NA",
-
-                "verified": "rule-based",
-
-            }
-
-            
-
-            # Store and return
-
-            html = render_result_html(result, category, title)
-
-            cache.set(title, total_price, result, html, "PASS")
-
-            
-
-            STATS["pass_count"] += 1
-
-            logger.info(f"[INSTANT PASS] Saved ~8 seconds by skipping AI!")
-
-            
-
-            if response_type == 'json':
-
+        user_price_result = check_user_price_db(
+            title, total_price, category, listing_enhancements,
+            lookup_user_price, render_result_html, cache
+        )
+        if user_price_result:
+            result, html = user_price_result
+            if response_type == "json":
                 return JSONResponse(content=result)
+            else:
+                return HTMLResponse(content=html)
 
+
+        # ============================================================
+        # INSTANT PASS CHECK (Rule-based, no AI)
+        # ============================================================
+        instant_pass_result = check_instant_pass(title, total_price, category, data)
+        if instant_pass_result:
+            reason, rec = instant_pass_result
+            logger.info(f"[INSTANT PASS] {reason}")
+            result = {
+                "Recommendation": "PASS", "Qualify": "No",
+                "reasoning": f"INSTANT PASS: {reason}", "confidence": 95,
+                "instantPass": True, "karat": "NA", "weight": "NA",
+                "goldweight": "NA", "silverweight": "NA", "meltvalue": "NA",
+                "maxBuy": "NA", "sellPrice": "NA", "Profit": "NA",
+                "Margin": "NA", "pricePerGram": "NA", "fakerisk": "NA",
+                "itemtype": "NA", "stoneDeduction": "0",
+                "weightSource": "NA", "verified": "rule-based",
+            }
+            html = render_result_html(result, category, title)
+            cache.set(title, total_price, result, html, "PASS")
+            STATS["pass_count"] += 1
+            if response_type == "json":
+                return JSONResponse(content=result)
             return HTMLResponse(content=html)
+
 
         
 
@@ -1973,265 +1311,43 @@ async def analyze_listing(request: Request):
 
 
 
-                # === QUICK PASS CHECK - Skip images if clearly not profitable ===
-
-                if pc_result and pc_result.get('found') and pc_result.get('margin') is not None:
-
-                    pc_margin = pc_result.get('margin', 0)
-
-                    pc_product = pc_result.get('product_name', 'Unknown')
-
-                    
-
-                    # If margin is clearly negative (more than $15 loss), instant PASS
-
-                    if pc_margin < -15:
-
-                        logger.info(f"[QUICK PASS] {category.upper()}: {pc_product} margin ${pc_margin:.0f} - skipping images")
-
-                        
-
-                        # Build quick PASS result without AI call
-
-                        quick_result = {
-
-                            'Qualify': 'No',
-
-                            'Recommendation': 'PASS',
-
-                            'reasoning': f"PriceCharting: {pc_product} @ ${pc_result.get('market_price', 0):.0f} market, max buy ${pc_result.get('buy_target', 0):.0f}, listing ${price_float:.0f} = ${pc_margin:.0f} margin (auto-PASS)",
-
-                            'marketprice': str(int(pc_result.get('market_price', 0))),
-
-                            'maxBuy': str(int(pc_result.get('buy_target', 0))),
-
-                            'Margin': str(int(pc_margin)),
-
-                            'Profit': str(int(pc_margin)),
-
-                            'confidence': 'High',
-
-                            'fakerisk': 'Low',
-
-                            'pcMatch': 'Yes',
-
-                            'pcProduct': pc_product[:50],
-
-                        }
-
-                        
-
-                        # Add category-specific fields
-
-                        if category == 'lego':
-
-                            quick_result.update({
-
-                                'SetNumber': pc_result.get('product_id', 'Unknown'),
-
-                                'SetName': pc_product,
-
-                                'Theme': 'Unknown',
-
-                                'Retired': 'Unknown',
-
-                            })
-
-                        elif category == 'tcg':
-
-                            quick_result.update({
-
-                                'TCG': 'Pokemon',  # Default
-
-                                'ProductType': 'Unknown',
-
-                                'SetName': pc_result.get('console_name', 'Unknown'),
-
-                            })
-
-                        
-
-                        # Cache and return
-
-                        html = render_result_html(quick_result, category, title)
-
-                        cache.set(title, total_price, quick_result, html)
-
-                        
-
-                        STATS["pass_count"] += 1
-
-                        logger.info(f"[QUICK PASS] Saved {30}+ seconds by skipping images!")
-
-                        
-
-                        if response_type == 'json':
-
-                            return JSONResponse(content=quick_result)
-
-                        return HTMLResponse(content=html)
-
-                        
+                # Quick pass check
+                pc_quick_response = check_pc_quick_pass(
+                    pc_result, category, title, total_price, price_float,
+                    render_result_html, cache, STATS, response_type
+                )
+                if pc_quick_response:
+                    return pc_quick_response
 
             except Exception as e:
-
                 logger.error(f"[PC] Price parsing error: {e}")
-
-        
 
         # Log for pattern analysis
 
         log_incoming_listing(title, float(str(total_price).replace('$', '').replace(',', '') or 0), category, alias)
 
 
-        # === AGENT QUICK PASS - Check for plated/filled keywords before AI ===
-        try:
-            agent_class = get_agent(category)
-            if agent_class:
-                agent = agent_class()
-                price_float = float(str(total_price).replace('$', '').replace(',', ''))
-                reason, decision = agent.quick_pass(data, price_float)
-                if decision == "PASS":
-                    logger.info(f"[AGENT QUICK PASS] {category}: {reason}")
-                    quick_result = {
-                        'Qualify': 'No',
-                        'Recommendation': 'PASS',
-                        'reasoning': reason,
-                        'confidence': 95,
-                        'itemtype': 'Unknown',
-                    }
-                    html = render_result_html(quick_result, category, title)
-                    cache.set(title, total_price, quick_result, html)
-                    STATS["pass_count"] += 1
-                    if response_type == 'json':
-                        return JSONResponse(content=quick_result)
-                    return HTMLResponse(content=html)
-        except Exception as e:
-            logger.error(f"[AGENT QUICK PASS] Error: {e}")
+        # === QUICK PASS CHECKS (Agent, Textbook, Gold) ===
+        agent_qp_response = check_agent_quick_pass(
+            category, data, total_price, title, get_agent,
+            render_result_html, cache, STATS, response_type
+        )
+        if agent_qp_response:
+            return agent_qp_response
 
-        # === TEXTBOOK SPECIAL HANDLING - Use Keepa lookup instead of AI ===
-        if category == "textbook":
-            try:
-                logger.info(f"[TEXTBOOK] Processing: {title[:60]}...")
-                agent_class = get_agent(category)
-                if agent_class:
-                    agent = agent_class()
-                    price_float = float(str(total_price).replace('$', '').replace(',', ''))
-                    textbook_result = await agent.analyze_textbook(data, price_float)
-                    logger.info(f"[TEXTBOOK] Result: {textbook_result.get('Recommendation', 'UNKNOWN')} - {textbook_result.get('reasoning', '')[:80]}")
-                    html = render_result_html(textbook_result, category, title)
-                    cache.set(title, total_price, textbook_result, html)
-                    if textbook_result.get('Recommendation') == 'BUY':
-                        STATS["buy_count"] += 1
-                    else:
-                        STATS["pass_count"] += 1
-                    if response_type == 'json':
-                        return JSONResponse(content=textbook_result)
-                    return HTMLResponse(content=html)
-            except Exception as e:
-                logger.error(f"[TEXTBOOK] Error: {e}")
+        textbook_response = await check_textbook(
+            category, data, total_price, title, get_agent,
+            render_result_html, cache, STATS, response_type
+        )
+        if textbook_response:
+            return textbook_response
 
-        # === GOLD QUICK PASS CHECK - Skip images if price/gram is clearly too high ===
+        gold_qp_response = check_gold_price_per_gram(
+            category, title, total_price, render_result_html, cache, STATS, response_type
+        )
+        if gold_qp_response:
+            return gold_qp_response
 
-        if category == "gold":
-
-            try:
-
-                price_float = float(str(total_price).replace('$', '').replace(',', ''))
-
-                
-
-                # Try to extract weight from title (common patterns: "5.5g", "5.5 grams", "5.5 gram")
-
-                weight_match = re.search(r'(\d+\.?\d*)\s*(?:g(?:ram)?s?|dwt)\b', title.lower())
-
-                if weight_match:
-
-                    title_weight = float(weight_match.group(1))
-
-                    
-
-                    # Convert dwt to grams if needed
-
-                    if 'dwt' in title.lower():
-
-                        title_weight = title_weight * 1.555
-
-                    
-
-                    if title_weight > 0:
-
-                        price_per_gram = price_float / title_weight
-
-                        
-
-                        # If price > $100/gram, instant PASS (way over scrap value)
-
-                        if price_per_gram > 100:
-
-                            logger.info(f"[QUICK PASS] Gold: ${price_float:.0f} / {title_weight}g = ${price_per_gram:.0f}/gram > $100 - skipping images")
-
-                            
-
-                            quick_result = {
-
-                                'Qualify': 'No',
-
-                                'Recommendation': 'PASS',
-
-                                'reasoning': f"Price ${price_float:.0f} / {title_weight}g = ${price_per_gram:.0f}/gram exceeds $100/gram ceiling (auto-PASS)",
-
-                                'karat': 'Unknown',
-
-                                'weight': f"{title_weight}g",
-
-                                'goldweight': f"{title_weight}",
-
-                                'meltvalue': 'NA',
-
-                                'maxBuy': 'NA',
-
-                                'sellPrice': 'NA',
-
-                                'Profit': 'NA',
-
-                                'Margin': 'NA',
-
-                                'confidence': 60,
-
-                                'fakerisk': 'Low',
-
-                                'itemtype': 'Unknown',
-
-                                'pricePerGram': f"${price_per_gram:.0f}",
-
-                            }
-
-                            
-
-                            html = render_result_html(quick_result, category, title)
-
-                            cache.set(title, total_price, quick_result, html)
-
-                            
-
-                            STATS["pass_count"] += 1
-
-                            logger.info(f"[QUICK PASS] Saved time by skipping images!")
-
-                            
-
-                            if response_type == 'json':
-
-                                return JSONResponse(content=quick_result)
-
-                            return HTMLResponse(content=html)
-
-                            
-
-            except Exception as e:
-
-                logger.debug(f"[QUICK PASS] Gold check error: {e}")
 
         
 
@@ -2354,101 +1470,17 @@ async def analyze_listing(request: Request):
 
                 
 
-                # INSTANT PASS - Don't even run AI (unless best offer is available and close)
-
-                accepts_offers = str(data.get('BestOffer', data.get('bestoffer', ''))).lower() in ['true', 'yes', '1']
-
-
-
-                # Check if this is a near-miss that could work with best offer
-
-                skip_instant_pass = False
-
-                if fast_result.instant_pass and accepts_offers and fast_result.max_buy and not fast_result.is_plated:
-
-                    gap_percent = ((price_float - fast_result.max_buy) / price_float) * 100 if price_float > 0 else 100
-
-                    # Also check for Native American jewelry
-
-                    native_keywords = ['navajo', 'native american', 'zuni', 'hopi', 'squash blossom',
-
-                                      'southwestern', 'turquoise', 'concho', 'old pawn']
-
-                    is_native = any(kw in title.lower() for kw in native_keywords)
-
-                    max_gap = 20 if is_native else 10
-
-
-
-                    if gap_percent <= max_gap:
-
-                        skip_instant_pass = True
-
-                        logger.info(f"[FAST] Skipping instant PASS - best offer available, gap only {gap_percent:.1f}%")
-
-
-
-                if fast_result.instant_pass and not skip_instant_pass:
-
-                    logger.info(f"[FAST] INSTANT PASS: {fast_result.pass_reason}")
-
-
-
-                    quick_result = {
-
-                        'Qualify': 'No',
-
-                        'Recommendation': 'PASS',
-
-                        'reasoning': f"[FAST EXTRACT] {fast_result.pass_reason}",
-
-                        'karat': str(fast_result.karat) + 'K' if fast_result.karat else 'Unknown',
-
-                        'weight': f"{fast_result.weight_grams}g" if fast_result.weight_grams else 'Unknown',
-
-                        'weightSource': fast_result.weight_source,
-
-                        'goldweight': str(fast_result.weight_grams) if fast_result.weight_grams else 'Unknown',
-
-                        'meltvalue': str(int(fast_result.melt_value)) if fast_result.melt_value else 'NA',
-
-                        'maxBuy': str(int(fast_result.max_buy)) if fast_result.max_buy else 'NA',
-
-                        'confidence': fast_result.confidence,
-
-                        'itemtype': 'Plated' if fast_result.is_plated else 'Unknown',
-
-                    }
-
-
-
-                    html = render_result_html(quick_result, category, title)
-
-                    cache.set(title, total_price, quick_result, html, "PASS")
-
-
-
-                    STATS["pass_count"] += 1
-
-                    logger.info(f"[FAST] Saved ALL AI time with instant PASS!")
-
-                    
-
-                    if response_type == 'json':
-
-                        return JSONResponse(content=quick_result)
-
-                    return HTMLResponse(content=html)
-
-                    
+                # Check fast extract instant pass
+                fast_extract_response = check_fast_extract_pass(
+                    fast_result, category, data, total_price, title,
+                    render_result_html, cache, STATS, response_type
+                )
+                if fast_extract_response:
+                    return fast_extract_response
 
             except Exception as e:
-
                 logger.error(f"[FAST] Extraction error: {e}")
-
                 fast_result = None
-
-        
 
         # ============================================================
 
@@ -3956,50 +2988,12 @@ async def analyze_listing(request: Request):
 
             
 
-            # Log total timing breakdown
+            # Build final response
+            return finalize_result(
+                result, html, title, total_price, listing_enhancements,
+                response_type, _timing, _start_time, cache
+            )
 
-            _total_time = _time.time() - _start_time
-
-            _timing['total'] = _total_time
-
-            timing_summary = " | ".join([f"{k}:{v*1000:.0f}ms" for k, v in _timing.items()])
-
-            logger.info(f"[TIMING] TOTAL: {_total_time*1000:.0f}ms | {timing_summary}")
-
-            # Add listing enhancements to result
-            result['freshness_minutes'] = listing_enhancements.get('freshness_minutes')
-            result['freshness_score'] = listing_enhancements.get('freshness_score')
-            result['best_offer'] = listing_enhancements.get('best_offer')
-            result['seller_score'] = listing_enhancements.get('seller_score')
-            result['seller_type'] = listing_enhancements.get('seller_type')
-            result['seller_recommendation'] = listing_enhancements.get('seller_recommendation')
-
-            if listing_enhancements.get('seller_score', 0) >= 70:
-                logger.info(f"[ENHANCEMENTS] HIGH-VALUE SELLER: score={listing_enhancements.get('seller_score')}, type={listing_enhancements.get('seller_type')}")
-
-            # Mark as evaluated to prevent duplicate processing
-            mark_as_evaluated(title, total_price, result)
-
-            # ALWAYS include html in result for uBuyFirst display_template
-            # This ensures JSON response has both column data AND html for display
-            if 'html' not in result:
-                result['html'] = html
-
-            if response_type == 'json':
-
-                # Return JSON with all fields INCLUDING html for display_template
-
-                logger.info("[RESPONSE] Returning JSON (response_type=json) with html field for display")
-
-                return JSONResponse(content=result)
-
-            else:
-
-                # Return pure HTML for display
-
-                logger.info("[RESPONSE] Returning HTML (response_type=html)")
-
-                return HTMLResponse(content=html)
 
             
 
