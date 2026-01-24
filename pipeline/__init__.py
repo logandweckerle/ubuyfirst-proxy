@@ -5,11 +5,10 @@ This module organizes the analysis pipeline into discrete stages:
 - Tier 0: Rule-based fast filtering (no AI cost)
 - Tier 1: Cheap AI assessment (GPT-4o-mini, Gemini Flash)
 - Tier 2: Premium verification (GPT-4o, Claude Sonnet)
-- Orchestrator: Coordinates the tiers
+- Orchestrator: Coordinates the full pipeline
 
 Usage:
-    from pipeline import analyze_listing
-    result = await analyze_listing(data, category)
+    from pipeline.orchestrator import run_analysis, configure_orchestrator
 """
 
 from .tier0 import Tier0Filter
@@ -20,7 +19,7 @@ from .tier2 import (
     tier2_reanalyze,
     tier2_reanalyze_openai,
 )
-from .orchestrator import PipelineOrchestrator
+from .orchestrator import configure_orchestrator, run_analysis
 
 __all__ = [
     'Tier0Filter',
@@ -29,5 +28,6 @@ __all__ = [
     'background_sonnet_verify',
     'tier2_reanalyze',
     'tier2_reanalyze_openai',
-    'PipelineOrchestrator',
+    'configure_orchestrator',
+    'run_analysis',
 ]
