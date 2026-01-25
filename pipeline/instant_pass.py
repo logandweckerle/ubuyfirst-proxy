@@ -9,9 +9,34 @@ Extracted from main.py for better organization.
 
 import re
 import logging
+import asyncio
 from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+# Ollama integration for fallback extraction
+_ollama_module = None
+_ollama_checked = False
+
+def _get_ollama():
+    """Lazy load Ollama module."""
+    global _ollama_module, _ollama_checked
+    if not _ollama_checked:
+        _ollama_checked = True
+        try:
+            from ollama_extract import extract_gold_silver_info, is_available, check_ollama_available
+            _ollama_module = {
+                'extract': extract_gold_silver_info,
+                'is_available': is_available,
+                'check': check_ollama_available,
+            }
+            # Trigger availability check
+            asyncio.create_task(check_ollama_available())
+            logger.info("[OLLAMA] Module loaded for fallback extraction")
+        except ImportError as e:
+            logger.debug(f"[OLLAMA] Not available: {e}")
+            _ollama_module = None
+    return _ollama_module
 
 # Pre-compiled regex patterns for weight extraction
 WEIGHT_PATTERNS = [
@@ -209,6 +234,32 @@ def extract_weight_from_title(title: str, description: str = '') -> tuple:
 
     return None, None
 
+
+async def extract_with_ollama(title: str, description: str = "") -> Tuple[Optional[float], Optional[int]]:
+    """
+    Use Ollama local LLM to extract weight and karat when regex fails.
+
+    Returns (weight_grams, karat) or (None, None) on failure.
+    Takes ~200-400ms on RTX 2070.
+    """
+    ollama = _get_ollama()
+    if not ollama or not ollama['is_available']():
+        return None, None
+
+    try:
+        result = await ollama['extract'](title, description)
+        if result:
+            weight = result.get('weight_grams')
+            karat = result.get('karat')
+            if weight or karat:
+                logger.info(f"[OLLAMA] Extracted: weight={weight}g, karat={karat}K")
+                return weight, karat
+    except Exception as e:
+        logger.debug(f"[OLLAMA] Extraction error: {e}")
+
+    return None, None
+
+
 def extract_karat_from_title(title: str) -> int:
 
     """
@@ -405,8 +456,13 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
     # ============================================================
 
     if category in ['gold', 'silver']:
-
-        stated_weight, weight_source = extract_weight_from_title(title, data.get('description', ''))
+        # Combine all description fields - weight might be in ConditionDescription
+        combined_desc = ' '.join(filter(None, [
+            data.get('description', ''),
+            data.get('Description', ''),
+            data.get('ConditionDescription', ''),
+        ]))
+        stated_weight, weight_source = extract_weight_from_title(title, combined_desc)
 
         if stated_weight and weight_source == "stated":
 
@@ -647,7 +703,13 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
     # is_hot to skip images and use fast model.
     # ============================================================
     if category == 'gold':
-        stated_weight_check, _ = extract_weight_from_title(title, data.get('description', ''))
+        # Combine all description fields for weight extraction
+        combined_desc_gold = ' '.join(filter(None, [
+            data.get('description', ''),
+            data.get('Description', ''),
+            data.get('ConditionDescription', ''),
+        ]))
+        stated_weight_check, _ = extract_weight_from_title(title, combined_desc_gold)
         if not stated_weight_check:
             karat = extract_karat_from_title(title)
             if karat:
@@ -704,7 +766,13 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
         has_high_nonmetal = any(kw in title_lower for kw in high_nonmetal_keywords)
 
         if has_high_nonmetal:
-            stated_weight, _ = extract_weight_from_title(title, data.get('description', ''))
+            # Combine all description fields for weight extraction
+            combined_desc_stone = ' '.join(filter(None, [
+                data.get('description', ''),
+                data.get('Description', ''),
+                data.get('ConditionDescription', ''),
+            ]))
+            stated_weight, _ = extract_weight_from_title(title, combined_desc_stone)
             if not stated_weight:
                 logger.info(f"[JADE/STONE] PASS - High non-metal value item without stated weight: {title[:60]}")
                 return (f"JADE/CARVED STONE: Item valued for stone, not metal. No weight stated - cannot verify metal content.", "PASS")

@@ -224,7 +224,18 @@ from pipeline.instant_pass import (
     extract_weight_from_title,
     extract_karat_from_title,
     configure_instant_pass,
+    extract_with_ollama,
 )
+
+# Ollama local LLM for fast extraction (optional)
+try:
+    from ollama_extract import check_ollama_available, is_available as ollama_is_available
+    OLLAMA_AVAILABLE = True
+    print("[OLLAMA] Module loaded - will check availability on startup")
+except ImportError:
+    OLLAMA_AVAILABLE = False
+    ollama_is_available = lambda: False
+    print("[OLLAMA] Module not available")
 
 # Import path configs from centralized config
 from config import TRAINING_LOG_PATH, PURCHASE_LOG_PATH, API_ANALYSIS_ENABLED, PRICE_OVERRIDES_PATH
@@ -462,6 +473,17 @@ async def lifespan(app_instance: FastAPI):
         logger.info("[TRACKING] Item tracking started - polling for sold items every 5 minutes")
     else:
         logger.info("[TRACKING] Item tracking database ready (polling disabled - no eBay API)")
+
+    # Initialize Ollama local LLM for fast extraction
+    if OLLAMA_AVAILABLE:
+        try:
+            await check_ollama_available()
+            if ollama_is_available():
+                logger.info("[OLLAMA] Local LLM ready for fast extraction (~200-400ms)")
+            else:
+                logger.info("[OLLAMA] Not running - install from ollama.com and run 'ollama pull llama3.2:3b'")
+        except Exception as e:
+            logger.warning(f"[OLLAMA] Init error: {e}")
 
     # Log database path
     logger.info(f"[DB] Database path: {db.path}")

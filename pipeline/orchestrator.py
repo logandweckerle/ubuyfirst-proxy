@@ -502,6 +502,51 @@ async def run_analysis(request: Request):
                 return JSONResponse(content=result)
             return HTMLResponse(content=html)
 
+        # ============================================================
+        # OLLAMA FALLBACK (if instant_pass didn't find weight for gold/silver)
+        # ============================================================
+        if not instant_pass_result and category in ['gold', 'silver']:
+            # Check if we might have weight in ConditionDescription that wasn't found by regex
+            condition_desc = data.get('ConditionDescription', '')
+            if condition_desc and ('gram' in condition_desc.lower() or 'g ' in condition_desc.lower() or 'oz' in condition_desc.lower()):
+                try:
+                    from pipeline.instant_pass import extract_with_ollama
+                    ollama_result = await extract_with_ollama(title, condition_desc)
+                    if ollama_result and ollama_result[0]:  # Found weight via Ollama
+                        weight_grams, karat = ollama_result
+                        logger.info(f"[OLLAMA] Extracted weight={weight_grams}g, karat={karat}K from ConditionDescription")
+                        # Add the discovered weight to the data and re-run instant pass
+                        modified_data = dict(data)
+                        modified_data['_ollama_weight'] = weight_grams
+                        modified_data['_ollama_karat'] = karat
+                        # Append weight to description so instant_pass can find it
+                        modified_data['description'] = f"{data.get('description', '')} {weight_grams} grams"
+                        instant_pass_result = _check_instant_pass(title, total_price, category, modified_data)
+                        if instant_pass_result:
+                            reason = instant_pass_result[0]
+                            rec = instant_pass_result[1]
+                            instant_data = instant_pass_result[2] if len(instant_pass_result) > 2 else {}
+                            is_buy = (rec == "BUY")
+                            logger.info(f"[OLLAMA→INSTANT {rec}] {reason}")
+                            result = {
+                                "Recommendation": rec,
+                                "Qualify": "Yes" if is_buy else "No",
+                                "reasoning": f"OLLAMA→INSTANT {rec}: {reason}",
+                                "confidence": instant_data.get("confidence", 85),
+                                "instantPass": not is_buy,
+                                "instantBuy": is_buy,
+                                "weightSource": "ollama",
+                            }
+                            html = _render_result_html(result, category, title)
+                            result['html'] = html
+                            _cache.set(title, total_price, result, html, rec)
+                            _STATS["pass_count" if not is_buy else "buy_count"] += 1
+                            if response_type == "json":
+                                return JSONResponse(content=result)
+                            return HTMLResponse(content=html)
+                except Exception as e:
+                    logger.debug(f"[OLLAMA] Fallback error: {e}")
+
         # PriceCharting lookup for TCG and LEGO
         pc_result = None
         pc_context = ""
