@@ -17,6 +17,7 @@ __pycache__/
 
 # Claude/AI temp files
 .claude/
+!.claude/skills/
 tmpclaude-*
 
 # Windows
