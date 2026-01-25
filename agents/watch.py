@@ -357,7 +357,7 @@ CRITICAL - NO HALLUCINATED VALUES:
         # === MARKET CAP ENFORCEMENT ===
         # Hard caps on maxBuy based on brand tier and gold content
         import re as _re
-        gold_pattern_check = _re.compile(r'\b(10|14|18|22|24)\s*(k|kt|karat|carat)\b', re.IGNORECASE)
+        gold_pattern_check = _re.compile(r'\b(10|14|18|22|24)\s*(k|kt|karat|carat)\b', _re.IGNORECASE)
         has_gold_cap = response.get("gold", False) or bool(gold_pattern_check.search(title)) or any(
             kw in title for kw in ["solid gold", "gold case", "yellow gold", "rose gold", "white gold"]
         )
