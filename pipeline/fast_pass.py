@@ -152,6 +152,7 @@ def check_pc_quick_pass(pc_result: dict, category: str, title: str,
         })
 
     html = render_result_html_fn(quick_result, category, title)
+    quick_result['html'] = html
     cache.set(title, total_price, quick_result, html)
 
     stats["pass_count"] += 1
@@ -192,6 +193,7 @@ def check_agent_quick_pass(category: str, data: dict, total_price: str,
             'itemtype': 'Unknown',
         }
         html = render_result_html_fn(quick_result, category, title)
+        quick_result['html'] = html
         cache.set(title, total_price, quick_result, html)
         stats["pass_count"] += 1
 
@@ -227,6 +229,7 @@ async def check_textbook(category: str, data: dict, total_price: str, title: str
         logger.info(f"[TEXTBOOK] Result: {textbook_result.get('Recommendation', 'UNKNOWN')} - {textbook_result.get('reasoning', '')[:80]}")
 
         html = render_result_html_fn(textbook_result, category, title)
+        textbook_result['html'] = html
         cache.set(title, total_price, textbook_result, html)
 
         if textbook_result.get('Recommendation') == 'BUY':
@@ -293,6 +296,7 @@ def check_gold_price_per_gram(category: str, title: str, total_price: str,
         }
 
         html = render_result_html_fn(quick_result, category, title)
+        quick_result['html'] = html
         cache.set(title, total_price, quick_result, html)
 
         stats["pass_count"] += 1
@@ -356,6 +360,7 @@ def check_fast_extract_pass(fast_result: Any, category: str, data: dict,
     }
 
     html = render_result_html_fn(quick_result, category, title)
+    quick_result['html'] = html
     cache.set(title, total_price, quick_result, html, "PASS")
 
     stats["pass_count"] += 1
@@ -405,6 +410,7 @@ def check_lazy_image_skip(fast_result: Any, category: str, price_float: float,
     }
 
     html = render_result_html_fn(quick_result, category, title)
+    quick_result['html'] = html
     cache.set(title, total_price, quick_result, html, "PASS")
     stats["pass_count"] += 1
 

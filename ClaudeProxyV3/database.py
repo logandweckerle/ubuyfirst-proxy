@@ -143,7 +143,26 @@ class Database:
                 alias TEXT
             )
         """)
-        
+
+        # Feedback table for learning loop
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                listing_id TEXT,
+                item_id TEXT,
+                title TEXT,
+                listing_price REAL,
+                category TEXT,
+                recommendation TEXT,
+                action TEXT,
+                actual_sell_price REAL,
+                profit_realized REAL,
+                notes TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(listing_id, action)
+            )
+        """)
+
         self.conn.commit()
     
     def execute(self, query: str, params: tuple = ()) -> sqlite3.Cursor:
@@ -544,6 +563,90 @@ def get_db_debug_info() -> Dict[str, Any]:
         }
     except Exception as e:
         return {"error": str(e), "database_path": db.path}
+
+
+# ============================================================
+# FEEDBACK / LEARNING LOOP
+# ============================================================
+
+def save_feedback(listing_id: str, item_id: str = None, title: str = None,
+                  listing_price: float = None, category: str = None,
+                  recommendation: str = None, action: str = None,
+                  actual_sell_price: float = None, notes: str = None):
+    """
+    Save feedback for a listing outcome.
+
+    Actions: 'bought', 'skipped', 'missed', 'returned'
+    """
+    try:
+        profit = (actual_sell_price - listing_price) if (actual_sell_price and listing_price) else None
+        db.execute("""
+            INSERT OR REPLACE INTO feedback
+            (listing_id, item_id, title, listing_price, category, recommendation,
+             action, actual_sell_price, profit_realized, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (listing_id, item_id, title, listing_price, category, recommendation,
+              action, actual_sell_price, profit, notes))
+        db.commit()
+        logger.info(f"[FEEDBACK] Saved: {action} | {title[:40] if title else 'N/A'}... | profit: {profit}")
+    except Exception as e:
+        logger.error(f"[FEEDBACK] Error saving: {e}")
+
+
+def get_feedback_stats() -> Dict[str, Any]:
+    """Get aggregate feedback statistics."""
+    try:
+        rows = db.fetchall("""
+            SELECT action, COUNT(*) as cnt,
+                   AVG(profit_realized) as avg_profit,
+                   SUM(profit_realized) as total_profit
+            FROM feedback
+            GROUP BY action
+        """)
+        stats = {}
+        for row in rows:
+            row_dict = dict(row)
+            stats[row_dict['action']] = {
+                "count": row_dict['cnt'],
+                "avg_profit": row_dict['avg_profit'],
+                "total_profit": row_dict['total_profit'],
+            }
+
+        total = db.fetchone("SELECT COUNT(*) as cnt FROM feedback")
+        stats['total_entries'] = total['cnt'] if total else 0
+        return stats
+    except Exception as e:
+        logger.error(f"[FEEDBACK] Error getting stats: {e}")
+        return {}
+
+
+def get_feedback_by_category() -> Dict[str, Any]:
+    """Get feedback stats grouped by category."""
+    try:
+        rows = db.fetchall("""
+            SELECT category, action, COUNT(*) as cnt,
+                   AVG(profit_realized) as avg_profit,
+                   SUM(profit_realized) as total_profit
+            FROM feedback
+            WHERE category IS NOT NULL
+            GROUP BY category, action
+            ORDER BY category, action
+        """)
+        result = {}
+        for row in rows:
+            row_dict = dict(row)
+            cat = row_dict['category']
+            if cat not in result:
+                result[cat] = {}
+            result[cat][row_dict['action']] = {
+                "count": row_dict['cnt'],
+                "avg_profit": row_dict['avg_profit'],
+                "total_profit": row_dict['total_profit'],
+            }
+        return result
+    except Exception as e:
+        logger.error(f"[FEEDBACK] Error getting category stats: {e}")
+        return {}
 
 
 # ============================================================

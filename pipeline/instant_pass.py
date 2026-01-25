@@ -42,6 +42,76 @@ KARAT_PATTERNS = [
     (re.compile(r'375'), 9),
 ]
 
+# Chain type weight estimation (grams per inch for 14K)
+HEAVY_CHAIN_TYPES = {
+    'byzantine': 2.5,
+    'miami cuban': 2.5,
+    'cuban link': 2.0,
+    'cuban': 2.0,
+    'rope': 1.5,
+    'herringbone': 1.5,
+    'franco': 1.8,
+    'figaro': 1.2,
+    'mariner': 1.2,
+    'anchor': 1.0,
+    'wheat': 1.0,
+    'snake': 1.0,
+    'box chain': 0.8,
+}
+
+# Length extraction patterns
+LENGTH_PATTERNS = [
+    re.compile(r'(\d+)\s*(?:1/2|\.5)\s*(?:inch|in(?:ch)?|")', re.IGNORECASE),
+    re.compile(r'(\d+)\s*(?:inch|in(?:ch)?|")', re.IGNORECASE),
+]
+
+
+def estimate_chain_weight(title: str) -> tuple:
+    """
+    Estimate weight for heavy chain types based on chain type and length.
+    Returns (estimated_weight_grams, chain_type, length_inches) or (None, None, None).
+
+    Only for gold items without stated weight. Uses conservative estimates.
+    """
+    title_lower = title.lower()
+
+    # Detect chain type (check longer patterns first to avoid partial matches)
+    detected_type = None
+    grams_per_inch = 0
+    for chain_type in sorted(HEAVY_CHAIN_TYPES.keys(), key=len, reverse=True):
+        if chain_type in title_lower:
+            detected_type = chain_type
+            grams_per_inch = HEAVY_CHAIN_TYPES[chain_type]
+            break
+
+    if not detected_type:
+        return None, None, None
+
+    # Extract length
+    length_inches = None
+    for pattern in LENGTH_PATTERNS:
+        match = pattern.search(title_lower)
+        if match:
+            length_inches = float(match.group(1))
+            # Check for "1/2" in the matched text
+            full_match = match.group(0)
+            if '1/2' in full_match or '.5' in full_match:
+                length_inches += 0.5
+            break
+
+    if not length_inches:
+        # Default lengths based on item type
+        if 'bracelet' in title_lower:
+            length_inches = 7.5
+        elif 'necklace' in title_lower or 'chain' in title_lower:
+            length_inches = 20  # Conservative necklace default
+        else:
+            return None, None, None
+
+    estimated_weight = grams_per_inch * length_inches
+    return estimated_weight, detected_type, length_inches
+
+
 # Module configuration
 _config = {
     'instant_pass_keywords': [],
@@ -418,11 +488,42 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
 
                                 logger.info(f"[INSTANT] PASS - overpriced: {stated_weight}g {karat}K @ ${price_float:.0f}")
 
-                                return (f"OVERPRICED: {stated_weight}g {karat}K = ${melt_value:.0f} melt, max buy ${max_buy:.0f}, listing ${price_float:.0f} = ${margin:.0f} loss", "PASS")
+                                return (f"OVERPRICED: {stated_weight}g {karat}K = ${melt_value:.0f} melt, max buy ${max_buy:.0f}, listing ${price_float:.0f} = ${margin:.0f} loss", "PASS", {
+                                    "karat": f"{karat}K", "weight": str(stated_weight),
+                                    "goldweight": str(stated_weight), "meltvalue": str(int(melt_value)),
+                                    "maxBuy": str(int(max_buy)), "sellPrice": str(int(melt_value * 0.96)),
+                                    "listingPrice": str(int(price_float)), "Profit": str(int(margin)),
+                                })
 
-                        # Don't instant BUY - let AI verify authenticity
+                        # Check if margin is strong enough for instant BUY
+                        margin = max_buy - price_float
+                        margin_pct = (margin / price_float * 100) if price_float > 0 else 0
 
-                        logger.info(f"[INSTANT] Weight check OK: {stated_weight}g {karat}K @ ${price_float:.0f} - margin ${max_buy - price_float:.0f}")
+                        if margin_pct >= 30 and margin >= 20:
+                            # Strong margin on stated weight - instant BUY
+                            logger.info(f"[INSTANT BUY] Gold: {stated_weight}g {karat}K = ${melt_value:.0f} melt, listing ${price_float:.0f}, margin +${margin:.0f} ({margin_pct:.0f}%)")
+                            return (
+                                f"INSTANT BUY: {stated_weight}g {karat}K = ${melt_value:.0f} melt, max buy ${max_buy:.0f}, listing ${price_float:.0f} = +${margin:.0f} ({margin_pct:.0f}%)",
+                                "BUY",
+                                {
+                                    "karat": f"{karat}K",
+                                    "weight": str(stated_weight),
+                                    "goldweight": str(stated_weight),
+                                    "meltvalue": str(int(melt_value)),
+                                    "maxBuy": str(int(max_buy)),
+                                    "sellPrice": str(int(melt_value * 0.96)),
+                                    "listingPrice": str(int(price_float)),
+                                    "Profit": f"+{int(margin)}",
+                                    "Margin": f"+{int(margin)}",
+                                    "confidence": 90,
+                                    "weightSource": "stated",
+                                    "verified": "rule-based-instant",
+                                    "instantBuy": True,
+                                }
+                            )
+
+                        # Margin exists but not strong enough for instant BUY - let AI verify
+                        logger.info(f"[INSTANT] Weight check OK: {stated_weight}g {karat}K @ ${price_float:.0f} - margin ${margin:.0f} ({margin_pct:.0f}%) - needs AI verification")
 
                 elif category == 'silver':
 
@@ -430,7 +531,19 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
 
                     rate = spots.get('sterling', 0.89)
 
-                    melt_value = stated_weight * rate
+                    # WEIGHTED STERLING: Only ~15% of total weight is actual silver
+                    # (rest is cement/plaster/plite filler in base)
+                    weighted_keywords = ['weighted', 'reinforced', 'filled base', 'cement filled',
+                                        'weighted base', 'loaded', 'pedestal', 'candlestick',
+                                        'candelabra', 'compote']
+                    is_weighted = any(kw in title_lower for kw in weighted_keywords)
+
+                    if is_weighted:
+                        actual_silver_weight = stated_weight * 0.15  # Only 15% is silver
+                        melt_value = actual_silver_weight * rate
+                        logger.info(f"[WEIGHTED] Adjusted: {stated_weight}g total -> {actual_silver_weight:.1f}g actual silver")
+                    else:
+                        melt_value = stated_weight * rate
 
                     max_buy = melt_value * 0.70  # 70% of melt for silver
 
@@ -470,9 +583,95 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
 
                         else:
 
-                            logger.info(f"[INSTANT] PASS - silver overpriced: {stated_weight}g @ ${price_float:.0f}")
+                            if is_weighted:
+                                logger.info(f"[INSTANT] PASS - weighted silver overpriced: {stated_weight}g total ({actual_silver_weight:.1f}g silver) @ ${price_float:.0f}")
+                                return (f"OVERPRICED WEIGHTED: {stated_weight}g total = ~{actual_silver_weight:.0f}g silver = ${melt_value:.2f} melt, listing ${price_float:.0f} = loss", "PASS", {
+                                    "karat": "925", "weight": str(stated_weight),
+                                    "silverweight": f"{actual_silver_weight:.1f}",
+                                    "meltvalue": str(int(melt_value)),
+                                    "maxBuy": str(int(max_buy)), "sellPrice": str(int(melt_value * 0.82)),
+                                    "listingPrice": str(int(price_float)), "Profit": str(int(max_buy - price_float)),
+                                    "itemtype": "Weighted Sterling (15%)",
+                                })
+                            else:
+                                logger.info(f"[INSTANT] PASS - silver overpriced: {stated_weight}g @ ${price_float:.0f}")
+                                return (f"OVERPRICED: {stated_weight}g sterling = ${melt_value:.2f} melt, listing ${price_float:.0f} = loss", "PASS", {
+                                    "karat": "925", "weight": str(stated_weight),
+                                    "silverweight": str(stated_weight), "meltvalue": str(int(melt_value)),
+                                    "maxBuy": str(int(max_buy)), "sellPrice": str(int(melt_value * 0.82)),
+                                    "listingPrice": str(int(price_float)), "Profit": str(int(max_buy - price_float)),
+                                    "itemtype": "Sterling Silver",
+                                })
 
-                            return (f"OVERPRICED: {stated_weight}g sterling = ${melt_value:.2f} melt, listing ${price_float:.0f} = loss", "PASS")
+                    else:
+                        # Price is below max_buy - check for instant BUY
+                        margin = max_buy - price_float
+                        margin_pct = (margin / price_float * 100) if price_float > 0 else 0
+
+                        # Skip instant BUY for weighted items - let AI analyze
+                        if is_weighted:
+                            actual_silver_weight = stated_weight * 0.15
+                            logger.info(f"[INSTANT] Weighted silver - letting AI analyze: {stated_weight}g total (~{actual_silver_weight:.0f}g silver) @ ${price_float:.0f}")
+                            # Fall through to AI
+                        elif margin_pct >= 25 and margin >= 15:
+                            # Strong margin on stated weight - instant BUY
+                            logger.info(f"[INSTANT BUY] Silver: {stated_weight}g sterling = ${melt_value:.0f} melt, listing ${price_float:.0f}, margin +${margin:.0f} ({margin_pct:.0f}%)")
+                            return (
+                                f"INSTANT BUY: {stated_weight}g sterling = ${melt_value:.2f} melt, max buy ${max_buy:.0f}, listing ${price_float:.0f} = +${margin:.0f} ({margin_pct:.0f}%)",
+                                "BUY",
+                                {
+                                    "karat": "925",
+                                    "weight": str(stated_weight),
+                                    "silverweight": str(stated_weight),
+                                    "meltvalue": str(int(melt_value)),
+                                    "maxBuy": str(int(max_buy)),
+                                    "sellPrice": str(int(melt_value * 0.82)),
+                                    "listingPrice": str(int(price_float)),
+                                    "Profit": f"+{int(margin)}",
+                                    "Margin": f"+{int(margin)}",
+                                    "confidence": 85,
+                                    "weightSource": "stated",
+                                    "verified": "rule-based-instant",
+                                    "instantBuy": True,
+                                    "itemtype": "Sterling Silver",
+                                }
+                            )
+
+                        # Margin exists but not strong enough - let AI verify
+                        logger.info(f"[INSTANT] Silver weight check OK: {stated_weight}g @ ${price_float:.0f} - margin ${margin:.0f} ({margin_pct:.0f}%) - needs AI verification")
+
+    # ============================================================
+    # GOLD CHAIN WEIGHT HEURISTIC (no stated weight)
+    # For heavy chain types (byzantine, cuban, etc.) we can estimate weight
+    # from chain type + length. Don't instant BUY (estimated), but flag as
+    # is_hot to skip images and use fast model.
+    # ============================================================
+    if category == 'gold':
+        stated_weight_check, _ = extract_weight_from_title(title, data.get('description', ''))
+        if not stated_weight_check:
+            karat = extract_karat_from_title(title)
+            if karat:
+                est_weight, chain_type, length = estimate_chain_weight(title)
+                if est_weight and est_weight > 5:  # Only substantial estimates
+                    spots = get_spot_prices()
+                    rate = spots.get(f"{karat}K", spots.get('14K', 50))
+                    est_melt = est_weight * rate
+                    est_max_buy = est_melt * 0.90  # Conservative 90% for estimates
+                    margin = est_max_buy - price_float
+                    margin_pct = (margin / price_float * 100) if price_float > 0 else 0
+
+                    if margin_pct >= 100:  # 2x+ estimated return = hot
+                        logger.info(f"[HEURISTIC] HOT: {chain_type} ~{length}in {karat}K = est {est_weight:.0f}g, est melt ${est_melt:.0f}, listing ${price_float:.0f}, margin {margin_pct:.0f}%")
+                        if '_heuristic' not in data:
+                            data['_heuristic'] = {}
+                        data['_heuristic']['is_hot'] = True
+                        data['_heuristic']['chain_type'] = chain_type
+                        data['_heuristic']['est_weight'] = est_weight
+                        data['_heuristic']['est_melt'] = est_melt
+                        data['_heuristic']['est_margin'] = margin
+                        # Don't return - let AI verify, but orchestrator will skip images
+                    elif margin_pct >= 30:
+                        logger.info(f"[HEURISTIC] Promising: {chain_type} ~{length}in {karat}K = est {est_weight:.0f}g, margin {margin_pct:.0f}%")
 
     # ============================================================
     # CARVED STONE INSTANT PASS - "Carved [stone]" items

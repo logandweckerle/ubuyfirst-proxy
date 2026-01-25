@@ -661,3 +661,64 @@ async def purchases_page():
         return HTMLResponse(content=html)
     except Exception as e:
         return HTMLResponse(content=f"<h1>Error</h1><p>{str(e)}</p>")
+
+
+# ============================================================
+# FEEDBACK / LEARNING LOOP
+# ============================================================
+
+@router.post("/api/feedback")
+async def post_feedback(request: Request):
+    """
+    Record feedback on a listing outcome.
+
+    Body JSON:
+        listing_id: str - listing identifier
+        item_id: str (optional) - eBay item ID
+        title: str (optional) - listing title
+        listing_price: float (optional) - price at time of listing
+        category: str (optional) - gold/silver/videogames/etc
+        recommendation: str (optional) - what the system recommended
+        action: str (required) - 'bought', 'skipped', 'missed', 'returned'
+        actual_sell_price: float (optional) - what it sold for
+        notes: str (optional) - freeform notes
+    """
+    try:
+        from database import save_feedback
+        data = await request.json()
+
+        action = data.get("action")
+        if not action:
+            return JSONResponse({"error": "action field required"}, status_code=400)
+        if action not in ('bought', 'skipped', 'missed', 'returned'):
+            return JSONResponse({"error": f"Invalid action: {action}. Must be bought/skipped/missed/returned"}, status_code=400)
+
+        save_feedback(
+            listing_id=data.get("listing_id", ""),
+            item_id=data.get("item_id"),
+            title=data.get("title"),
+            listing_price=data.get("listing_price"),
+            category=data.get("category"),
+            recommendation=data.get("recommendation"),
+            action=action,
+            actual_sell_price=data.get("actual_sell_price"),
+            notes=data.get("notes"),
+        )
+        return {"status": "ok", "action": action}
+    except Exception as e:
+        logger.error(f"[FEEDBACK] Endpoint error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@router.get("/api/feedback/stats")
+async def get_feedback_stats_endpoint():
+    """Get aggregate feedback statistics."""
+    try:
+        from database import get_feedback_stats, get_feedback_by_category
+        return {
+            "overall": get_feedback_stats(),
+            "by_category": get_feedback_by_category(),
+        }
+    except Exception as e:
+        logger.error(f"[FEEDBACK] Stats error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)

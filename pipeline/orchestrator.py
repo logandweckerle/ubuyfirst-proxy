@@ -419,6 +419,7 @@ async def run_analysis(request: Request):
         )
         if user_price_result:
             result, html = user_price_result
+            result['html'] = html
             if response_type == "json":
                 return JSONResponse(content=result)
             else:
@@ -429,21 +430,74 @@ async def run_analysis(request: Request):
         # ============================================================
         instant_pass_result = _check_instant_pass(title, total_price, category, data)
         if instant_pass_result:
-            reason, rec = instant_pass_result
-            logger.info(f"[INSTANT PASS] {reason}")
+            reason = instant_pass_result[0]
+            rec = instant_pass_result[1]  # "PASS" or "BUY"
+            instant_data = instant_pass_result[2] if len(instant_pass_result) > 2 else {}
+            is_buy = (rec == "BUY")
+            logger.info(f"[INSTANT {'BUY' if is_buy else 'PASS'}] {reason}")
             result = {
-                "Recommendation": "PASS", "Qualify": "No",
-                "reasoning": f"INSTANT PASS: {reason}", "confidence": 95,
-                "instantPass": True, "karat": "NA", "weight": "NA",
+                "Recommendation": rec,
+                "Qualify": "Yes" if is_buy else "No",
+                "reasoning": f"INSTANT {rec}: {reason}",
+                "confidence": instant_data.get("confidence", 95),
+                "instantPass": not is_buy,
+                "instantBuy": is_buy,
+                "karat": "NA", "weight": "NA",
                 "goldweight": "NA", "silverweight": "NA", "meltvalue": "NA",
                 "maxBuy": "NA", "sellPrice": "NA", "Profit": "NA",
-                "Margin": "NA", "pricePerGram": "NA", "fakerisk": "NA",
+                "Margin": "NA", "pricePerGram": "NA",
+                "fakerisk": "low" if is_buy else "NA",
                 "itemtype": "NA", "stoneDeduction": "0",
                 "weightSource": "NA", "verified": "rule-based",
             }
+            # Override NA values with real calculated data when available
+            if instant_data:
+                result.update(instant_data)
+                if 'weightSource' not in instant_data:
+                    result['weightSource'] = 'stated'
             html = _render_result_html(result, category, title)
-            _cache.set(title, total_price, result, html, "PASS")
-            _STATS["pass_count"] += 1
+            result['html'] = html
+            _cache.set(title, total_price, result, html, rec)
+
+            # Update correct stat counter
+            if is_buy:
+                _STATS["buy_count"] += 1
+            else:
+                _STATS["pass_count"] += 1
+
+            # Send Discord alert for instant BUY
+            if is_buy and _send_discord_alert:
+                try:
+                    price_float = float(str(total_price).replace('$', '').replace(',', ''))
+                    ebay_url_alert = data.get('ViewUrl', data.get('CheckoutUrl', ''))
+                    if not ebay_url_alert and _get_ebay_search_url:
+                        ebay_url_alert = _get_ebay_search_url(title)
+                    first_image = None
+                    raw_imgs = data.get('images', data.get('PictureURL', []))
+                    if isinstance(raw_imgs, str):
+                        raw_imgs = [raw_imgs]
+                    for img in (raw_imgs or []):
+                        if isinstance(img, str) and img.startswith('http'):
+                            first_image = img
+                            break
+                        elif isinstance(img, dict):
+                            url = img.get('url', img.get('URL', ''))
+                            if url.startswith('http'):
+                                first_image = url
+                                break
+                    profit_val = float(str(instant_data.get('Profit', '0')).replace('$', '').replace('+', ''))
+                    asyncio.create_task(_send_discord_alert(
+                        title=title, price=price_float,
+                        recommendation="BUY", category=category,
+                        profit=profit_val,
+                        reasoning=reason, ebay_url=ebay_url_alert,
+                        image_url=first_image,
+                        confidence=str(instant_data.get('confidence', 90)),
+                        extra_data={"instant_buy": True, "source": "rule-based"},
+                    ))
+                except Exception as e:
+                    logger.error(f"[DISCORD] Instant BUY alert error: {e}")
+
             if response_type == "json":
                 return JSONResponse(content=result)
             return HTMLResponse(content=html)
@@ -670,8 +724,14 @@ async def run_analysis(request: Request):
                 needs_images_for_tier1 = True
                 logger.info(f"[LAZY] Need images: has non-metal ({fast_result.non_metal_type})")
             elif fast_result.weight_grams is None:
-                needs_images_for_tier1 = True
-                logger.info(f"[LAZY] Need images: no weight in title")
+                # Check if heuristic flagged this as hot (heavy chain type)
+                is_heuristic_hot = data.get('_heuristic', {}).get('is_hot', False)
+                if is_heuristic_hot:
+                    # Skip images for heuristic hot items - chain type estimation is enough
+                    logger.info(f"[HEURISTIC] Skipping images for hot {data['_heuristic']['chain_type']} chain (est {data['_heuristic']['est_weight']:.0f}g)")
+                else:
+                    needs_images_for_tier1 = True
+                    logger.info(f"[LAZY] Need images: no weight in title")
             elif fast_result.weight_source == 'estimate':
                 needs_images_for_tier1 = True
                 logger.info(f"[LAZY] Need images: weight is estimated")
@@ -693,6 +753,7 @@ async def run_analysis(request: Request):
                     'category': category,
                 }
                 html = _render_result_html(quick_result, category, title)
+                quick_result['html'] = html
                 _cache.set(title, total_price, quick_result, html, "PASS")
                 _STATS["pass_count"] += 1
                 _timing['total'] = _time.time() - _start_time
@@ -1523,6 +1584,10 @@ async def run_analysis(request: Request):
                 "reasoning": f"Parse error - manual review needed",
                 "confidence": "Low"
             }
+            try:
+                error_result['html'] = _render_result_html(error_result, category, title)
+            except Exception:
+                pass
             return JSONResponse(content=error_result)
 
     except Exception as e:
@@ -1532,4 +1597,8 @@ async def run_analysis(request: Request):
             "Qualify": "No", "Recommendation": "ERROR",
             "reasoning": f"Error: {str(e)[:50]}"
         }
+        try:
+            error_result['html'] = _render_result_html(error_result, locals().get('category', 'unknown'), locals().get('title', ''))
+        except Exception:
+            pass
         return JSONResponse(content=error_result)

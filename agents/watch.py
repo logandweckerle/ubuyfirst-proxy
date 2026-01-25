@@ -241,6 +241,13 @@ RULES:
 - Negative Margin = PASS
 - Premium brands = default RESEARCH
 - confidence must be NUMBER 0-100
+
+CRITICAL - NO HALLUCINATED VALUES:
+- If you cannot cite specific comparable sales or verified reference prices for this exact model, set confidence to 40 and Recommendation to RESEARCH
+- Do NOT estimate market values without evidence. Use 0 for marketprice if unknown
+- NEVER set marketprice above 3x listing price unless you cite specific comparable model references
+- For unknown/obscure brands, assume marketprice equals listing price unless you have evidence otherwise
+- "I think it might be worth..." is NOT evidence. You need actual sold comparables or known model pricing
 """
 
     def validate_response(self, response: dict, data: dict = None) -> dict:
@@ -305,5 +312,94 @@ RULES:
         if market_price > 500 and rec == "BUY":
             response["Recommendation"] = "RESEARCH"
             response["reasoning"] = response.get("reasoning", "") + f" | SERVER: High-value watch (${market_price}) - requires manual verification."
+            rec = "RESEARCH"
+
+        # === HALLUCINATION GUARD ===
+        # If AI claims marketprice > 3x listing price with low confidence = likely hallucinated
+        confidence_val = 50
+        try:
+            conf = response.get("confidence", 50)
+            confidence_val = int(conf) if isinstance(conf, (int, float)) else int(str(conf).replace('%', '') or 50)
+        except (ValueError, TypeError):
+            confidence_val = 50
+
+        rec = response.get("Recommendation", rec)  # Re-read in case changed above
+
+        if market_price > 0 and listing_price > 0:
+            price_ratio = market_price / listing_price
+            if price_ratio > 3.0 and confidence_val < 85 and rec == "BUY":
+                response["Recommendation"] = "RESEARCH"
+                response["reasoning"] = response.get("reasoning", "") + f" | SERVER: Market ${market_price:.0f} is {price_ratio:.1f}x listing ${listing_price:.0f} with confidence {confidence_val}% - likely hallucinated."
+                response["hallucination_guard"] = True
+                rec = "RESEARCH"
+
+        # === ENTRY-LEVEL BRAND BLOCK ===
+        is_entry = any(eb in brand for eb in self.ENTRY_BRANDS) or any(eb in title for eb in self.ENTRY_BRANDS)
+        if is_entry and rec == "BUY":
+            response["Recommendation"] = "RESEARCH"
+            response["reasoning"] = response.get("reasoning", "") + " | SERVER: Entry-level brand - needs manual verification."
+            rec = "RESEARCH"
+
+        # === NO-REFERENCE DETECTION ===
+        # If reasoning doesn't cite comparable sales and this isn't a known valuable brand
+        reasoning_text = response.get("reasoning", "").lower()
+        has_reference = any(term in reasoning_text for term in [
+            "comparable", "comps", "sold for", "sells for", "market value",
+            "chrono24", "watchrecon", "ebay sold", "similar models sell",
+            "typically sell", "valued at", "reference price"
+        ])
+        if not has_reference and rec == "BUY" and not is_valuable_brand:
+            response["Recommendation"] = "RESEARCH"
+            response["confidence"] = min(40, confidence_val)
+            response["reasoning"] = response.get("reasoning", "") + " | SERVER: No comparable sales cited - forcing RESEARCH."
+            rec = "RESEARCH"
+
+        # === MARKET CAP ENFORCEMENT ===
+        # Hard caps on maxBuy based on brand tier and gold content
+        import re as _re
+        gold_pattern_check = _re.compile(r'\b(10|14|18|22|24)\s*(k|kt|karat|carat)\b', re.IGNORECASE)
+        has_gold_cap = response.get("gold", False) or bool(gold_pattern_check.search(title)) or any(
+            kw in title for kw in ["solid gold", "gold case", "yellow gold", "rose gold", "white gold"]
+        )
+        is_filled = "gold filled" in title or "gold-filled" in title or response.get("karat", "").lower() == "gold-filled" or any(
+            fb in title for fb in self.FILLED_BRANDS
+        )
+        is_unknown_brand = not is_premium and not is_mid_tier and not is_entry
+
+        rec = response.get("Recommendation", rec)
+        max_buy_val = 0
+        try:
+            max_buy_val = float(str(response.get("maxBuy", 0)).replace("$", "").replace(",", "") or 0)
+        except (ValueError, TypeError):
+            pass
+
+        if rec in ("BUY", "RESEARCH") and max_buy_val > 0:
+            cap = None
+            cap_reason = ""
+
+            if is_filled:
+                cap = 30
+                cap_reason = "Gold-filled (minimal gold content)"
+            elif is_unknown_brand and not has_gold_cap:
+                cap = 50
+                cap_reason = "Unknown brand, no gold"
+            elif is_entry and not has_gold_cap:
+                cap = 75
+                cap_reason = "Entry-level brand, no gold"
+            elif not is_premium and not is_mid_tier and not has_gold_cap:
+                cap = 150
+                cap_reason = "Non-premium, no gold"
+
+            if cap and max_buy_val > cap:
+                response["maxBuy"] = str(cap)
+                response["reasoning"] = response.get("reasoning", "") + f" | SERVER CAP: Max buy capped at ${cap} ({cap_reason}). AI suggested ${max_buy_val:.0f}."
+                new_margin = cap - listing_price
+                if new_margin < 0:
+                    response["Recommendation"] = "PASS"
+                    response["Margin"] = str(int(new_margin))
+                    response["Profit"] = str(int(new_margin))
+                else:
+                    response["Margin"] = str(int(new_margin))
+                    response["Profit"] = f"+{int(new_margin)}"
 
         return response
