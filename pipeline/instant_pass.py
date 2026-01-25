@@ -39,13 +39,18 @@ def _get_ollama():
     return _ollama_module
 
 # Pre-compiled regex patterns for weight extraction
+# IMPORTANT: Word boundaries \b prevent matching years like "1997" as "1997g"
+# when followed by words starting with 'g'
 WEIGHT_PATTERNS = [
-    re.compile(r'(\d*\.?\d+)\s*(?:gram|grams|gr)', re.IGNORECASE),
-    re.compile(r'(\d*\.?\d+)\s*g', re.IGNORECASE),
-    re.compile(r'(\d*\.?\d+)\s*(?:dwt|DWT)', re.IGNORECASE),
-    re.compile(r'(\d*\.?\d+)\s*(?:ozt|oz\.t|troy\s*oz)', re.IGNORECASE),
-    re.compile(r'(\d*\.?\d+)\s*oz', re.IGNORECASE),
+    re.compile(r'(\d*\.?\d+)\s*(?:gram|grams|gr)\b', re.IGNORECASE),
+    re.compile(r'(\d*\.?\d+)\s*g\b', re.IGNORECASE),  # Added \b to prevent false matches
+    re.compile(r'(\d*\.?\d+)\s*(?:dwt|DWT)\b', re.IGNORECASE),
+    re.compile(r'(\d*\.?\d+)\s*(?:ozt|oz\.t|troy\s*oz)\b', re.IGNORECASE),
+    re.compile(r'(\d*\.?\d+)\s*oz\b', re.IGNORECASE),
 ]
+
+# Years that should NOT be treated as weights (1900-2030)
+YEAR_RANGE = range(1900, 2031)
 
 # Fractional oz patterns
 FRACTION_OZT_PATTERN = re.compile(r'(\d+)/(\d+)\s*(?:ozt|oz\.t|troy\s*oz)', re.IGNORECASE)
@@ -218,8 +223,16 @@ def extract_weight_from_title(title: str, description: str = '') -> tuple:
     for pattern in WEIGHT_PATTERNS:
         match = pattern.search(combined_text)
         if match:
-            weight = float(match.group(1))
+            raw_weight = float(match.group(1))
             matched_text = match.group(0).lower()
+
+            # YEAR CHECK: Reject numbers that look like years (1900-2030)
+            # These are often in titles like "1997 NFC Champions" and shouldn't be weights
+            if int(raw_weight) in YEAR_RANGE and raw_weight == int(raw_weight):
+                logger.debug(f"[WEIGHT] Skipping year-like number: {int(raw_weight)}")
+                continue  # Try next pattern
+
+            weight = raw_weight
 
             # Convert to grams based on the MATCHED unit
             if 'dwt' in matched_text:
@@ -316,6 +329,98 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
         price_float = 0
 
     # ============================================================
+    # ADAPTIVE RULES (Learned from Tier2 corrections)
+    # ============================================================
+    try:
+        from utils.adaptive_rules import check_learned_pattern
+        adaptive_result = check_learned_pattern(title_normalized, category, price_float)
+        if adaptive_result and adaptive_result.get("action") == "PASS":
+            logger.info(f"[ADAPTIVE] PASS - {adaptive_result.get('reason', 'learned pattern')}")
+            return (adaptive_result.get("reason", "Adaptive rule match"), "PASS")
+    except Exception as e:
+        logger.debug(f"[ADAPTIVE] Check failed: {e}")
+
+    # ============================================================
+    # CATEGORY-BASED INSTANT PASS (Filter noise from broad searches)
+    # ============================================================
+    category_name = str(data.get('CategoryName', '')).lower().replace('+', ' ')
+
+    # Fashion Jewelry - NOT real precious metal, instant PASS
+    if 'fashion jewelry' in category_name or 'fashion+jewelry' in category_name.replace(' ', '+'):
+        logger.info(f"[INSTANT] PASS - Fashion Jewelry category (not precious metal)")
+        return ("Fashion Jewelry category - not real precious metal", "PASS")
+
+    # Non-jewelry categories that slip through
+    noise_categories = ['tapestries', 'tapestry', 'toys', 'educational', 'rugs', 'linens', 'textiles',
+                        'display stands', 'jewelry boxes', 'storage', 'craft supplies', 'beads']
+    for noise in noise_categories:
+        if noise in category_name:
+            logger.info(f"[INSTANT] PASS - Non-jewelry category: {noise}")
+            return (f"Non-jewelry category ({noise})", "PASS")
+
+    # ============================================================
+    # BRAND-BASED INSTANT PASS (Overpriced relative to melt)
+    # ============================================================
+    # Pandora - branded silver, always priced way above melt
+    if 'pandora' in title_lower:
+        logger.info(f"[INSTANT] PASS - Pandora branded item (priced for brand, not melt)")
+        return ("Pandora branded item - priced for brand, not silver melt", "PASS")
+
+    # Gucci/designer costume jewelry - usually plated, not solid
+    gucci_costume_brands = ['gucci', 'louis vuitton', 'chanel', 'prada', 'hermes', 'dior']
+    metal_purity = str(data.get('MetalPurity', '')).lower()
+    for brand in gucci_costume_brands:
+        if brand in title_lower:
+            # Only pass if no verified metal purity (14k, 18k, etc.)
+            if not any(k in metal_purity for k in ['14k', '18k', '10k', '750', '585', '417']):
+                logger.info(f"[INSTANT] PASS - {brand.title()} without verified gold purity (likely plated)")
+                return (f"{brand.title()} without verified metal purity - likely plated", "PASS")
+
+    # Stainless steel - no melt value
+    if 'stainless steel' in title_lower or 'stainless' in title_lower:
+        logger.info(f"[INSTANT] PASS - Stainless steel item (no precious metal)")
+        return ("Stainless steel - no precious metal content", "PASS")
+
+    # ============================================================
+    # COIN NOISE FILTERS
+    # ============================================================
+    # Pokemon coins - not real coins!
+    if 'pokemon' in title_lower and 'coin' in title_lower:
+        logger.info(f"[INSTANT] PASS - Pokemon coin (not real precious metal)")
+        return ("Pokemon coin - not real precious metal", "PASS")
+
+    # Challenge coins, casino tokens - no precious metal
+    challenge_coin_keywords = ['challenge coin', 'casino token', 'casino chip', 'poker chip',
+                               'commemorative coin', 'novelty coin', 'souvenir coin', 'fantasy coin']
+    for kw in challenge_coin_keywords:
+        if kw in title_lower:
+            logger.info(f"[INSTANT] PASS - {kw} (not precious metal)")
+            return (f"{kw} - not precious metal", "PASS")
+
+    # Coin holders/albums/cases - not actual coins
+    coin_accessories = ['coin holder', 'coin album', 'coin case', 'coin display', 'coin folder',
+                        'coin storage', 'coin tube', 'coin capsule', 'coin slab']
+    for acc in coin_accessories:
+        if acc in title_lower:
+            logger.info(f"[INSTANT] PASS - {acc} (accessory, not coin)")
+            return (f"{acc} - accessory, not actual coin", "PASS")
+
+    # Graded modern bullion at high premiums (NGC/PCGS MS69/MS70)
+    # These have collector premiums way above melt
+    if ('ngc' in title_lower or 'pcgs' in title_lower) and ('ms69' in title_lower or 'ms70' in title_lower):
+        if price_float > 100:  # Only filter high-priced graded coins
+            logger.info(f"[INSTANT] PASS - Graded bullion MS69/MS70 @ ${price_float:.0f} (collector premium)")
+            return (f"Graded bullion MS69/MS70 @ ${price_float:.0f} - collector premium above melt", "PASS")
+
+    # Junk drawer / mystery lots with coins mentioned
+    junk_lot_keywords = ['junk drawer', 'mystery lot', 'grab bag', 'estate lot', 'grandma']
+    if 'coin' in title_lower:
+        for junk in junk_lot_keywords:
+            if junk in title_lower:
+                logger.info(f"[INSTANT] PASS - {junk} with coins (unpredictable content)")
+                return (f"{junk} with coins - unpredictable content", "PASS")
+
+    # ============================================================
 
     # KEYWORD-BASED INSTANT PASS (All categories)
 
@@ -388,6 +493,26 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
         # Candlesticks are ALWAYS weighted unless explicitly solid
         if ('candlestick' in title_lower or 'candelabra' in title_lower) and 'solid' not in combined_text:
             logger.info(f"[WEIGHTED] Candlestick detected - AI will apply weighted reduction")
+
+    # ============================================================
+    # STERLING HANDLE CHECK (pie servers, cake servers, etc.)
+    # "Sterling Handle" = only the handle is silver, blade is stainless
+    # Each handle ~15g of silver
+    # ============================================================
+    if category == 'silver':
+        from utils.extraction import detect_sterling_handle
+        is_handle, handle_qty, handle_max_silver = detect_sterling_handle(title)
+        if is_handle and handle_qty > 0:
+            spots = get_spot_prices()
+            sterling_rate = spots.get('sterling', 2.50)
+            max_melt = handle_max_silver * sterling_rate
+            max_buy = max_melt * 0.70
+
+            if price_float > max_buy:
+                logger.info(f"[HANDLE] PASS - {handle_qty} sterling handles = max {handle_max_silver}g silver = ${max_melt:.0f} melt, max buy ${max_buy:.0f}, listing ${price_float:.0f}")
+                return (f"STERLING HANDLES: {handle_qty} handles = max {handle_max_silver}g silver (handles only, blades are steel). Max buy ${max_buy:.0f}, listing ${price_float:.0f}", "PASS")
+            else:
+                logger.info(f"[HANDLE] Potential buy - {handle_qty} handles @ ${price_float:.0f}, max silver {handle_max_silver}g = ${max_buy:.0f} max buy")
 
     # ============================================================
     # FLATWARE KNIVES CHECK
@@ -776,6 +901,60 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
             if not stated_weight:
                 logger.info(f"[JADE/STONE] PASS - High non-metal value item without stated weight: {title[:60]}")
                 return (f"JADE/CARVED STONE: Item valued for stone, not metal. No weight stated - cannot verify metal content.", "PASS")
+
+    # ============================================================
+    # WATCH CATEGORY FILTERS
+    # Strategy: Only buy vintage, parts, lots at good prices
+    # PASS on: market-priced working luxury watches, new watches, smartwatches
+    # ============================================================
+    if category == 'watch':
+        # Smartwatches and fitness trackers - no arbitrage value
+        smartwatch_keywords = ['smartwatch', 'smart watch', 'apple watch', 'galaxy watch',
+                               'fitbit', 'garmin', 'fitness tracker', 'activity tracker',
+                               'samsung watch', 'google watch', 'pixel watch', 'amazfit']
+        for kw in smartwatch_keywords:
+            if kw in title_lower:
+                logger.info(f"[WATCH] PASS - Smartwatch/fitness tracker: {kw}")
+                return (f"Smartwatch/fitness tracker ({kw}) - no arbitrage value", "PASS")
+
+        # Fashion watches with no resale value
+        fashion_watch_brands = ['michael kors', 'kate spade', 'fossil', 'guess', 'nixon',
+                                'invicta', 'stuhrling', 'akribos', 'geneva', 'anne klein',
+                                'betsey johnson', 'coach watch', 'marc jacobs', 'dkny',
+                                'armani exchange', 'diesel watch', 'skagen']
+        for brand in fashion_watch_brands:
+            if brand in title_lower:
+                logger.info(f"[WATCH] PASS - Fashion watch brand: {brand}")
+                return (f"Fashion watch brand ({brand}) - no resale value", "PASS")
+
+        # Working luxury watches at HIGH prices = market-priced, no arbitrage
+        # Only PASS if clearly working AND high-priced
+        luxury_brands = ['rolex', 'omega', 'breitling', 'cartier', 'patek', 'audemars',
+                         'vacheron', 'jaeger', 'iwc', 'panerai', 'hublot', 'tag heuer']
+        is_luxury = any(brand in title_lower for brand in luxury_brands)
+
+        # Signs of non-working/parts/project (GOOD - we want these)
+        parts_keywords = ['parts', 'repair', 'not working', 'broken', 'as is', 'for parts',
+                          'needs work', 'project', 'doesn\'t run', 'won\'t run', 'spares',
+                          'movement only', 'case only', 'dial only', 'band only']
+        is_parts = any(kw in title_lower for kw in parts_keywords)
+
+        # Signs of lot/estate (GOOD - we want these)
+        lot_keywords = ['lot', 'collection', 'estate', 'vintage lot', 'watch lot', 'watchmaker']
+        is_lot = any(kw in title_lower for kw in lot_keywords)
+
+        if is_luxury and not is_parts and not is_lot:
+            # Working luxury watch - check price
+            if price_float > 2000:
+                logger.info(f"[WATCH] PASS - Working luxury watch @ ${price_float:.0f} (market-priced)")
+                return (f"Working luxury watch @ ${price_float:.0f} - market-priced, no arbitrage", "PASS")
+
+        # New condition watches - always market-priced
+        condition = str(data.get('Condition', data.get('condition', ''))).lower()
+        if condition in ['new', 'new with tags', 'new without tags', 'new with box']:
+            if price_float > 200:  # Allow cheap new watches through for analysis
+                logger.info(f"[WATCH] PASS - New condition watch @ ${price_float:.0f}")
+                return (f"New condition watch @ ${price_float:.0f} - market-priced", "PASS")
 
     # ============================================================
 
