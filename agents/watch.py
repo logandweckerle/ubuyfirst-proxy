@@ -66,9 +66,10 @@ class WatchAgent(BaseAgent):
 
     # Vintage chronograph floor prices - these are collectible regardless of brand
     # Even "entry" brands like Benrus have valuable vintage chronographs
+    # Floors are MINIMUM values (for parts/non-working) - working worth 50-100% more
     VINTAGE_CHRONOGRAPH_FLOORS = {
         # Specific collectible chronographs
-        "sky chief": 800,       # Benrus Sky Chief - military style chrono
+        "sky chief": 1200,      # Benrus Sky Chief - $1200-1500 parts, $2000+ working
         "ultra deep": 600,      # Benrus Ultra Deep
         "type xx": 2000,        # Breguet/military chronographs
         "type 20": 1500,        # French military chronos
