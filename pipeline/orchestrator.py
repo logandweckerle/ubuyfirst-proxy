@@ -812,7 +812,7 @@ async def run_analysis(request: Request):
         if needs_images_for_tier1 and raw_image_urls:
             _img_start = _time.time()
             max_imgs = getattr(_IMAGES, 'max_images_gold_silver', 5)
-            img_size = getattr(_IMAGES, 'resize_for_gold_silver', 512)
+            img_size = getattr(_IMAGES, 'resize_for_gold_silver', 1024)
             logger.info(f"[TIER1] Fetching up to {max_imgs} images for GPT-4o (gold/silver - first+last for scale photos)...")
             images = await _process_image_list(
                 raw_image_urls,
