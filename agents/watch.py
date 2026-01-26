@@ -25,6 +25,45 @@ class WatchAgent(BaseAgent):
         "piaget", "chopard", "blancpain", "glashutte", "zenith"
     ]
 
+    # Floor prices for premium watch brands/models - anything below = potential BUY
+    # These are minimum values even in poor/non-working condition
+    PREMIUM_FLOOR_PRICES = {
+        # Omega models
+        "constellation": 500,
+        "seamaster": 400,
+        "speedmaster": 1500,
+        "de ville": 300,
+        "omega": 300,  # Generic Omega floor
+        # Rolex models
+        "submariner": 5000,
+        "datejust": 3000,
+        "daytona": 15000,
+        "gmt": 5000,
+        "explorer": 4000,
+        "rolex": 2000,  # Generic Rolex floor
+        # Tudor
+        "tudor": 800,
+        # Cartier
+        "tank": 1000,
+        "santos": 1500,
+        "cartier": 800,
+        # Other premium
+        "breitling": 800,
+        "iwc": 1000,
+        "panerai": 2000,
+        "patek": 5000,
+    }
+
+    # Premium dial/feature keywords that add value
+    PREMIUM_FEATURES = [
+        "pie pan", "piepan",  # Omega Constellation dial style
+        "tropical", "gilt", "patina",  # Desirable aging
+        "salmon", "sector dial",  # Rare dials
+        "military", "mil-spec",  # Military issue
+        "chronograph", "chrono",  # Complications
+        "moon phase", "moonphase",  # Complications
+    ]
+
     MID_BRANDS = [
         "longines", "tag heuer", "heuer", "oris", "hamilton",
         "tissot", "mido", "rado", "movado", "bulova", "wittnauer",
@@ -103,6 +142,28 @@ class WatchAgent(BaseAgent):
         is_premium = any(pb in title for pb in self.PREMIUM_BRANDS)
         is_mid_tier = any(mb in title for mb in self.MID_BRANDS)
         is_valuable_brand = is_premium or is_mid_tier  # Both tiers have significant resale value
+
+        # === FLOOR PRICE CHECK - Premium watches priced below floor = BUY ===
+        if is_premium:
+            floor_price = 0
+            matched_model = None
+            # Check for specific model floors (more specific = higher priority)
+            for model, floor in sorted(self.PREMIUM_FLOOR_PRICES.items(), key=lambda x: -len(x[0])):
+                if model in title:
+                    floor_price = floor
+                    matched_model = model
+                    break
+
+            # Check for premium features that add value
+            has_premium_feature = any(feat in title for feat in self.PREMIUM_FEATURES)
+            if has_premium_feature:
+                floor_price = int(floor_price * 1.25)  # 25% premium for special features
+
+            if floor_price > 0 and price < floor_price * 0.6:  # Priced at 60% or less of floor = clear BUY
+                feature_note = " with premium features" if has_premium_feature else ""
+                return (f"UNDERPRICED PREMIUM WATCH: {matched_model}{feature_note} floor ${floor_price}, listed ${price:.0f} ({price/floor_price*100:.0f}% of floor) = BUY", "BUY")
+            elif floor_price > 0 and price < floor_price * 0.8:  # 60-80% of floor = RESEARCH
+                return (f"POTENTIAL DEAL: {matched_model} floor ${floor_price}, listed ${price:.0f} ({price/floor_price*100:.0f}% of floor)", "RESEARCH")
 
         # === MODERN/NEW LUXURY WATCHES ===
         # These could still be opportunities if priced well below market
