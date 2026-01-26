@@ -1878,15 +1878,32 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
             # This prevents AI hallucination BUYs on items without stated weight
 
+            # EXCEPTION: High confidence (>=85%) from AI = trust weight verification
+
             # =================================================================
+
+            # Get AI's confidence for bypass check
+            ai_confidence = 0
+            try:
+                ai_confidence = int(result.get('confidence', 0))
+            except:
+                pass
+
+            # HIGH CONFIDENCE BYPASS: If AI is >=85% confident, it likely verified weight from scale photo
+            # Trust Tier 2's verification instead of forcing RESEARCH
+            high_confidence_verified = ai_confidence >= 85 and correct_profit >= 50
 
             if current_rec == 'BUY' and weight_source == 'estimate' and category in ['gold', 'silver']:
 
-                # ABSOLUTE RULE: Estimated weight cannot be BUY
+                if high_confidence_verified:
+                    logger.info(f"[CALC] ESTIMATED WEIGHT + BUY: HIGH CONFIDENCE ({ai_confidence}%) - trusting AI weight verification (profit ${correct_profit:.0f})")
+                    # Don't override - let BUY stand
+
+                # ABSOLUTE RULE: Estimated weight cannot be BUY (unless high confidence)
 
                 # If profit is thin or negative, PASS. Otherwise RESEARCH.
 
-                if correct_profit < 30:
+                elif correct_profit < 30:
 
                     logger.warning(f"[CALC] ESTIMATED WEIGHT + BUY: Forcing PASS (profit ${correct_profit:.0f} too thin)")
 
@@ -1908,17 +1925,20 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
             # SAFETY: Scale readings from images are unreliable - require Tier 2 verification
             # If AI claims "scale" reading but weight isn't in title, force RESEARCH
+            # EXCEPTION: High confidence (>=85%) = trust it
             if current_rec == 'BUY' and weight_source == 'scale' and category in ['gold', 'silver']:
                 # Check if weight is actually stated in title
                 title_has_weight = any(pattern in title_lower for pattern in [
                     'gram', ' g ', 'dwt', ' oz', 'ounce'
                 ]) or re.search(r'\d+\.?\d*\s*g\b', title_lower)
 
-                if not title_has_weight:
+                if not title_has_weight and not high_confidence_verified:
                     logger.warning(f"[CALC] SCALE READING NOT VERIFIED: AI claims scale read but no weight in title - forcing RESEARCH")
                     result['Recommendation'] = 'RESEARCH'
                     result['reasoning'] = result.get('reasoning', '') + " [SERVER: Scale reading unverified - weight not in title, needs manual verification]"
                     current_rec = 'RESEARCH'
+                elif not title_has_weight and high_confidence_verified:
+                    logger.info(f"[CALC] SCALE READING: HIGH CONFIDENCE ({ai_confidence}%) - trusting AI scale verification")
 
             # SAFETY: Detect bead/pearl items - NEVER trust server math on these
 
