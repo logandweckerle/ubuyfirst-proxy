@@ -64,6 +64,29 @@ class WatchAgent(BaseAgent):
         "moon phase", "moonphase",  # Complications
     ]
 
+    # Vintage chronograph floor prices - these are collectible regardless of brand
+    # Even "entry" brands like Benrus have valuable vintage chronographs
+    VINTAGE_CHRONOGRAPH_FLOORS = {
+        # Specific collectible chronographs
+        "sky chief": 800,       # Benrus Sky Chief - military style chrono
+        "ultra deep": 600,      # Benrus Ultra Deep
+        "type xx": 2000,        # Breguet/military chronographs
+        "type 20": 1500,        # French military chronos
+        "dato compax": 3000,    # Universal Geneve
+        "compax": 1500,         # Universal Geneve chronos
+        "carrera": 1500,        # Heuer Carrera
+        "autavia": 2000,        # Heuer Autavia
+        "monaco": 3000,         # Heuer Monaco
+        "el primero": 2000,     # Zenith
+        "navitimer": 1500,      # Breitling
+        "valjoux": 400,         # Any Valjoux movement chrono
+        "landeron": 300,        # Landeron movement chrono
+        "venus": 300,           # Venus movement chrono
+        # Generic vintage chrono floor (if none of the above match)
+        "chronograph": 300,
+        "chrono": 300,
+    }
+
     MID_BRANDS = [
         "longines", "tag heuer", "heuer", "oris", "hamilton",
         "tissot", "mido", "rado", "movado", "bulova", "wittnauer",
@@ -164,6 +187,25 @@ class WatchAgent(BaseAgent):
                 return (f"UNDERPRICED PREMIUM WATCH: {matched_model}{feature_note} floor ${floor_price}, listed ${price:.0f} ({price/floor_price*100:.0f}% of floor) = BUY", "BUY")
             elif floor_price > 0 and price < floor_price * 0.8:  # 60-80% of floor = RESEARCH
                 return (f"POTENTIAL DEAL: {matched_model} floor ${floor_price}, listed ${price:.0f} ({price/floor_price*100:.0f}% of floor)", "RESEARCH")
+
+        # === VINTAGE CHRONOGRAPH FLOOR CHECK ===
+        # Vintage chronographs are collectible regardless of brand
+        # Even "entry" brands like Benrus have valuable chronographs
+        is_chrono = any(kw in title for kw in ["chronograph", "chrono"])
+        if is_chrono:
+            chrono_floor = 0
+            matched_chrono = None
+            # Check specific chronograph models (more specific = higher priority)
+            for model, floor in sorted(self.VINTAGE_CHRONOGRAPH_FLOORS.items(), key=lambda x: -len(x[0])):
+                if model in title:
+                    chrono_floor = floor
+                    matched_chrono = model
+                    break
+
+            if chrono_floor > 0 and price < chrono_floor * 0.6:
+                return (f"UNDERPRICED VINTAGE CHRONOGRAPH: {matched_chrono} floor ${chrono_floor}, listed ${price:.0f} ({price/chrono_floor*100:.0f}% of floor) = BUY", "BUY")
+            elif chrono_floor > 0 and price < chrono_floor * 0.85:  # Slightly higher threshold for chronos (85%)
+                return (f"POTENTIAL CHRONO DEAL: {matched_chrono} floor ${chrono_floor}, listed ${price:.0f} ({price/chrono_floor*100:.0f}% of floor)", "RESEARCH")
 
         # === MODERN/NEW LUXURY WATCHES ===
         # These could still be opportunities if priced well below market

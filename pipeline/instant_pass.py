@@ -383,10 +383,14 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
                 logger.info(f"[INSTANT] PASS - {brand.title()} without verified gold purity (likely plated)")
                 return (f"{brand.title()} without verified metal purity - likely plated", "PASS")
 
-    # Stainless steel - no melt value
+    # Stainless steel - no melt value (but EXCLUDE watches - they have collectible value)
     if 'stainless steel' in title_lower or 'stainless' in title_lower:
-        logger.info(f"[INSTANT] PASS - Stainless steel item (no precious metal)")
-        return ("Stainless steel - no precious metal content", "PASS")
+        # Don't instant-pass stainless steel WATCHES - value is collectible, not metal
+        if 'watch' not in title_lower:
+            logger.info(f"[INSTANT] PASS - Stainless steel item (no precious metal)")
+            return ("Stainless steel - no precious metal content", "PASS")
+        else:
+            logger.info(f"[INSTANT] Stainless steel WATCH - skipping metal check, value is collectible")
 
     # ============================================================
     # COIN NOISE FILTERS
