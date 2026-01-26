@@ -894,6 +894,38 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
                 return (f"Seed/bead jewelry ({seed}) - mostly decorative material, minimal silver content", "PASS")
 
     # ============================================================
+    # MIXED MATERIAL LOTS - Weight includes non-silver materials
+    # "Lucite Sterling Metal" = weight is ALL materials combined
+    # ============================================================
+    if category == 'silver':
+        mixed_material_keywords = ['lucite', 'plastic', 'acrylic', 'resin', 'bakelite',
+                                   'wood', 'leather', 'fabric', 'cloth', 'rope']
+        has_mixed = any(mat in title_lower for mat in mixed_material_keywords)
+        is_lot = 'lot' in title_lower or 'lbs' in title_lower or 'pounds' in title_lower
+
+        if has_mixed and is_lot:
+            logger.info(f"[INSTANT] PASS - Mixed material lot (weight includes non-silver)")
+            return ("Mixed material lot - stated weight includes lucite/plastic/etc, not just silver", "PASS")
+
+    # ============================================================
+    # ANTIQUE DECORATIVE SILVER - Priced for collectible value, not melt
+    # Edwardian, Victorian, Art Nouveau buckles, accessories, etc.
+    # ============================================================
+    if category == 'silver':
+        antique_periods = ['edwardian', 'victorian', 'art nouveau', 'georgian', 'regency']
+        decorative_items = ['buckle', 'nurses buckle', 'belt buckle', 'chatelaine',
+                           'card case', 'vinaigrette', 'snuff box', 'vesta case',
+                           'thimble', 'needle case', 'patch box', 'pill box',
+                           'reynolds', 'cherub', 'cherubs', 'repousse']
+
+        is_antique = any(period in title_lower for period in antique_periods)
+        is_decorative = any(item in title_lower for item in decorative_items)
+
+        if is_antique and is_decorative:
+            logger.info(f"[INSTANT] PASS - Antique decorative silver (collectible value)")
+            return ("Antique decorative silver - priced for collectible/antique value, not melt", "PASS")
+
+    # ============================================================
     # JADE/STONE CHECK - High non-metal value items
     # These items are valued for the stone, NOT the metal
     # Without stated weight, we can't verify metal content
