@@ -277,7 +277,6 @@ EXAMPLE - 14K pendant, 8.2g, listed at $500:
 === INSTANT PASS CONDITIONS ===
 - Single earring (worthless)
 - Diamond-focused jewelry (value in stones, not gold)
-- Price > $100/gram of gold weight
 - Plated/Filled: GF, GP, HGE, RGP, Vermeil
 - RESIN CORE / HOLLOW CORE: Almost no gold
 - Pearl strands: Gold is only clasp (2-4g)

@@ -250,10 +250,17 @@ def check_gold_price_per_gram(category: str, title: str, total_price: str,
                               render_result_html_fn, cache, stats: dict,
                               response_type: str) -> Optional[object]:
     """
-    Quick PASS for gold if price/gram exceeds $100 ceiling.
+    Price/gram ceiling check - DISABLED.
 
-    Returns Response if quick-passed, None to continue.
+    Gold prices have risen significantly, so this ceiling is no longer valid.
+    Let AI make decisions based on current spot prices.
+
+    Returns None to continue to AI analysis.
     """
+    # Ceiling removed - gold prices have risen significantly
+    return None
+
+    # Legacy code below - kept for reference but never executed
     if category != "gold":
         return None
 

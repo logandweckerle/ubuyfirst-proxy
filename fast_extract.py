@@ -59,28 +59,25 @@ class MixedMetalResult:
 
 # ============================================================
 # NON-METAL DETECTION (stones, pearls, watches, etc.)
-# Items with non-metal weight need AI for proper deductions
+# Split into HEAVY (affects weight) vs LIGHT (negligible weight)
 # ============================================================
 
-NON_METAL_INDICATORS = [
-    # Gemstones
-    'pearl', 'diamond', 'turquoise', 'jade', 'coral', 'opal', 'onyx',
-    'amethyst', 'ruby', 'sapphire', 'emerald', 'garnet', 'topaz', 'aquamarine',
-    'peridot', 'citrine', 'tanzanite', 'morganite', 'alexandrite',
-    # Semi-precious cabochon stones (common in antique/vintage jewelry)
-    'agate', 'carnelian', 'jasper', 'lapis', 'malachite', 'moonstone',
-    'tiger eye', 'chalcedony', 'aventurine', 'bloodstone', 'quartz',
+# HEAVY non-metals - these significantly affect stated weight
+# Stated weight includes substantial non-gold material
+NON_METAL_HEAVY = [
+    # Pearls are heavy (1g per pearl typical)
+    'pearl', 'pearls',
+    # Coral/jade/turquoise can be heavy chunks
+    'coral', 'jade', 'turquoise',
     # Cameos - shell/stone with thin gold frame (3-4g gold typical)
     'cameo', 'shell cameo', 'carved cameo', 'hand carved',
-    # Stone indicators (but NOT 'ct ' alone - too many false positives)
-    'stone', 'gemstone', 'gem', 'cttw', 'ctw', 'carat',
     # Watches (have movement/crystal weight)
     'watch', 'movement',
-    # Cord/fabric necklaces
+    # Cord/fabric necklaces - gold is just clasp
     'cord', 'leather', 'silk', 'rubber', 'fabric', 'string',
     # Glass pendants
-    'murano', 'glass', 'millefiori', 'crystal',
-    # Beaded jewelry
+    'murano', 'glass', 'millefiori',
+    # Beaded jewelry - beads are the weight
     'bead', 'beaded', 'strand',
     # Weighted/filled items (cement, pitch, plaster inside)
     'weighted', 'cement', 'reinforced', 'filled base',
@@ -90,7 +87,30 @@ NON_METAL_INDICATORS = [
     'handled', 'knife', 'knives', 'carving set',
     # Mother of pearl inlays (handle material, not silver)
     'mother of pearl', 'mop handle',
+    # Amber pendants - amber is the weight, gold is just bail
+    'amber', 'baltic amber',
 ]
+
+# LIGHT non-metals - negligible weight, stated weight IS the gold weight
+# Diamonds: 1 carat = 0.2g (5 carats of diamonds = only 1g)
+# These don't add value but also don't reduce gold weight significantly
+NON_METAL_LIGHT = [
+    # Diamonds and precious gems (tiny weight)
+    'diamond', 'diamonds',
+    'ruby', 'sapphire', 'emerald',
+    'amethyst', 'garnet', 'topaz', 'aquamarine',
+    'peridot', 'citrine', 'tanzanite', 'morganite', 'alexandrite',
+    # Semi-precious stones (typically small accent stones)
+    'opal', 'onyx', 'agate', 'carnelian', 'jasper', 'lapis', 'malachite',
+    'moonstone', 'tiger eye', 'chalcedony', 'aventurine', 'bloodstone', 'quartz',
+    # Carat indicators
+    'cttw', 'ctw', 'carat', 'ct',
+    # Generic stone terms (usually small accent stones)
+    'stone', 'gemstone', 'gem', 'crystal',
+]
+
+# Combined for backwards compatibility (but heavy is what matters for deductions)
+NON_METAL_INDICATORS = NON_METAL_HEAVY + NON_METAL_LIGHT
 
 # Pattern for carat weight (e.g., "0.5 ct", "1ct", ".25 ct") - requires digit before ct
 CARAT_WEIGHT_PATTERN = re.compile(r'\d+\.?\d*\s*ct\b', re.IGNORECASE)
@@ -131,40 +151,41 @@ SILVER_PARTIAL_METAL_INDICATORS = [
 
 def detect_non_metal(title: str, description: str = "", item_specifics: dict = None) -> Tuple[bool, str]:
     """
-    Detect if item likely has significant non-metal weight.
-    These items need AI analysis for proper deductions.
-    Returns (has_non_metal, detected_type)
+    Detect if item has HEAVY non-metal that affects weight calculation.
 
-    Args:
-        item_specifics: eBay item specifics dict with MainStone, TotalCaratWeight, etc.
+    HEAVY non-metals (pearls, coral, beads) = True (need weight deduction)
+    LIGHT non-metals (diamonds, gems) = False (negligible weight, stated weight IS gold weight)
+
+    Returns (has_heavy_non_metal, detected_type)
     """
-    # Check item specifics FIRST (most reliable)
-    if item_specifics:
-        # MainStone field (e.g., "Diamond", "Ruby", "Sapphire")
-        main_stone = str(item_specifics.get('MainStone', '') or '').lower().strip()
-        if main_stone and main_stone not in ['no stone', 'none', 'n/a', 'na', '']:
-            return True, f"MainStone: {main_stone}"
-
-        # TotalCaratWeight field (e.g., "0.50 ctw", "1.5 ct")
-        carat_weight = str(item_specifics.get('TotalCaratWeight', '') or '').strip()
-        if carat_weight and carat_weight not in ['0', '0.00', 'n/a', 'na', '']:
-            return True, f"TotalCaratWeight: {carat_weight}"
-
-        # SecondaryStone field
-        secondary_stone = str(item_specifics.get('SecondaryStone', '') or '').lower().strip()
-        if secondary_stone and secondary_stone not in ['no stone', 'none', 'n/a', 'na', '']:
-            return True, f"SecondaryStone: {secondary_stone}"
-
     text = f"{title} {description}".lower()
 
-    # Check simple substring indicators
-    for indicator in NON_METAL_INDICATORS:
+    # Helper to check if a stone is heavy or light
+    def is_heavy_stone(stone_name: str) -> bool:
+        stone_lower = stone_name.lower()
+        for heavy in NON_METAL_HEAVY:
+            if heavy in stone_lower:
+                return True
+        return False
+
+    # Check item specifics for MainStone
+    if item_specifics:
+        main_stone = str(item_specifics.get('MainStone', '') or '').lower().strip()
+        if main_stone and main_stone not in ['no stone', 'none', 'n/a', 'na', '']:
+            # Only flag as non-metal if it's HEAVY
+            if is_heavy_stone(main_stone):
+                return True, f"MainStone: {main_stone}"
+            # Light stones (diamond, ruby, etc.) - don't flag, weight IS gold weight
+            # Just note it for reference but don't require weight deduction
+
+    # Check for HEAVY non-metal indicators in text
+    for indicator in NON_METAL_HEAVY:
         if indicator in text:
             return True, indicator
 
-    # Check for carat weight pattern (e.g., "0.5 ct diamond")
-    if CARAT_WEIGHT_PATTERN.search(text):
-        return True, "carat weight"
+    # LIGHT non-metals (diamonds, gems) - stated weight IS the gold weight
+    # These don't add value but don't need weight deduction
+    # Return False - no weight deduction needed
 
     return False, ""
     
@@ -961,15 +982,39 @@ def fast_extract_gold(
         estimated_weight = None
         estimate_type = None
 
-        # Check specific types first (more specific = more accurate)
-        for item_type, weight in sorted(GOLD_WEIGHT_ESTIMATES.items(), key=lambda x: -len(x[0])):
-            if item_type in text:
-                estimated_weight = weight
-                estimate_type = item_type
-                break
+        # Check if this is a SET or LOT (multiple items) - sum all found items
+        is_set = any(kw in text for kw in ['set', 'lot', 'collection', 'suite'])
+
+        if is_set:
+            # For sets: sum weights of all items found
+            total_weight = 0
+            found_items = []
+            used_categories = set()  # Avoid double-counting (e.g., 'bracelet' and 'cuban bracelet')
+
+            for item_type, weight in sorted(GOLD_WEIGHT_ESTIMATES.items(), key=lambda x: -len(x[0])):
+                if item_type in text:
+                    # Check if we already counted a more specific version
+                    base_type = item_type.split()[-1]  # 'cuban bracelet' -> 'bracelet'
+                    if base_type in used_categories:
+                        continue
+                    used_categories.add(base_type)
+                    used_categories.add(item_type)
+                    total_weight += weight
+                    found_items.append(f"{item_type}:{weight}g")
+
+            if total_weight >= 5:  # Sets should have meaningful weight
+                estimated_weight = total_weight
+                estimate_type = f"set({'+'.join(found_items)})"
+        else:
+            # Single item: pick first (most specific) match
+            for item_type, weight in sorted(GOLD_WEIGHT_ESTIMATES.items(), key=lambda x: -len(x[0])):
+                if item_type in text:
+                    estimated_weight = weight
+                    estimate_type = item_type
+                    break
 
         # For chains, try to detect length and multiply
-        if estimate_type and 'chain' in estimate_type:
+        if estimate_type and 'chain' in estimate_type and 'set' not in estimate_type:
             # Look for length indicators
             length_match = re.search(r'(\d+)\s*(?:inch|in|")', text)
             if length_match:
@@ -1065,11 +1110,8 @@ def fast_extract_gold(
                 result.instant_pass = True
                 result.pass_reason = f"Price ${price:.0f} > max buy ${calc['max_buy']:.0f} (loss ${-profit:.0f})"
 
-            # Sanity check: price per gram (only for pure gold)
-            price_per_gram = price / weight
-            if price_per_gram > 100:
-                result.instant_pass = True
-                result.pass_reason = f"Price ${price_per_gram:.0f}/gram exceeds $100/gram ceiling"
+            # Price/gram ceiling removed - gold prices have risen significantly
+            # Let AI make the decision based on current spot prices
 
     return result
 
