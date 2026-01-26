@@ -367,7 +367,7 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
         return ("Pandora branded item - priced for brand, not silver melt", "PASS")
 
     # Gucci/designer costume jewelry - usually plated, not solid
-    gucci_costume_brands = ['gucci', 'louis vuitton', 'chanel', 'prada', 'hermes', 'dior']
+    gucci_costume_brands = ['gucci', 'louis vuitton', 'chanel', 'prada', 'hermes', 'dior', 'givenchy', 'ysl', 'versace', 'fendi', 'balenciaga', 'monet', 'napier', 'sarah coventry', 'lisner', 'coro']
     metal_purity = str(data.get('MetalPurity', '')).lower()
     for brand in gucci_costume_brands:
         if brand in title_lower:
@@ -879,6 +879,19 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
         if is_carved_stone:
             logger.info(f"[CARVED STONE] INSTANT PASS - Carved stone piece, metal is minimal: {title[:60]}")
             return (f"CARVED STONE: Item is primarily decorative stone (jasper, jade, etc.). Metal content is minimal (bail/bezel only). Cannot profit from melt.", "PASS")
+
+    # ============================================================
+    # SEED/BEAD JEWELRY - Mostly decorative, minimal metal
+    # Huayruro, acai, kukui, etc. are decorative seeds with tiny silver links
+    # ============================================================
+    if category in ['silver', 'gold']:
+        seed_bead_keywords = ['huayruro', 'acai seed', 'kukui nut', 'seed bead',
+                              'seed bracelet', 'seed necklace', 'wooden bead',
+                              'bone bead', 'horn bead', 'shell bead']
+        for seed in seed_bead_keywords:
+            if seed in title_lower:
+                logger.info(f"[INSTANT] PASS - Seed/bead jewelry: {seed}")
+                return (f"Seed/bead jewelry ({seed}) - mostly decorative material, minimal silver content", "PASS")
 
     # ============================================================
     # JADE/STONE CHECK - High non-metal value items
