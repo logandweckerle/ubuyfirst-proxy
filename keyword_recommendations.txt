@@ -1,0 +1,177 @@
+============================================================
+KEYWORD RECOMMENDATIONS FOR UBUYFIRST
+Generated: 2026-01-25T17:10:32.491455
+============================================================
+
+========================================
+GOLD CATEGORY
+========================================
+
+--- TOP FAST-SELLING KEYWORDS ---
+  '14k': 177 fast sales | Miss rate: 33% | Avg: $1063
+  'vintage': 128 fast sales | Miss rate: 42% | Avg: $460
+  'ring': 121 fast sales | Miss rate: 39% | Avg: $986
+  '10k': 60 fast sales | Miss rate: 42% | Avg: $818
+  'pendant': 46 fast sales | Miss rate: 39% | Avg: $618
+  'necklace': 45 fast sales | Miss rate: 33% | Avg: $1146
+  'earring': 40 fast sales | Miss rate: 45% | Avg: $652
+  'gram': 40 fast sales | Miss rate: 22% | Avg: $1249
+  'grams': 38 fast sales | Miss rate: 24% | Avg: $1084
+  'bracelet': 35 fast sales | Miss rate: 20% | Avg: $1343
+  'chain': 34 fast sales | Miss rate: 29% | Avg: $1253
+  '18k': 33 fast sales | Miss rate: 9% | Avg: $2308
+  'antique': 25 fast sales | Miss rate: 48% | Avg: $1158
+  'lot': 23 fast sales | Miss rate: 35% | Avg: $753
+  'scrap': 19 fast sales | Miss rate: 21% | Avg: $1022
+
+--- RECOMMENDED ADDITIONS ---
+  [MEDIUM] 14k scrap
+       Reason: Model priority keyword - not yet seeing in searches
+  [MEDIUM] 18k scrap
+       Reason: Model priority keyword - not yet seeing in searches
+  [MEDIUM] 10k scrap
+       Reason: Model priority keyword - not yet seeing in searches
+  [MEDIUM] gold lot
+       Reason: Model priority keyword - not yet seeing in searches
+  [MEDIUM] scrap gold
+       Reason: Model priority keyword - not yet seeing in searches
+  [MEDIUM] class ring
+       Reason: Model priority keyword - not yet seeing in searches
+  [MEDIUM] signet ring
+       Reason: Model priority keyword - not yet seeing in searches
+  [MEDIUM] italian gold
+       Reason: Model priority keyword - not yet seeing in searches
+  [MEDIUM] milor
+       Reason: Model priority keyword - not yet seeing in searches
+  [MEDIUM] 14k grams
+       Reason: Model priority keyword - not yet seeing in searches
+
+========================================
+SILVER CATEGORY
+========================================
+
+--- TOP FAST-SELLING KEYWORDS ---
+  'sterling': 220 fast sales | Miss rate: 56% | Avg: $203
+  '925': 123 fast sales | Miss rate: 60% | Avg: $172
+  'vintage': 99 fast sales | Miss rate: 54% | Avg: $197
+  'bracelet': 76 fast sales | Miss rate: 51% | Avg: $181
+  'ring': 72 fast sales | Miss rate: 61% | Avg: $270
+  'necklace': 67 fast sales | Miss rate: 64% | Avg: $143
+  'earring': 29 fast sales | Miss rate: 59% | Avg: $263
+  'brooch': 21 fast sales | Miss rate: 57% | Avg: $107
+  'grams': 18 fast sales | Miss rate: 11% | Avg: $297
+  'navajo': 16 fast sales | Miss rate: 38% | Avg: $186
+  'mexico': 16 fast sales | Miss rate: 56% | Avg: $92
+  'lot': 15 fast sales | Miss rate: 20% | Avg: $398
+  'native': 15 fast sales | Miss rate: 13% | Avg: $409
+  'antique': 12 fast sales | Miss rate: 33% | Avg: $729
+  'taxco': 9 fast sales | Miss rate: 44% | Avg: $250
+
+--- MISSED OPPORTUNITY KEYWORDS (add these!) ---
+  'necklace': 43 deals missed | Miss rate: 64%
+  '925': 74 deals missed | Miss rate: 60%
+  'bracelet': 39 deals missed | Miss rate: 51%
+  'sterling': 124 deals missed | Miss rate: 56%
+  'mexican': 4 deals missed | Miss rate: 57%
+  'vintage': 53 deals missed | Miss rate: 54%
+  'ring': 44 deals missed | Miss rate: 61%
+  'earring': 17 deals missed | Miss rate: 59%
+  'brooch': 12 deals missed | Miss rate: 57%
+  'mexico': 9 deals missed | Miss rate: 56%
+
+--- RECOMMENDED ADDITIONS ---
+  [MEDIUM] necklace
+       Reason: Missing 43 deals (miss rate 64%)
+  [MEDIUM] 925
+       Reason: Missing 74 deals (miss rate 60%)
+  [MEDIUM] bracelet
+       Reason: Missing 39 deals (miss rate 51%)
+  [MEDIUM] sterling
+       Reason: Missing 124 deals (miss rate 56%)
+  [MEDIUM] mexican
+       Reason: Missing 4 deals (miss rate 57%)
+  [MEDIUM] vintage
+       Reason: Missing 53 deals (miss rate 54%)
+  [MEDIUM] ring
+       Reason: Missing 44 deals (miss rate 61%)
+  [MEDIUM] earring
+       Reason: Missing 17 deals (miss rate 59%)
+  [MEDIUM] brooch
+       Reason: Missing 12 deals (miss rate 57%)
+  [MEDIUM] mexico
+       Reason: Missing 9 deals (miss rate 56%)
+
+========================================
+WATCH CATEGORY
+========================================
+
+--- TOP FAST-SELLING KEYWORDS ---
+  'vintage': 29 fast sales | Miss rate: 86% | Avg: $269
+  'pocket': 21 fast sales | Miss rate: 76% | Avg: $842
+  'pocket watch': 21 fast sales | Miss rate: 76% | Avg: $842
+  'antique': 14 fast sales | Miss rate: 71% | Avg: $174
+  'gold': 13 fast sales | Miss rate: 62% | Avg: $1429
+  'lot': 12 fast sales | Miss rate: 83% | Avg: $196
+  'bulova': 11 fast sales | Miss rate: 73% | Avg: $577
+  'silver': 8 fast sales | Miss rate: 75% | Avg: $530
+  'omega': 8 fast sales | Miss rate: 50% | Avg: $2579
+  'rolex': 7 fast sales | Miss rate: 57% | Avg: $7390
+  '18k': 5 fast sales | Miss rate: 80% | Avg: $3680
+  'waltham': 4 fast sales | Miss rate: 75% | Avg: $286
+  'elgin': 4 fast sales | Miss rate: 50% | Avg: $171
+  '10k': 4 fast sales | Miss rate: 75% | Avg: $333
+  'tudor': 3 fast sales | Miss rate: 67% | Avg: $3045
+
+--- MISSED OPPORTUNITY KEYWORDS (add these!) ---
+  'tudor': 2 deals missed | Miss rate: 67%
+  'rolex': 4 deals missed | Miss rate: 57%
+  'bulova': 8 deals missed | Miss rate: 73%
+  '18k': 4 deals missed | Miss rate: 80%
+  'gold': 8 deals missed | Miss rate: 62%
+  'pocket': 16 deals missed | Miss rate: 76%
+  'pocket watch': 16 deals missed | Miss rate: 76%
+  'illinois': 2 deals missed | Miss rate: 100%
+  'vintage': 25 deals missed | Miss rate: 86%
+  'lot': 10 deals missed | Miss rate: 83%
+
+--- RECOMMENDED ADDITIONS ---
+  [MEDIUM] tudor
+       Reason: Missing 2 deals (miss rate 67%)
+  [MEDIUM] rolex
+       Reason: Missing 4 deals (miss rate 57%)
+  [HIGH] bulova
+       Reason: Missing 8 deals (miss rate 73%)
+  [HIGH] 18k
+       Reason: Missing 4 deals (miss rate 80%)
+  [MEDIUM] gold
+       Reason: Missing 8 deals (miss rate 62%)
+  [HIGH] pocket
+       Reason: Missing 16 deals (miss rate 76%)
+  [HIGH] pocket watch
+       Reason: Missing 16 deals (miss rate 76%)
+  [HIGH] illinois
+       Reason: Missing 2 deals (miss rate 100%)
+  [HIGH] vintage
+       Reason: Missing 25 deals (miss rate 86%)
+  [HIGH] lot
+       Reason: Missing 10 deals (miss rate 83%)
+
+============================================================
+GLOBAL RECOMMENDATIONS
+============================================================
+
+--- HIGH PRIORITY ADDITIONS ---
+  silver: '950' - Missing 4 deals (miss rate 80%)
+  watch: 'bulova' - Missing 8 deals (miss rate 73%)
+  watch: '18k' - Missing 4 deals (miss rate 80%)
+  watch: 'pocket' - Missing 16 deals (miss rate 76%)
+  watch: 'pocket watch' - Missing 16 deals (miss rate 76%)
+  watch: 'illinois' - Missing 2 deals (miss rate 100%)
+  watch: 'vintage' - Missing 25 deals (miss rate 86%)
+  watch: 'lot' - Missing 10 deals (miss rate 83%)
+  watch: 'silver' - Missing 6 deals (miss rate 75%)
+  watch: 'antique' - Missing 10 deals (miss rate 71%)
+  watch: 'waltham' - Missing 3 deals (miss rate 75%)
+  watch: 'wittnauer' - Missing 2 deals (miss rate 100%)
+  watch: '10k' - Missing 3 deals (miss rate 75%)
+  watch: 'coin silver' - Missing 2 deals (miss rate 100%)

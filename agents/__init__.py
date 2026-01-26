@@ -1,6 +1,8 @@
 """
 Category Agents for Listing Analysis
 Each agent handles a specific category with its own prompt and logic.
+
+FIX 2026-01-25: Added silver keyword check before routing gold alias to gold category
 """
 
 from .gold import GoldAgent
@@ -101,6 +103,18 @@ def detect_category(data: dict) -> tuple:
     has_watch_keyword = any(kw in title for kw in watch_keywords)
     has_watch_brand = any(brand in title for brand in watch_brands)
 
+    # IMPORTANT: "Omega" is ALSO a jewelry chain style (omega chain/necklace)
+    # If title has jewelry context + precious metal, it's NOT a watch!
+    jewelry_context = ["necklace", "chain", "bracelet", "pendant", "earring", "ring ", " ring", "anklet", "choker"]
+    precious_metal_context = ["sterling", "925", ".925", "14k", "18k", "10k", "gold", "silver", "platinum"]
+    has_jewelry_context = any(jw in title for jw in jewelry_context)
+    has_precious_metal = any(pm in title for pm in precious_metal_context)
+
+    # If "omega" appears with jewelry + metal context, it's an omega chain, not Omega watch
+    if has_watch_brand and has_jewelry_context and has_precious_metal and not has_watch_keyword:
+        # This is jewelry (like "omega sterling silver necklace"), not a watch
+        has_watch_brand = False  # Override - treat as jewelry, not watch
+
     # Check if watch has SOLID gold content (not gold-filled, plated, or tone)
     # These should go to gold agent for melt value evaluation
     solid_gold_indicators = ["14k gold case", "18k gold case", "10k gold case", "14 k gold case",
@@ -147,6 +161,8 @@ def detect_category(data: dict) -> tuple:
         return "silver", reasons
 
     # PRIORITY 4: Check Alias (user's search intent)
+    # IMPORTANT: If alias says "gold" but title has SILVER keywords, route to SILVER!
+    # This handles items showing up in gold category searches that are actually silver
     if "textbook" in alias:
         return "textbook", [f"Alias contains 'textbook'"]
     elif "platinum" in alias:
@@ -156,8 +172,18 @@ def detect_category(data: dict) -> tuple:
         reasons.append(f"Alias contains 'palladium': {data.get('Alias', '')}")
         return "palladium", reasons
     elif "gold" in alias:
-        reasons.append(f"Alias contains 'gold': {data.get('Alias', '')}")
-        return "gold", reasons
+        # CRITICAL FIX: Check if title actually has SILVER keywords before routing to gold
+        # Items can appear in "Gold" category searches but actually be sterling silver
+        if silver_matches or has_silver_word:
+            reasons.append(f"Alias says gold BUT title has silver ({silver_matches}) - routing to SILVER")
+            return "silver", reasons
+        elif gold_matches or "gold" in title:
+            reasons.append(f"Alias contains 'gold' AND title has gold indicators: {data.get('Alias', '')}")
+            return "gold", reasons
+        else:
+            # Alias says gold but no metal keywords in title - default to gold but log warning
+            reasons.append(f"WARNING: Alias says 'gold' but no gold keywords in title - defaulting to gold")
+            return "gold", reasons
     elif "silver" in alias or "sterling" in alias or "bulk lot" in alias:
         reasons.append(f"Alias contains silver/sterling/bulk: {data.get('Alias', '')}")
         return "silver", reasons

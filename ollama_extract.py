@@ -15,6 +15,8 @@ Usage:
 import json
 import logging
 import asyncio
+import subprocess
+import shutil
 from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,54 @@ OLLAMA_TIMEOUT = 10.0  # seconds
 
 # Track availability
 _ollama_available = None
+_ollama_process = None  # Track subprocess if we started it
+
+
+async def start_ollama_if_needed() -> bool:
+    """Start Ollama server if not already running. Returns True if available after attempt."""
+    global _ollama_process, _ollama_available
+
+    # First check if already running
+    if await check_ollama_available():
+        return True
+
+    # Find ollama executable
+    ollama_path = shutil.which("ollama")
+    if not ollama_path:
+        # Try common Windows location
+        import os
+        win_path = os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ollama\ollama.exe")
+        if os.path.exists(win_path):
+            ollama_path = win_path
+
+    if not ollama_path:
+        logger.warning("[OLLAMA] Executable not found - install from ollama.com")
+        return False
+
+    logger.info(f"[OLLAMA] Starting server from {ollama_path}...")
+
+    try:
+        # Start ollama serve in background
+        _ollama_process = subprocess.Popen(
+            [ollama_path, "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+        )
+
+        # Wait for server to be ready (up to 10 seconds)
+        for i in range(20):
+            await asyncio.sleep(0.5)
+            if await check_ollama_available():
+                logger.info("[OLLAMA] Server started successfully")
+                return True
+
+        logger.warning("[OLLAMA] Server started but not responding after 10s")
+        return False
+
+    except Exception as e:
+        logger.warning(f"[OLLAMA] Failed to start: {e}")
+        return False
 
 
 async def check_ollama_available() -> bool:

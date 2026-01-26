@@ -4,6 +4,7 @@ Claude Proxy Server v3 - Optimized
 
 Enhanced with async image fetching, smart caching, and connection pooling
 
+FIX 2026-01-25: Category detection and weight extraction fixes
 
 Optimizations:
 
@@ -474,14 +475,15 @@ async def lifespan(app_instance: FastAPI):
     else:
         logger.info("[TRACKING] Item tracking database ready (polling disabled - no eBay API)")
 
-    # Initialize Ollama local LLM for fast extraction
+    # Initialize Ollama local LLM for fast extraction (auto-start if needed)
     if OLLAMA_AVAILABLE:
         try:
-            await check_ollama_available()
-            if ollama_is_available():
+            from ollama_extract import start_ollama_if_needed
+            started = await start_ollama_if_needed()
+            if started and ollama_is_available():
                 logger.info("[OLLAMA] Local LLM ready for fast extraction (~200-400ms)")
             else:
-                logger.info("[OLLAMA] Not running - install from ollama.com and run 'ollama pull llama3.2:3b'")
+                logger.warning("[OLLAMA] Not available - install from ollama.com and run 'ollama pull llama3.2:3b'")
         except Exception as e:
             logger.warning(f"[OLLAMA] Init error: {e}")
 

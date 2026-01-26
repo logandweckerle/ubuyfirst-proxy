@@ -325,6 +325,37 @@ async def debug_database():
 
 
 # ============================================================
+# ADAPTIVE LEARNING
+# ============================================================
+
+@router.get("/api/adaptive-stats")
+async def adaptive_stats():
+    """Get adaptive learning statistics"""
+    try:
+        from utils.adaptive_rules import get_adaptive_stats, get_learned_rules
+        return {
+            "status": "ok",
+            "stats": get_adaptive_stats(),
+            "top_rules": get_learned_rules(),
+        }
+    except Exception as e:
+        logger.error(f"[ADAPTIVE] Error getting stats: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/api/adaptive-reload")
+async def adaptive_reload():
+    """Force reload adaptive learning patterns"""
+    try:
+        from utils.adaptive_rules import reload_patterns
+        count = reload_patterns(force=True)
+        return {"status": "ok", "patterns_loaded": count}
+    except Exception as e:
+        logger.error(f"[ADAPTIVE] Error reloading: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+# ============================================================
 # TTS TEST
 # ============================================================
 

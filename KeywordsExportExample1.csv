@@ -1,0 +1,4 @@
+Id,Folder Path,Sub Search Id,eBay Search Alias,Sub Search Alias,Keywords,Keyword enabled,Search in Description,Price Min,Price Max,Category ID,Condition,Site,Located in,Ships to,Ship Zipcode,Sellers,Include/Exclude,Interval,Listing Type,Filter,View
+8271e9be-6441-43da-af53-655875bf18f3,Default,,Gold 1,,,TRUE,FALSE,1,10000,4196|262022|10290,,eBay US,Any,US,,,,0:00:00,BuyItNow,,Apple1
+12bc2eb0-16aa-4286-845f-38c6a8366359,Default,,Gold 2,,,TRUE,FALSE,1,10000,91427|262025|262024,,eBay US,Any,US,,,,0:00:00,BuyItNow,,Apple1
+b85487ff-d77c-44ac-ad58-fb52abf0b37b,Default,,Silver Jewelry,,,FALSE,FALSE,1,10000,262025|10968|4196,,eBay US,Any,US,,,,0:00:00,BuyItNow,,Apple1

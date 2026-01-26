@@ -1,0 +1,791 @@
+{
+  "generated_at": "2026-01-25T17:10:32.522048",
+  "by_category": {
+    "gold": {
+      "priority_keywords": [
+        "michael anthony",
+        "14k scrap",
+        "18k scrap",
+        "10k scrap",
+        "gold lot",
+        "scrap gold",
+        "class ring",
+        "signet ring",
+        "italian gold",
+        "milor",
+        "14k grams",
+        "18k grams",
+        "gold chain lot",
+        "gold jewelry lot",
+        "estate gold",
+        "broken gold",
+        "as is gold",
+        "gold for scrap"
+      ],
+      "noise_keywords": [
+        "gold tone",
+        "gold plated",
+        "gold filled",
+        "gf",
+        "vermeil",
+        "bonded",
+        "overlay",
+        "clad",
+        "costume",
+        "fashion",
+        "replica"
+      ],
+      "reliable_brands": [
+        "michael anthony",
+        "milor",
+        "unoaerre",
+        "balestra",
+        "aurafin",
+        "brev",
+        "italy"
+      ],
+      "avoid_brands": [
+        "tiffany",
+        "cartier",
+        "david yurman",
+        "james avery",
+        "pandora",
+        "lagos",
+        "john hardy"
+      ],
+      "opportunity_signals": [
+        {
+          "name": "estate_seller_gold",
+          "description": "Estate sellers often underprice gold",
+          "weight": 0.3
+        },
+        {
+          "name": "michael_anthony_brand",
+          "description": "Michael Anthony = reliable 14K gold content",
+          "weight": 0.25
+        },
+        {
+          "name": "italian_gold",
+          "description": "Italian gold chains are usually solid and well-marked",
+          "weight": 0.2
+        },
+        {
+          "name": "scrap_lot_terms",
+          "description": "Scrap/lot terms indicate seller pricing as scrap",
+          "weight": 0.25
+        },
+        {
+          "name": "class_ring_signet",
+          "description": "Class rings and signets are usually solid gold",
+          "weight": 0.2
+        },
+        {
+          "name": "vintage_no_stones",
+          "description": "Vintage gold without stones = metal value pricing",
+          "weight": 0.2
+        }
+      ],
+      "learned_keywords": [
+        {
+          "keyword": "14k",
+          "fast_sales": 320,
+          "times_seen": 320,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "vintage",
+          "fast_sales": 240,
+          "times_seen": 240,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "ring",
+          "fast_sales": 214,
+          "times_seen": 214,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "10k",
+          "fast_sales": 106,
+          "times_seen": 106,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "necklace",
+          "fast_sales": 84,
+          "times_seen": 84,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "pendant",
+          "fast_sales": 82,
+          "times_seen": 82,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "grams",
+          "fast_sales": 70,
+          "times_seen": 70,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "chain",
+          "fast_sales": 66,
+          "times_seen": 66,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "18k",
+          "fast_sales": 60,
+          "times_seen": 60,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "bracelet",
+          "fast_sales": 60,
+          "times_seen": 60,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "antique",
+          "fast_sales": 48,
+          "times_seen": 48,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "lot",
+          "fast_sales": 46,
+          "times_seen": 46,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "scrap",
+          "fast_sales": 34,
+          "times_seen": 34,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "italy",
+          "fast_sales": 24,
+          "times_seen": 24,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "estate",
+          "fast_sales": 10,
+          "times_seen": 10,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "italian",
+          "fast_sales": 8,
+          "times_seen": 8,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "michael anthony",
+          "fast_sales": 4,
+          "times_seen": 4,
+          "hit_rate": 1.0
+        }
+      ],
+      "hot_sellers": [
+        {
+          "seller": "ogfats",
+          "fast_sales": 14,
+          "type": "individual"
+        },
+        {
+          "seller": "goodwillsouthflorida",
+          "fast_sales": 10,
+          "type": "thrift"
+        },
+        {
+          "seller": "the-nylon-jungle",
+          "fast_sales": 10,
+          "type": "individual"
+        },
+        {
+          "seller": "jewelrylady1172",
+          "fast_sales": 8,
+          "type": "dealer"
+        },
+        {
+          "seller": "glcandj1",
+          "fast_sales": 6,
+          "type": "individual"
+        },
+        {
+          "seller": "aquamarine3",
+          "fast_sales": 6,
+          "type": "individual"
+        },
+        {
+          "seller": "bizzazzled_store",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "bxb13c",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "585rjmayes34",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "fraleysfinds",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "tressadiess08",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "farm4you15",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "junquehunt",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "maverick-george",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "birdresqr",
+          "fast_sales": 4,
+          "type": "individual"
+        }
+      ]
+    },
+    "silver": {
+      "priority_keywords": [
+        "sterling scrap",
+        "sterling lot",
+        "925 scrap",
+        "gorham",
+        "towle",
+        "wallace",
+        "reed barton",
+        "sterling flatware",
+        "sterling serving",
+        "ladle sterling",
+        "sterling bowl",
+        "sterling tray",
+        "mexican silver",
+        "taxco",
+        "coin silver",
+        "sterling grams",
+        "troy oz sterling"
+      ],
+      "noise_keywords": [
+        "silver plated",
+        "silverplate",
+        "epns",
+        "wm rogers",
+        "silver tone",
+        "tibetan silver",
+        "german silver",
+        "nickel silver",
+        "alpaca",
+        "stainless"
+      ],
+      "reliable_brands": [
+        "gorham",
+        "towle",
+        "wallace",
+        "reed & barton",
+        "kirk",
+        "stieff",
+        "international",
+        "alvin",
+        "whiting",
+        "durgin",
+        "shreve"
+      ],
+      "avoid_brands": [],
+      "opportunity_signals": [
+        {
+          "name": "vintage_925_no_stones",
+          "description": "Vintage 925 without stones consistently sells under melt",
+          "weight": 0.35
+        },
+        {
+          "name": "estate_thrift_silver",
+          "description": "Estate/thrift sellers underprice silver",
+          "weight": 0.3
+        },
+        {
+          "name": "flatware_makers",
+          "description": "Premium flatware makers = heavy sterling",
+          "weight": 0.25
+        },
+        {
+          "name": "scrap_lot_terms",
+          "description": "Scrap/lot terms = priced as scrap",
+          "weight": 0.25
+        },
+        {
+          "name": "heavy_serving_pieces",
+          "description": "Serving pieces are heavy sterling",
+          "weight": 0.2
+        },
+        {
+          "name": "mexican_silver",
+          "description": "Mexican silver often underpriced",
+          "weight": 0.2
+        }
+      ],
+      "learned_keywords": [
+        {
+          "keyword": "sterling",
+          "fast_sales": 394,
+          "times_seen": 394,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "925",
+          "fast_sales": 218,
+          "times_seen": 218,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "vintage",
+          "fast_sales": 176,
+          "times_seen": 176,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "turquoise",
+          "fast_sales": 64,
+          "times_seen": 64,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "navajo",
+          "fast_sales": 30,
+          "times_seen": 30,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "grams",
+          "fast_sales": 28,
+          "times_seen": 28,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "native",
+          "fast_sales": 26,
+          "times_seen": 26,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "lot",
+          "fast_sales": 26,
+          "times_seen": 26,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "antique",
+          "fast_sales": 22,
+          "times_seen": 22,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "taxco",
+          "fast_sales": 16,
+          "times_seen": 16,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "estate",
+          "fast_sales": 12,
+          "times_seen": 12,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "mexican",
+          "fast_sales": 10,
+          "times_seen": 10,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "bowl",
+          "fast_sales": 8,
+          "times_seen": 8,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "serving",
+          "fast_sales": 6,
+          "times_seen": 6,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "scrap",
+          "fast_sales": 4,
+          "times_seen": 4,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "coin silver",
+          "fast_sales": 4,
+          "times_seen": 4,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "gorham",
+          "fast_sales": 4,
+          "times_seen": 4,
+          "hit_rate": 1.0
+        }
+      ],
+      "hot_sellers": [
+        {
+          "seller": "fewofakind",
+          "fast_sales": 14,
+          "type": "individual"
+        },
+        {
+          "seller": "bostoncat",
+          "fast_sales": 10,
+          "type": "individual"
+        },
+        {
+          "seller": "rmkxoxo",
+          "fast_sales": 10,
+          "type": "individual"
+        },
+        {
+          "seller": "sag1215",
+          "fast_sales": 8,
+          "type": "individual"
+        },
+        {
+          "seller": "paris_variety_emporium",
+          "fast_sales": 8,
+          "type": "individual"
+        },
+        {
+          "seller": "kevborr",
+          "fast_sales": 8,
+          "type": "individual"
+        },
+        {
+          "seller": "savagejewelry",
+          "fast_sales": 6,
+          "type": "dealer"
+        },
+        {
+          "seller": "bluesgoods_co",
+          "fast_sales": 6,
+          "type": "individual"
+        },
+        {
+          "seller": "gailbenji111",
+          "fast_sales": 6,
+          "type": "individual"
+        },
+        {
+          "seller": "americancashforgold",
+          "fast_sales": 6,
+          "type": "dealer"
+        },
+        {
+          "seller": "youngbuch",
+          "fast_sales": 6,
+          "type": "individual"
+        },
+        {
+          "seller": "second_story_goods",
+          "fast_sales": 6,
+          "type": "individual"
+        },
+        {
+          "seller": "stellamystar",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "order.hype",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "austiriste0",
+          "fast_sales": 4,
+          "type": "individual"
+        }
+      ]
+    },
+    "watch": {
+      "priority_keywords": [
+        "pocket watch lot",
+        "watch parts lot",
+        "watchmaker lot",
+        "gold watch",
+        "14k watch",
+        "18k watch",
+        "10k watch",
+        "coin silver pocket",
+        "railroad pocket",
+        "not working watch",
+        "watch for parts",
+        "broken watch",
+        "vintage pocket",
+        "antique pocket",
+        "estate watch",
+        "waltham pocket",
+        "elgin pocket",
+        "hamilton pocket",
+        "illinois pocket",
+        "movement lot",
+        "watch movement"
+      ],
+      "noise_keywords": [
+        "smartwatch",
+        "smart watch",
+        "apple watch",
+        "fitbit",
+        "michael kors",
+        "fossil",
+        "guess",
+        "invicta",
+        "fashion watch",
+        "quartz"
+      ],
+      "reliable_brands": [
+        "waltham",
+        "elgin",
+        "hamilton",
+        "illinois",
+        "howard",
+        "ball",
+        "omega",
+        "longines",
+        "tissot",
+        "bulova",
+        "gruen"
+      ],
+      "avoid_brands": [
+        "michael kors",
+        "fossil",
+        "guess",
+        "invicta",
+        "stuhrling",
+        "rolex",
+        "patek",
+        "audemars"
+      ],
+      "opportunity_signals": [
+        {
+          "name": "estate_pocket_watch",
+          "description": "Estate sellers with pocket watches = high opportunity",
+          "weight": 0.4
+        },
+        {
+          "name": "gold_case_watch",
+          "description": "Gold case watches have melt value floor",
+          "weight": 0.35
+        },
+        {
+          "name": "parts_repair_lot",
+          "description": "Parts/repair watches are underpriced",
+          "weight": 0.3
+        },
+        {
+          "name": "vintage_mechanical",
+          "description": "Vintage mechanical watches from non-dealers",
+          "weight": 0.25
+        },
+        {
+          "name": "coin_silver_pocket",
+          "description": "Coin silver pocket watch cases have melt value",
+          "weight": 0.25
+        },
+        {
+          "name": "railroad_pocket",
+          "description": "Railroad pocket watches are collectible",
+          "weight": 0.2
+        },
+        {
+          "name": "watchmaker_lot",
+          "description": "Watchmaker lots = parts value exceeds price",
+          "weight": 0.2
+        }
+      ],
+      "learned_keywords": [
+        {
+          "keyword": "vintage",
+          "fast_sales": 58,
+          "times_seen": 58,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "pocket watch",
+          "fast_sales": 40,
+          "times_seen": 40,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "pocket",
+          "fast_sales": 40,
+          "times_seen": 40,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "antique",
+          "fast_sales": 28,
+          "times_seen": 28,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "lot",
+          "fast_sales": 24,
+          "times_seen": 24,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "gold",
+          "fast_sales": 22,
+          "times_seen": 22,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "omega",
+          "fast_sales": 16,
+          "times_seen": 16,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "waltham",
+          "fast_sales": 8,
+          "times_seen": 8,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "elgin",
+          "fast_sales": 8,
+          "times_seen": 8,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "10k",
+          "fast_sales": 8,
+          "times_seen": 8,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "18k",
+          "fast_sales": 8,
+          "times_seen": 8,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "hamilton",
+          "fast_sales": 6,
+          "times_seen": 6,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "14k",
+          "fast_sales": 4,
+          "times_seen": 4,
+          "hit_rate": 1.0
+        },
+        {
+          "keyword": "coin silver",
+          "fast_sales": 4,
+          "times_seen": 4,
+          "hit_rate": 1.0
+        }
+      ],
+      "hot_sellers": [
+        {
+          "seller": "mike_5888",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "nextwatchllc",
+          "fast_sales": 4,
+          "type": "dealer"
+        },
+        {
+          "seller": "kingtradingco",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "pokemeejcards",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "disneyrevive",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "iaclearance",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "steveail",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "midniteridr812012",
+          "fast_sales": 4,
+          "type": "individual"
+        },
+        {
+          "seller": "nismolife23",
+          "fast_sales": 2,
+          "type": "individual"
+        },
+        {
+          "seller": "jh756892",
+          "fast_sales": 2,
+          "type": "individual"
+        },
+        {
+          "seller": "jtotoro",
+          "fast_sales": 2,
+          "type": "individual"
+        },
+        {
+          "seller": "blackaivengo",
+          "fast_sales": 2,
+          "type": "individual"
+        },
+        {
+          "seller": "ashleyrose2",
+          "fast_sales": 2,
+          "type": "individual"
+        },
+        {
+          "seller": "micda_2751",
+          "fast_sales": 2,
+          "type": "individual"
+        },
+        {
+          "seller": "bill77i8",
+          "fast_sales": 2,
+          "type": "individual"
+        }
+      ]
+    }
+  }
+}

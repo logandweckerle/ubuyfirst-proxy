@@ -1,0 +1,2460 @@
+Filter Alias,Enabled,Action,Format column,Condition,Format style,
+Condition - For Parts,TRUE,FORMAT_CELLS,Condition,"Contains([Condition], 'Parts')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Red</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Condition - Used,TRUE,FORMAT_CELLS,Condition,"Contains([Condition], 'Used')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Yellow</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Condition - New,TRUE,FORMAT_CELLS,Condition,"Contains([Condition], 'New')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Lime</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Condition - Refurbished,TRUE,FORMAT_CELLS,Condition,"Contains([Condition], 'Refurbished')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>LightGreen</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Returns - No,TRUE,FORMAT_CELLS,Returns,"Contains([Returns], 'No')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Red</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Returns - Yes,TRUE,FORMAT_CELLS,Returns,"Not Contains([Returns], 'No')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Lime</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Quantity > 1,TRUE,FORMAT_CELLS,Quantity,[Quantity] > 1.0m,"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Lime</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Quantity = 1,TRUE,FORMAT_CELLS,Quantity,[Quantity] = 1.0m,"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Yellow</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Best Offer = Yes,TRUE,FORMAT_CELLS,Best Offer,"Contains([Best Offer], 'True')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Lime</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Best Offer = No,TRUE,FORMAT_CELLS,Best Offer,"Not Contains([Best Offer], 'True')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Red</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Commit to Buy (Pay Later& Buy Through UBF) = Yes,TRUE,FORMAT_CELLS,Commit To Buy,"Contains([Commit To Buy], 'True')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Lime</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Commit to Buy (Pay Later& Buy Through UBF) = No,TRUE,FORMAT_CELLS,Commit To Buy,"Not Contains([Commit To Buy], 'True')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Red</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove low feedback rating,TRUE,REMOVE_ROWS,Title,[Feedback Rating] < 25.0m,"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Price Column - Bold Text / Centered,FALSE,FORMAT_CELLS,Total Price,[Total Price] Is Not Null,"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseFont'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Bold</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>true</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+tags,TRUE,REMOVE_ROWS,Title,"Contains([Condition], 'tags')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Exclude Sellers,TRUE,REMOVE_ROWS,Title,[Seller Name] = 'jewelryrecyclers ' Or [Seller Name] = 'gemmabywpd' Or [Seller Name] = 'mbarrjewelry' Or [Seller Name] = 'ecletjewel' Or [Seller Name] = 'geetjewel' Or [Seller Name] = 'forexjewel' Or [Seller Name] = 'oldisnewagain11' Or [Seller Name] = 'truvalusa' Or [Seller Name] = 'surajjewels' Or [Seller Name] = 'fortisjewel' Or [Seller Name] = 'ringempire' Or [Seller Name] = 'tbgoods' Or [Seller Name] = 'badisjewelers' Or [Seller Name] = 'ladys_charm_27' Or [Seller Name] = 'atticthings2' Or [Seller Name] = 'empiretimenyc' Or [Seller Name] = 'god' Or [Seller Name] = 'diamondsandcoins11' Or [Seller Name] = 'twincitygoldmaine' Or [Seller Name] = 'bigskybuckles' Or [Seller Name] = 'danijel88' Or [Seller Name] = 'robintr1' Or [Seller Name] = 'liveauctioneers' Or [Seller Name] = 'penx66' Or [Seller Name] = 'eliesfinejewelry' Or [Seller Name] = 'seagreenmermaid' Or [Seller Name] = 'secretjewelrysource' Or [Seller Name] = 'diamondjims4gold' Or [Seller Name] = 'sdyphoto1954' Or [Seller Name] = 'myliberty_1' Or [Seller Name] = 'sealeddiamond' Or [Seller Name] = 'e-unit' Or [Seller Name] = 'frisc01' Or [Seller Name] = 'hugofou' Or [Seller Name] = 'bequiasailor' Or [Seller Name] = 'livingcolorworld' Or [Seller Name] = 'gemmini' Or [Seller Name] = 'italian-design-jewelers' Or [Seller Name] = 'besparkledagain' Or [Seller Name] = 'hec323' Or [Seller Name] = 'estatefresh2u' Or [Seller Name] = 'brendaginsberg' Or [Seller Name] = 'luxurybazaar' Or [Seller Name] = 'antiquepostcards' Or [Seller Name] = 'ajewelrecycle' Or [Seller Name] = 'simonbjewels' Or [Seller Name] = 'goldbuyersofpittsburgh' Or [Seller Name] = 'jewelryauthority' Or [Seller Name] = 'diancushma0' Or [Seller Name] = 'elkhartwwjpawn' Or [Seller Name] = 'lovejoy-antiques' Or [Seller Name] = 'chorostandco' Or [Seller Name] = 'wristwatchtrader' Or [Seller Name] = 'worldwidejewelryandpawn' Or [Seller Name] = 'billythetree' Or [Seller Name] = 'topbrandwatches' Or [Seller Name] = 'loveschina' Or [Seller Name] = 'skokiecash1' Or [Seller Name] = 'theniceco' Or [Seller Name] = 'goldandsilverassay' Or [Seller Name] = 'haddonfieldartgallery' Or [Seller Name] = 'milano_jewelers' Or [Seller Name] = 'agaccidiamonds' Or [Seller Name] = 'watchco1974' Or [Seller Name] = 'katycoin' Or [Seller Name] = 'exact41' Or [Seller Name] = 'csaeod' Or [Seller Name] = 'webuy376' Or [Seller Name] = 'yourpremiumbestdeals' Or [Seller Name] = 'belleaircoins' Or [Seller Name] = 'shoplyco' Or [Seller Name] = 'buyjoyce' Or [Seller Name] = 'b.drager' Or [Seller Name] = 'realdealgold' Or [Seller Name] = 'maximusjewelrynyc' Or [Seller Name] = 'finet' Or [Seller Name] = 'donnyconroy1967' Or [Seller Name] = 'jewelrydeals4ucom' Or [Seller Name] = 'centrevillegoldandpawn' Or [Seller Name] = 'tomscollectibles' Or [Seller Name] = 'car40909' Or [Seller Name] = 'artandoldstuff' Or [Seller Name] = 'cathedralrock' Or [Seller Name] = 'agarza87' Or [Seller Name] = 'a_g_store' Or [Seller Name] = 'a_g_store2' Or [Seller Name] = 'luxjewls101' Or [Seller Name] = 'imaginaryspirit' Or [Seller Name] = 'nativo-arts' Or [Seller Name] = 'maven4' Or [Seller Name] = 'gem-watch-buyer' Or [Seller Name] = 'mimijewelryandthing' Or [Seller Name] = 'usawoodbridge2010' Or [Seller Name] = 'pawnshop_city' Or [Seller Name] = 'kaattt' Or [Seller Name] = 'aaronjosephs' Or [Seller Name] = 'silver1304adam' Or [Seller Name] = 'jeweled-treasures' Or [Seller Name] = 'hsmith2m' Or [Seller Name] = 'edsvictoriangems' Or [Seller Name] = 'tom2arrows' Or [Seller Name] = 'sarasota-vintage-watches' Or [Seller Name] = 'walterbaumanjewelers' Or [Seller Name] = 'ehoffmaster' Or [Seller Name] = 'blushedjewelry' Or [Seller Name] = 'estatements' Or [Seller Name] = 'kf7345' Or [Seller Name] = 'katescloset-us' Or [Seller Name] = 'bebelya32-4' Or [Seller Name] = 'aasilverlining' Or [Seller Name] = 'rajdadadi' Or [Seller Name] = 'erissilver' Or [Seller Name] = 'ppisales' Or [Seller Name] = 'finerjewelry' Or [Seller Name] = 'klawkwatches' Or [Seller Name] = 'garygermer' Or [Seller Name] = 'diamonddr16' Or [Seller Name] = 'luxuryobsessions' Or [Seller Name] = 'abeautifultimeco' Or [Seller Name] = 'yugodoc' Or [Seller Name] = 'jennjocelyn2011' Or [Seller Name] = 'rjjewelry4' Or [Seller Name] = 'radiam' Or [Seller Name] = 'jewels_anew' Or [Seller Name] = '1queen1' Or [Seller Name] = 'ediamondatlanta' Or [Seller Name] = 'ad' Or [Seller Name] = 'angels1804' Or [Seller Name] = 'annette3461' Or [Seller Name] = 'cyanna-2016' Or [Seller Name] = 'whiskersrescue' Or [Seller Name] = 'stonepeopleproducts' Or [Seller Name] = 'cazza.g123' Or [Seller Name] = 'meltzertrading' Or [Seller Name] = 'janellmille-0' Or [Seller Name] = 'ksjewelry' Or [Seller Name] = 'terrskinne32' Or [Seller Name] = 'bestimaintheworld' Or [Seller Name] = 'cier_marc' Or [Seller Name] = 'artaurora' Or [Seller Name] = 'chauncy500' Or [Seller Name] = 'discount-couture' Or [Seller Name] = 'hadassac' Or [Seller Name] = 'beltranjewelry' Or [Seller Name] = 'diamondsanddeco' Or [Seller Name] = 'goldandsilverbrokers' Or [Seller Name] = 'estatejewelrystore' Or [Seller Name] = 'tammiegoldenhair' Or [Seller Name] = 'ndfarm1*' Or [Seller Name] = 'signjewelry' Or [Seller Name] = 'facetamelia' Or [Seller Name] = 'kimmystreasures5791' Or [Seller Name] = 'thedelune' Or [Seller Name] = 'jameshenryalexander' Or [Seller Name] = 'jewelsintimeofboca' Or [Seller Name] = 'jewelsintime' Or [Seller Name] = 'palacejewelryandloan' Or [Seller Name] = 'apmex',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove Title Keywords,TRUE,REMOVE_ROWS,Title,"Contains([Title], 'plated') Or Contains([Title], 'plate') Or Contains([Title], 'tone') Or Contains([Title], 'over') Or Contains([Title], 'filled') Or Contains([Title], 'electroplate') Or Contains([Title], 'epns') Or Contains([Title], 'rogers') Or Contains([Title], 'silverplate') Or Contains([Title], 'silverplated') Or Contains([Title], 'silver plated') Or Contains([Title], 'ep') Or Contains([Title], 'clad') Or Contains([Title], 'alpaca') Or Contains([Title], '""nickel silver""') Or Contains([Title], 'copper') Or Contains([Title], 'CZ') Or Contains([Title], 'cubic zirconia') Or Contains([Title], 'leather') Or Contains([Title], 'plastic') Or Contains([Title], 'titanium') Or Contains([Title], 'tungsten') Or Contains([Title], 'Premier Designs') Or Contains([Brand], 'Fossil') Or Contains([Brand], 'Gossip') Or Contains([Brand], 'Armitron') Or Contains([Brand], 'Pierre Cardin') Or Contains([Brand], 'Anne Klein') Or Contains([Brand], 'Accutime') Or Contains([Brand], 'Gruen II') Or Contains([Brand], 'Vivani') Or Contains([Brand], 'Kendra Scott') Or Contains([Brand], 'Timex') Or Contains([Title], 'Kendra Scott') Or Contains([Title], 'Anthropologie') Or Contains([Title], 'stretch') Or Contains([Title], 'quartz japan') Or Contains([Title], 'brighton') Or Contains([Title], 'elastic') Or Contains([Title], 'Boho') Or Contains([Title], 'Betsey Johnson') Or Contains([Title], 'Raymond Weil') Or Contains([Title], 'Watch Battery') Or Contains([Title], 'Battery') Or Contains([Title], 'Avon') Or Contains([Title], 'Tory Burch') Or Contains([Title], 'shefield') Or Contains([Title], 'sheffield') Or Contains([Title], 'Quartz') Or Contains([Title], 'Joan Rivers') Or Contains([Title], 'Sarah Coventry') Or Contains([Title], 'Citizen') Or Contains([Title], 'Invicta') Or Contains([Title], 'Roger') Or Contains([Title], 'faux') Or Contains([Title], 'sexy') Or Contains([Title], 'moissanite') Or Contains([Title], 'acrylic') Or Contains([Title], 'RGP') Or Contains([Title], 'bamboo coral') Or Contains([Title], 'sponge coral') Or Contains([Title], '14k GP') Or Contains([Title], 'Cartier Love') Or Contains([Title], 'GLD') Or Contains([Title], 'Lab Grown') Or Contains([Title], 'Cartier') Or Contains([Title], 'IGI') Or Contains([Title], 'Lab Grown') Or Contains([Title], 'Lab-Grown') Or Contains([Title], 'stainless steel') Or Contains([Title], 'brass') Or Contains([Title], 'pewter') Or Contains([Title], 'vermeil') Or Contains([Title], 'bonded') Or Contains([Title], 'overlay') Or Contains([Title], 'dipped') Or Contains([Title], 'simulated') Or Contains([Title], 'synthetic') Or Contains([Title], 'imitation') Or Contains([Title], 'replica') Or Contains([Title], 'fashion jewelry') Or Contains([Title], 'beads') Or Contains([Title], 'findings') Or Contains([Title], 'head pins') Or Contains([Title], 'craft supplies') Or Contains([Title], 'DIY') Or Contains([Title], 'junk drawer') Or Contains([Title], 'mystery box') Or Contains([Title], 'grab bag') Or Contains([Title], 'smartwatch') Or Contains([Title], 'smart watch') Or Contains([Title], 'fitness tracker') Or Contains([Title], 'activity tracker') Or Contains([Title], 'G-Shock') Or Contains([Title], 'Michael Kors') Or Contains([Title], 'Kate Spade') Or Contains([Title], 'Alex and Ani') Or Contains([Title], 'inspired by') Or Contains([Title], 'look alike') Or Contains([Title], 'coin holder') Or Contains([Title], 'coin case') Or Contains([Title], 'replica coin') Or Contains([Title], 'gold tone') Or Contains([Title], 'silver tone') Or Contains([Title], 'rose gold tone') Or Contains([Title], 'gold color') Or Contains([Title], 'silver color') Or Contains([Title], 'pokemon coin') Or Contains([Title], 'challenge coin') Or Contains([Title], 'casino token') Or Contains([Title], 'casino chip') Or Contains([Title], 'commemorative coin') Or Contains([Title], 'novelty coin') Or Contains([Title], 'coin holder') Or Contains([Title], 'coin album') Or Contains([Title], 'coin case') Or Contains([Title], 'coin display') Or Contains([Title], 'junk drawer')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove sellers 2,TRUE,REMOVE_ROWS,Title,[Seller Name] = 'diamonds-jewelry-gems' Or [Seller Name] = 'watchdogma' Or [Seller Name] = 'newpagoda' Or [Seller Name] = 'watch_chest' Or [Seller Name] = 'jagalex0867' Or [Seller Name] = 'jewelrydeals' Or [Seller Name] = 'masons_merch' Or [Seller Name] = 'ravynkat' Or [Seller Name] = 'nyexquisitejewelry' Or [Seller Name] = 'eitanliyel' Or [Seller Name] = 'avid4' Or [Seller Name] = '3*in*the*country' Or [Seller Name] = 'bluefancyjewelry' Or [Seller Name] = 'gr8fulmom23' Or [Seller Name] = 'jeff-second-chance-silver' Or [Seller Name] = 'ezcollectible' Or [Seller Name] = 'sweetpotatocarol' Or [Seller Name] = 'figdelait' Or [Seller Name] = 'oldtreasures333' Or [Seller Name] = 'frisc02' Or [Seller Name] = 'jewelrybestprice' Or [Seller Name] = 'elitediamonds_us' Or [Seller Name] = 'fabyoolusstom93' Or [Seller Name] = 'oksana2967' Or [Seller Name] = 'wilsonbrothersjewelry' Or [Seller Name] = 'foxxtrader' Or [Seller Name] = 'luvcilantro' Or [Seller Name] = 'mc12dade' Or [Seller Name] = 'gbheroncogoldsmiths' Or [Seller Name] = 'treasurefinejewelry' Or [Seller Name] = 'josephrobertjewelers' Or [Seller Name] = 'goldnoldie74' Or [Seller Name] = 'estate-deals-4-you' Or [Seller Name] = 'michelegl' Or [Seller Name] = 'essexriverantiques' Or [Seller Name] = 'epawnamerica' Or [Seller Name] = 'wehadeals' Or [Seller Name] = 'fcpdiamondstore' Or [Seller Name] = 'garcoininc' Or [Seller Name] = 'nonpareil27' Or [Seller Name] = 'luckymrs.ticklefeather' Or [Seller Name] = 'salspizza1961' Or [Seller Name] = 'brpluxury' Or [Seller Name] = 'quasi098' Or [Seller Name] = 'ross-simons_official_jeweler' Or [Seller Name] = 'greatlakesjewelryandcoin' Or [Seller Name] = 'blueribbonrarities' Or [Seller Name] = 'overthetopconsignmentshoppe' Or [Seller Name] = 'thevillagepawn' Or [Seller Name] = 'lawtonftsillgoldexchange9' Or [Seller Name] = 'ilenbalsam_0' Or [Seller Name] = 'lackeyant' Or [Seller Name] = 'amaneg123' Or [Seller Name] = 'the-collective' Or [Seller Name] = 'bardysestatejewelry' Or [Seller Name] = 'ctc102' Or [Seller Name] = '8thstsinaijewelry' Or [Seller Name] = 'abcantiques' Or [Seller Name] = 'caybeth' Or [Seller Name] = 'thejewelrycollectors' Or [Seller Name] = 'amsjewelsinc' Or [Seller Name] = 'mindette75' Or [Seller Name] = 'fastdavie' Or [Seller Name] = 'prbusch' Or [Seller Name] = 'luxury5thjewelry' Or [Seller Name] = 'vintagejewels15' Or [Seller Name] = 'topjewelernyc' Or [Seller Name] = 'theficklefox' Or [Seller Name] = 'diamond-pearlsource' Or [Seller Name] = 'ohiochic' Or [Seller Name] = 'hartvillecoin' Or [Seller Name] = 'mowgli_shop' Or [Seller Name] = 'jewelbar' Or [Seller Name] = 'oksibeads' Or [Seller Name] = 'allureunited' Or [Seller Name] = 'fslco' Or [Seller Name] = 'izzik12' Or [Seller Name] = 'silver1022' Or [Seller Name] = 'nibbiz' Or [Seller Name] = 'savysaver123' Or [Seller Name] = 'violettjewelrybox' Or [Seller Name] = 'gardenofjewels' Or [Seller Name] = 'marciadobbins' Or [Seller Name] = '4241946rls' Or [Seller Name] = 'ncnamcom' Or [Seller Name] = 'onrcoins' Or [Seller Name] = 'mur3ik' Or [Seller Name] = '1stand2ndhandemporium' Or [Seller Name] = 'coinsngoldexchange' Or [Seller Name] = 'downsouthtreasure' Or [Seller Name] = 'susiedawn' Or [Seller Name] = 'designsbydesjardin' Or [Seller Name] = 'silver.home' Or [Seller Name] = 'eagles-luck',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove sellers 3,TRUE,REMOVE_ROWS,Title,[Seller Name] = 'theprofiteer' Or [Seller Name] = 'timetravelerstrunk' Or [Seller Name] = 'southfloridacoinscollectibles' Or [Seller Name] = 'native_old_pawn_and_more' Or [Seller Name] = 'essexjewelryandantiques' Or [Seller Name] = 'robertcharlessilver' Or [Seller Name] = 'forgottentreasures503' Or [Seller Name] = 'uscoinsforyou' Or [Seller Name] = 'kash-in-currency' Or [Seller Name] = 'thirteen-twenty' Or [Seller Name] = 'cousinsgold2011' Or [Seller Name] = 'watchandjewelryexchange' Or [Seller Name] = 'madonna037' Or [Seller Name] = 'indycoindealer' Or [Seller Name] = 'even.my.shoes' Or [Seller Name] = 'thebackvault' Or [Seller Name] = 'wonderwomanantique' Or [Seller Name] = 'mighty*mouse*gems' Or [Seller Name] = 'cubnkira2015' Or [Seller Name] = 'the.treasure.source' Or [Seller Name] = 'riversxian' Or [Seller Name] = 'fashionexchange333' Or [Seller Name] = 'prospyrmarketplace' Or [Seller Name] = 'goldenegg225' Or [Seller Name] = 'jrkirk' Or [Seller Name] = 'bid_on_this' Or [Seller Name] = 'pocketpawn' Or [Seller Name] = 'prliquidator2012' Or [Seller Name] = 'tceinc83' Or [Seller Name] = 'tbgoods2' Or [Seller Name] = 'ankermanw' Or [Seller Name] = 'baublenirvana' Or [Seller Name] = 'dempseyandbaxter' Or [Seller Name] = 'cajewels760' Or [Seller Name] = 'mrantique' Or [Seller Name] = 'amadis84' Or [Seller Name] = 'wildwoodcollectibles' Or [Seller Name] = 'savoncoin' Or [Seller Name] = 'vagoldbuyers' Or [Seller Name] = 'ssp2006' Or [Seller Name] = 'stinsoncompany' Or [Seller Name] = 'pioneergold' Or [Seller Name] = 'big_toe*s_coins' Or [Seller Name] = 'gallery4610' Or [Seller Name] = 'coinguy99' Or [Seller Name] = 'jasonbw6' Or [Seller Name] = 'gls-othc' Or [Seller Name] = '888eight' Or [Seller Name] = 'vintages342' Or [Seller Name] = 'lovethatcoinguy' Or [Seller Name] = '2plus2befour' Or [Seller Name] = 'wholesale-bulk-coins' Or [Seller Name] = 'shineagainjewelry' Or [Seller Name] = 'therelux' Or [Seller Name] = 'exquisitejewels' Or [Seller Name] = 'estate_jewelry_company' Or [Seller Name] = 'big.ice.bling' Or [Seller Name] = 'cmdshine' Or [Seller Name] = 'icecarat-jewelry-usa' Or [Seller Name] = 'raymondleejeweler' Or [Seller Name] = 'snance2013' Or [Seller Name] = 'happyservicehappy' Or [Seller Name] = 'northeastgoldandcoin' Or [Seller Name] = 'scott01841' Or [Seller Name] = 'sassyclassycoins' Or [Seller Name] = 'opcsales' Or [Seller Name] = 'rarecoincollector' Or [Seller Name] = 'nceantiqueswntd' Or [Seller Name] = 'redbarnantiquesnj' Or [Seller Name] = 'e-4sell' Or [Seller Name] = 'kedziekoins' Or [Seller Name] = 'mycollectioninc' Or [Seller Name] = 'oldtreasuresforyou' Or [Seller Name] = 'bronzestarcoins7771' Or [Seller Name] = 'infinitycoins8' Or [Seller Name] = 'mncbwf' Or [Seller Name] = 'misheinc' Or [Seller Name] = 'scsull_84' Or [Seller Name] = 'saler2' Or [Seller Name] = 'silverprincess12' Or [Seller Name] = 'profilecoins' Or [Seller Name] = 'remarkablejewels' Or [Seller Name] = 'napc' Or [Seller Name] = 'purewatches' Or [Seller Name] = 'lsmwatch' Or [Seller Name] = 'entourage1' Or [Seller Name] = 'penny.007' Or [Seller Name] = 'bbkingdom1' Or [Seller Name] = 'timekeeperscrevecoeur' Or [Seller Name] = 'wintercoins' Or [Seller Name] = 'kngldwg' Or [Seller Name] = 'lexorod' Or [Seller Name] = 'beachbum92118' Or [Seller Name] = 'preciousandunlimited' Or [Seller Name] = 'rockfordcoinandstamp' Or [Seller Name] = 'cambridgecoinseller' Or [Seller Name] = 'vintagejewelry3419' Or [Seller Name] = 'joesplace8' Or [Seller Name] = 'banknote7956' Or [Seller Name] = 'greha-13' Or [Seller Name] = 'galeininger229' Or [Seller Name] = 'coinman_2000',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove new,FALSE,REMOVE_ROWS,Title,[Condition] = 'New',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Microsoft Sans Serif, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove sellers 4,TRUE,REMOVE_ROWS,Title,[Seller Name] = 'bgg57io' Or [Seller Name] = 'displaystore987' Or [Seller Name] = 'ingodwetrustcoinsandcurrency' Or [Seller Name] = 'oldstuffisme' Or [Seller Name] = 'bottom-fisher' Or [Seller Name] = 'anyfr8' Or [Seller Name] = 'eebxjewelry' Or [Seller Name] = 'pizzapusshorse' Or [Seller Name] = 'thecoinhub' Or [Seller Name] = 'kristinalambert' Or [Seller Name] = 'mauri22' Or [Seller Name] = 'themodernistexchange' Or [Seller Name] = 'caspianjewelry' Or [Seller Name] = 'alicerickd1' Or [Seller Name] = 'woo3' Or [Seller Name] = 'pickersemporium01' Or [Seller Name] = 'qualitycollectiblecoins' Or [Seller Name] = 'valeriyavaleriya71' Or [Seller Name] = 'jewelry-is-me' Or [Seller Name] = 'theconsignmenthub' Or [Seller Name] = 'wardrobe-ltd' Or [Seller Name] = 'killrstuff' Or [Seller Name] = 'dssantiques' Or [Seller Name] = 'beverlyhillsjewelers' Or [Seller Name] = 'gstarjewelry' Or [Seller Name] = 'la_jewelers' Or [Seller Name] = 'bobpaulrarecoins' Or [Seller Name] = 'toss_a_coin' Or [Seller Name] = 'estatecompanystore' Or [Seller Name] = 'dayr5156' Or [Seller Name] = 'jerryk45' Or [Seller Name] = 'andrewscoins' Or [Seller Name] = 'siramic' Or [Seller Name] = 'coinguy1957' Or [Seller Name] = 'vintagecrownjewels' Or [Seller Name] = 'preciousmetals' Or [Seller Name] = 'vieiracoins' Or [Seller Name] = 'etreasure4u' Or [Seller Name] = 'mamabear_0817' Or [Seller Name] = 'montecarloclub' Or [Seller Name] = 'tryongold' Or [Seller Name] = 'timetitans' Or [Seller Name] = 'recessionsales' Or [Seller Name] = 'tmgems' Or [Seller Name] = 'ilpawnshop' Or [Seller Name] = 'bedfordcoin' Or [Seller Name] = 'msjewelersmarketsquarejewelers' Or [Seller Name] = 'mongola-mama' Or [Seller Name] = 'rustynewport314' Or [Seller Name] = 'watchlink5' Or [Seller Name] = 'cooltimepieces' Or [Seller Name] = 'card_house_silver' Or [Seller Name] = 'vincentcallahan' Or [Seller Name] = 'cnjdealtime' Or [Seller Name] = 'designerdeals73' Or [Seller Name] = 'kansasboyz3870' Or [Seller Name] = 'wallaceanderson2015' Or [Seller Name] = 'mirmy' Or [Seller Name] = 'moonshine666' Or [Seller Name] = 'antiquesgk' Or [Seller Name] = 'vintageravencouture' Or [Seller Name] = 'forumancientcoins' Or [Seller Name] = 'associated_jewelers' Or [Seller Name] = 'njmcoins' Or [Seller Name] = 'poshique' Or [Seller Name] = 'avid4auctions' Or [Seller Name] = 'quidditchsnitch' Or [Seller Name] = 'apfpro' Or [Seller Name] = 'nrdm' Or [Seller Name] = 'coasttocoast_antiques_nh ' Or [Seller Name] = 'coasttocoast_antiques_nh' Or [Seller Name] = 'screaming-eagle-coins' Or [Seller Name] = 'coinvana_com' Or [Seller Name] = 'dmbcoin' Or [Seller Name] = '123-backontherack' Or [Seller Name] = 'mou_jewels' Or [Seller Name] = 'annie-annie16888' Or [Seller Name] = 'novo_collection' Or [Seller Name] = 'slmitchell' Or [Seller Name] = 'antiquecupboard' Or [Seller Name] = 'liberty.coin' Or [Seller Name] = 'amermaidtale' Or [Seller Name] = 'cindyg5733' Or [Seller Name] = 'dandl_coins' Or [Seller Name] = 'replacementsltd' Or [Seller Name] = 'burtritterscoins' Or [Seller Name] = 'livermorecoinandbullion' Or [Seller Name] = 'kakp' Or [Seller Name] = 'slvrbullet9' Or [Seller Name] = 'admatter' Or [Seller Name] = 'layaway-4-later' Or [Seller Name] = 'roxina1964' Or [Seller Name] = 'barberdime' Or [Seller Name] = 'zippy451' Or [Seller Name] = 'goodbabylon' Or [Seller Name] = 'jerusalemhadaya2012' Or [Seller Name] = 'stockmaniac2005' Or [Seller Name] = 'cecilespeciality' Or [Seller Name] = 'ricricq3q2otke' Or [Seller Name] = 'dreamsonbig' Or [Seller Name] = 'jewelrygirl1978' Or [Seller Name] = 'my-card-shop' Or [Seller Name] = 'straightsilverinc' Or [Seller Name] = 'kalfas' Or [Seller Name] = 'treasureville' Or [Seller Name] = 'copperpennyconnection' Or [Seller Name] = 'coins888_co' Or [Seller Name] = 'mindhealing' Or [Seller Name] = 'jewelsgemsetc' Or [Seller Name] = 'jandc-coinandjewelry' Or [Seller Name] = 'honest_selling' Or [Seller Name] = 'gemgenerations' Or [Seller Name] = 'jewelbug2011',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove sellers 5,TRUE,REMOVE_ROWS,Title,[Seller Name] = 'mezmarijewelbox' Or [Seller Name] = 'provincialpilgrim' Or [Seller Name] = 'stamps-tl ' Or [Seller Name] = 'pelicangonzales' Or [Seller Name] = 'simplycoins' Or [Seller Name] = 'tl155042010' Or [Seller Name] = 'premium_silver' Or [Seller Name] = 'mytrade247' Or [Seller Name] = 'madisonsmommy50' Or [Seller Name] = 'nightwindsong' Or [Seller Name] = 'roxinhorse7260' Or [Seller Name] = 'buckieballs' Or [Seller Name] = 'silver_dove_2011' Or [Seller Name] = 'bigdaddyx6' Or [Seller Name] = 'shopasteal' Or [Seller Name] = 'silvernmore' Or [Seller Name] = 'theworldunhinged' Or [Seller Name] = 'bidoncoolstuff' Or [Seller Name] = 'pelican1060' Or [Seller Name] = 'pasttopresentjewelry' Or [Seller Name] = 'cristinhoug0' Or [Seller Name] = 'taquitochalupa' Or [Seller Name] = 'luvmydiamond' Or [Seller Name] = 'abj2000' Or [Seller Name] = 'jdmern' Or [Seller Name] = 'mwnum' Or [Seller Name] = 'alec_the_alchemist' Or [Seller Name] = 'barginboxmichael' Or [Seller Name] = 'vintageandestatejewelryfindsforyou' Or [Seller Name] = 'glenolden-duke' Or [Seller Name] = 'charlibear76' Or [Seller Name] = 'cherylldawn' Or [Seller Name] = 'adam*eve' Or [Seller Name] = 'collector-guy-0' Or [Seller Name] = 'aandgpawnshop' Or [Seller Name] = 'fredmapa' Or [Seller Name] = 'coinsandjewelryshop' Or [Seller Name] = 'wondollar' Or [Seller Name] = 'hoarderhut' Or [Seller Name] = 'luvitagain18951' Or [Seller Name] = 'ezerkinegdo' Or [Seller Name] = 'treasure.chest49' Or [Seller Name] = 'swisswatchexpo' Or [Seller Name] = 'usjewels' Or [Seller Name] = 'zangel14' Or [Seller Name] = 'ksichtig2010' Or [Seller Name] = 'esanfordsalvage' Or [Seller Name] = 'silverciti925' Or [Seller Name] = 'penoriss' Or [Seller Name] = 'ziern' Or [Seller Name] = 'estatejewelryliquidation' Or [Seller Name] = 'msmi3673' Or [Seller Name] = '14k gold chain with unicorn charm' Or [Seller Name] = 'specialforces-vietnamwar' Or [Seller Name] = 'authelege-9' Or [Seller Name] = 'cmickel' Or [Seller Name] = 'provide-u-best' Or [Seller Name] = 'maxferdbh' Or [Seller Name] = 'diamondsells' Or [Seller Name] = 'silver_nycity' Or [Seller Name] = 'stvlws94cx' Or [Seller Name] = 'nationalestatejewelers' Or [Seller Name] = 'kirby1010golf' Or [Seller Name] = 'forgotten.treasure' Or [Seller Name] = 'mikeorbonnie' Or [Seller Name] = 'thegamingguild' Or [Seller Name] = 'komenda2011' Or [Seller Name] = 'baubles' Or [Seller Name] = 'redbf' Or [Seller Name] = 'jasonbstuff' Or [Seller Name] = 'estateminer' Or [Seller Name] = 'sophiefish06' Or [Seller Name] = 'portablewealth' Or [Seller Name] = 'goldreefbest' Or [Seller Name] = 'zahug1217' Or [Seller Name] = 'silverwrendesigns' Or [Seller Name] = 'silver-revolution' Or [Seller Name] = 'drcreations' Or [Seller Name] = 'rebagofficial' Or [Seller Name] = 'silverandlamps' Or [Seller Name] = 'coopers-coins' Or [Seller Name] = 'georgesfinejewelerskingscorner' Or [Seller Name] = 'ne1golftoo' Or [Seller Name] = 'cindbell22' Or [Seller Name] = 'max2u2' Or [Seller Name] = 'djinsontis' Or [Seller Name] = 'arizcc' Or [Seller Name] = 'benndavis2009' Or [Seller Name] = 'silverspeck' Or [Seller Name] = 'ssiyakr' Or [Seller Name] = 'statestreetcoinco' Or [Seller Name] = 'sandlerauctions' Or [Seller Name] = 'saibdi-65' Or [Seller Name] = 'goldngals' Or [Seller Name] = 'stylenow007' Or [Seller Name] = 'charam888' Or [Seller Name] = 'old-english-silver' Or [Seller Name] = 'shoplc-us' Or [Seller Name] = 'victimofjunk' Or [Seller Name] = 'leadertechllc' Or [Seller Name] = 'lavalierejewelers' Or [Seller Name] = 'newzales21' Or [Seller Name] = 'aishvi_jewels' Or [Seller Name] = 'nirvi-diamonds' Or [Seller Name] = 'nikharjewel' Or [Seller Name] = 'sonalicreation_usa' Or [Seller Name] = 'shreejewels-24' Or [Seller Name] = 'shivanti_jewels' Or [Seller Name] = 'sarahjewels06' Or [Seller Name] = 'kalapijewel' Or [Seller Name] = 'shiva_jewels' Or [Seller Name] = 'millauctionhouse' Or [Seller Name] = 'freemanmerchants' Or [Seller Name] = 'sell925' Or [Seller Name] = 'goldngal1212' Or [Seller Name] = 'goldngals14' Or [Seller Name] = 'sjl546' Or [Seller Name] = 'sunday_jewelers_llc' Or [Seller Name] = 'goldnetwork' Or [Seller Name] = 'lexi185' Or [Seller Name] = 'shopjw' Or [Seller Name] = 'mongorianz' Or [Seller Name] = 'kiti2000nina' Or [Seller Name] = 'alaskadreamer2016' Or [Seller Name] = 'mwjwep' Or [Seller Name] = 'fleamarketeers' Or [Seller Name] = 'goesaround2014' Or [Seller Name] = 'asellerofpurple',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove finish,TRUE,REMOVE_ROWS,Title,"Contains([Title], 'Finish')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Microsoft Sans Serif, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove new other,TRUE,REMOVE_ROWS,Title,[Condition] = 'New other',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Microsoft Sans Serif, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove 0 feedbacks,TRUE,REMOVE_ROWS,Title,[Feedback Score] < 1.0m,"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Microsoft Sans Serif, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove quantity more than 2,FALSE,REMOVE_ROWS,Title,[Quantity] > 2.0m,"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Microsoft Sans Serif, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontSizeDelta'>0</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove seller 6,TRUE,REMOVE_ROWS,Title,[Seller Name] = 'adina' Or [Seller Name] = 'quetzal_jewelers' Or [Seller Name] = 'we-manufacture-jewelry' Or [Seller Name] = 'cool.jewels.by.jeff' Or [Seller Name] = 'quetzal_jewelers' Or [Seller Name] = 'watchingo' Or [Seller Name] = 'mcheng_penang' Or [Seller Name] = 'real_solid_gold' Or [Seller Name] = 'boggat-deals' Or [Seller Name] = 'tambowatches0' Or [Seller Name] = '5starwatches' Or [Seller Name] = 'artdecojewelers' Or [Seller Name] = 'avvsjewelrystore' Or [Seller Name] = 'wearingtime' Or [Seller Name] = 'nyjewel' Or [Seller Name] = 'bellabambino' Or [Seller Name] = 'ocean_side66' Or [Seller Name] = 'ironcladtreasures' Or [Seller Name] = 'aryshr34' Or [Seller Name] = 'samswatches' Or [Seller Name] = 'sflmaven' Or [Seller Name] = 'volunteertime' Or [Seller Name] = 'swisstimebuyers' Or [Seller Name] = 'dealspa' Or [Seller Name] = 'padug' Or [Seller Name] = 'itsagottahave' Or [Seller Name] = 'shrinkflyer' Or [Seller Name] = 'happyjewelers1475' Or [Seller Name] = 'laurigino-0' Or [Seller Name] = 'manfredijewels' Or [Seller Name] = 'valleyforgeantiques' Or [Seller Name] = 'joy-boutique' Or [Seller Name] = 'theopaloutlet' Or [Seller Name] = 'skyjewelry.shop' Or [Seller Name] = 'southwestturquoisetraders' Or [Seller Name] = 'tulsavintage' Or [Seller Name] = 'heirloom_heritage' Or [Seller Name] = 'rogues-estate-jewelry-and-antiques' Or [Seller Name] = 'jreeve1' Or [Seller Name] = 'goldanddiamondbroker' Or [Seller Name] = 'midnitesminerals' Or [Seller Name] = 'onradcl' Or [Seller Name] = 'lebellejewelsco' Or [Seller Name] = 'bin9898' Or [Seller Name] = 'treasurequeen1980' Or [Seller Name] = 'jewelerusa' Or [Seller Name] = 'linda*s***stuff' Or [Seller Name] = 'barkman45' Or [Seller Name] = 'k2goodies' Or [Seller Name] = 'phoenixpawn2023' Or [Seller Name] = 'commedesrococo' Or [Seller Name] = 'phigora' Or [Seller Name] = 'bellatutto' Or [Seller Name] = 'recycled.gems' Or [Seller Name] = 'lolasvintagejewelry' Or [Seller Name] = 'ajminc1973' Or [Seller Name] = 'ukrainer-2022' Or [Seller Name] = 'mygift...myson' Or [Seller Name] = 'tampasbestcollectibles' Or [Seller Name] = 'selling_savings_jewelers' Or [Seller Name] = '8201karen' Or [Seller Name] = 'seasidemarinedelaware' Or [Seller Name] = 'oldpawngenuine' Or [Seller Name] = 'eternal_accents' Or [Seller Name] = 'i-shop-at-home',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Microsoft Sans Serif, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove more than 1 day,TRUE,REMOVE_ROWS,Title,[Posted Time] < LocalDateTimeToday(),"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove sellers 7,TRUE,REMOVE_ROWS,Title,[Seller Name] = 'rayann67' Or [Seller Name] = 'bazinga12342013' Or [Seller Name] = '47jewelry' Or [Seller Name] = 'oldetown' Or [Seller Name] = 'eseller04' Or [Seller Name] = 'strumfy7' Or [Seller Name] = 'heirloomjewelry' Or [Seller Name] = 'adthaal' Or [Seller Name] = 'designerdiamondjewelry' Or [Seller Name] = 'fletchfinds4u' Or [Seller Name] = 'geminicha' Or [Seller Name] = 'theoddcorner' Or [Seller Name] = 'ezrugsandart' Or [Seller Name] = 'lillianna' Or [Seller Name] = 'anggen_4943' Or [Seller Name] = 'cloverdiamonds' Or [Seller Name] = 'collectorswatches' Or [Seller Name] = 'kokomonwwjp' Or [Seller Name] = 'gawri-6357' Or [Seller Name] = 'radcliffe_jewelers' Or [Seller Name] = 'goodoletom' Or [Seller Name] = 'antique-jewel' Or [Seller Name] = 'drew1010100' Or [Seller Name] = 'joyfullythrifted' Or [Seller Name] = 'thisandthat442' Or [Seller Name] = 'belroseantiquesdirect' Or [Seller Name] = 'deb43017' Or [Seller Name] = 'devineselections' Or [Seller Name] = 'cosmicstuff2010' Or [Seller Name] = 'klctr_llc' Or [Seller Name] = 'win_win999' Or [Seller Name] = 'ccdg' Or [Seller Name] = 'coinsngifts' Or [Seller Name] = 'auction-hunter' Or [Seller Name] = 'loveandrelic' Or [Seller Name] = 'yjoerwak' Or [Seller Name] = 'diamondintheroughil' Or [Seller Name] = 'drummer755' Or [Seller Name] = 'labgrowndiam',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Microsoft Sans Serif, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove seller 8,TRUE,REMOVE_ROWS,Title,[Seller Name] = 'jahar397' Or [Seller Name] = 'kyleasplace' Or [Seller Name] = 'aristojewelry' Or [Seller Name] = 'frep005' Or [Seller Name] = 'missdollie' Or [Seller Name] = 'claridoncoinguy' Or [Seller Name] = 'jkrantz' Or [Seller Name] = 'namebrandfinds4less' Or [Seller Name] = 'v0xmarket' Or [Seller Name] = 'mystic_jewelry' Or [Seller Name] = 'daretodazzlenet' Or [Seller Name] = 'omijewelry' Or [Seller Name] = 'swissmadecorp' Or [Seller Name] = 'drsyszgyesq' Or [Seller Name] = 'myuniquecollection' Or [Seller Name] = 'Goodwillsocalshop' Or [Seller Name] = 'brilliant_timepiece_nyc' Or [Seller Name] = 'chronoonfifth' Or [Seller Name] = 'neetstuf2' Or [Seller Name] = '1personstreasures' Or [Seller Name] = 'allen1853' Or [Seller Name] = 'hollydays' Or [Seller Name] = 'crown369' Or [Seller Name] = 'champignonchou' Or [Seller Name] = 'qcggoods' Or [Seller Name] = 'valiola' Or [Seller Name] = 'psalm119.72' Or [Seller Name] = 'ms-found-it-4u' Or [Seller Name] = 'tampasvintagewatches' Or [Seller Name] = 'trvbytammy' Or [Seller Name] = 'toppet' Or [Seller Name] = 'jewls4uall' Or [Seller Name] = 'tristanztreasures' Or [Seller Name] = 'kayak4love' Or [Seller Name] = 'watchrecyclers26' Or [Seller Name] = 'ldy1010' Or [Seller Name] = 'mzmadmike01' Or [Seller Name] = 'monaco-jewelers' Or [Seller Name] = 'cleaning-girl' Or [Seller Name] = 'goldensunus' Or [Seller Name] = 'iclawler' Or [Seller Name] = 'raindropsonroses1' Or [Seller Name] = 'joeboy1957' Or [Seller Name] = 'evitadiamonds' Or [Seller Name] = 'madison-jewelry' Or [Seller Name] = 'jandj_coins' Or [Seller Name] = 'vtdesignerly' Or [Seller Name] = 'blueribbonnumismatics' Or [Seller Name] = 'estatefindzworldwide' Or [Seller Name] = 'beadzilla_jewelry_creations' Or [Seller Name] = 'estatejewelryliquidations' Or [Seller Name] = 'JewelGiant.com' Or [Seller Name] = 'arildcn' Or [Seller Name] = 'popspassion' Or [Seller Name] = 'rutherford6789' Or [Seller Name] = 'outfit_city259' Or [Seller Name] = 'ie4u' Or [Seller Name] = 'uniqueantiqueschicago' Or [Seller Name] = 'firstclassdials' Or [Seller Name] = 'projectoushine2' Or [Seller Name] = 'oldpawngenuine68' Or [Seller Name] = 'worldclasspawn' Or [Seller Name] = 'ajbjewelry' Or [Seller Name] = 'ebuyntrade' Or [Seller Name] = 'terwilk_53' Or [Seller Name] = 'JewelGiant.com',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Microsoft Sans Serif, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove Seller 9,FALSE,REMOVE_ROWS,Title,[Seller Name] = 'verypq' Or [Seller Name] = 'mbarrcoins' Or [Seller Name] = 'jewelgiant' Or [Seller Name] = 'pacificworldcoins_inc' Or [Seller Name] = 'em-jeyfinejewels' Or [Seller Name] = 'rick_kleinvehn_diamond_brokers' Or [Seller Name] = 'gemgeekliquidation' Or [Seller Name] = 'graysvault' Or [Seller Name] = 'breezyhilljewelry' Or [Seller Name] = 'pelicansherwood' Or [Seller Name] = 'eyesicks' Or [Seller Name] = 'hartmansservices' Or [Seller Name] = 'myGemma' Or [Seller Name] = 'giselahsiao' Or [Seller Name] = 'heygreatwatch' Or [Seller Name] = 'diamonds_n_rust' Or [Seller Name] = 'mrtw_38' Or [Seller Name] = 'opulentjewelers' Or [Seller Name] = 'twopickersandapug' Or [Seller Name] = 'madison880' Or [Seller Name] = 'trip_bria' Or [Seller Name] = 'thepawnshopofroanoke' Or [Seller Name] = 'buyboxclub' Or [Seller Name] = 'timekeepersolive' Or [Seller Name] = 'macariojewelry' Or [Seller Name] = 'jzl.enterprises' Or [Seller Name] = 'foxestatejewelry' Or [Seller Name] = 'whosewatches' Or [Seller Name] = 'ferriscoin1930' Or [Seller Name] = 'history10111' Or [Seller Name] = 'dsf_antique_jewelry' Or [Seller Name] = 'tattoozzzz' Or [Seller Name] = 'kcwtraveler' Or [Seller Name] = 'certifiedfinejewelry' Or [Seller Name] = 'bayougoldllc' Or [Seller Name] = 'jurev12' Or [Seller Name] = 'vintagejewelry247' Or [Seller Name] = 'Collectors Lynbrook New York' Or [Seller Name] = 'Collectors Lynbrook New York' Or [Seller Name] = 'd1635957' Or [Seller Name] = 'eliteshoppping' Or [Seller Name] = 'aspenCollection' Or [Seller Name] = 'boomboombracelets' Or [Seller Name] = 'Prudent Collection' Or [Seller Name] = 'tobysan' Or [Seller Name] = 'jack011116luo-2' Or [Seller Name] = 'my_shirts_are_tops' Or [Seller Name] = 'tgalvez2012' Or [Seller Name] = '1976vett2nv' Or [Seller Name] = 'estatejewelrybymichael' Or [Seller Name] = 'florida-coast-treasures' Or [Seller Name] = 'orne' Or [Seller Name] = 'marshallsweetcoinco' Or [Seller Name] = 'queen_gee' Or [Seller Name] = 'rcfavorites' Or [Seller Name] = 'jjcoins_stormlake' Or [Seller Name] = 'diamondmarinellc' Or [Seller Name] = 'americancoin1' Or [Seller Name] = 'trecoins' Or [Seller Name] = 'pelicanpawnmain',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove china,TRUE,REMOVE_ROWS,Title,[From Country] = 'China',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove silver age comics,FALSE,REMOVE_ROWS,Title,"Contains([Title], 'silver age') Or Contains([Title], 'comics') Or Contains([Title], 'surfer') Or Contains([Title], 'marvel') Or Contains([Title], 'comic') Or Contains([Title], 'postcard') Or Contains([Title], '750ml') Or Contains([Title], 'empty bottle') Or Contains([Title], 'benchwarmer')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove silver oz over $30,FALSE,REMOVE_ROWS,Title,"Contains([Title], '1 oz silver coin') And [Total Price] > 30.0","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove seller 10,TRUE,REMOVE_ROWS,Title,[Seller Name] = 'Brightfinejewelry' Or [Seller Name] = 'dprc-usa' Or [Seller Name] = 'avi_and_co' Or [Seller Name] = 'rechantpreciousmetals' Or [Seller Name] = 'bibliovendor' Or [Seller Name] = 'outfit_city' Or [Seller Name] = 'prestigetime' Or [Seller Name] = 'Max Pawn Luxury' Or [Seller Name] = 'Facet Jewelry Music & Pawn: Milford' Or [Seller Name] = 'jewelry4you' Or [Seller Name] = 'collectorsinvestment' Or [Seller Name] = '777jewelry' Or [Seller Name] = '6canoes' Or [Seller Name] = 'estate_fresh_austin' Or [Seller Name] = 'liquidbullion' Or [Seller Name] = 'teenagetreasurehunter' Or [Seller Name] = 'mrfunandgame1' Or [Seller Name] = 'watches_for_sale' Or [Seller Name] = 'epluribusunum!' Or [Seller Name] = 'm2v' Or [Seller Name] = 'onethindime' Or [Seller Name] = 'artlover.nc' Or [Seller Name] = 'joemose9' Or [Seller Name] = 'pawnamerica' Or [Seller Name] = 'wonderprice-jp' Or [Seller Name] = 'ladyindecadence' Or [Seller Name] = 'selby-jewelry' Or [Seller Name] = 'apr57com' Or [Seller Name] = 'estatesconsignments' Or [Seller Name] = 'gal_al' Or [Seller Name] = 'jawkitch68' Or [Seller Name] = 'keihan-kobo5　077126' Or [Seller Name] = 'shu590218nona' Or [Seller Name] = 'chand3_3' Or [Seller Name] = 'marfeu_57' Or [Seller Name] = 'kirsc.betha' Or [Seller Name] = '*my*treasure*trove*' Or [Seller Name] = 'awesome-item' Or [Seller Name] = 'casapawn' Or [Seller Name] = 'umpteen_postcards' Or [Seller Name] = 'treasuretrust' Or [Seller Name] = 'The Dream Store®' Or [Seller Name] = 'susmon_34' Or [Seller Name] = 'COMC' Or [Seller Name] = 'johnnylovesjunk' Or [Seller Name] = 'The Vintage Daedal' Or [Seller Name] = 'goldear602' Or [Seller Name] = 'COMC' Or [Seller Name] = 'comc_consignment' Or [Seller Name] = 'mrcards79' Or [Seller Name] = 'Enjoythehobby2012' Or [Seller Name] = 'thejeweledcrescent' Or [Seller Name] = 'projectoushine3' Or [Seller Name] = 'Pen Kingdom' Or [Seller Name] = 'jorpet-89' Or [Seller Name] = 'muddcrack' Or [Seller Name] = 'superbowl32' Or [Seller Name] = 'storage-locker-aficionados' Or [Seller Name] = 'trendymodernhome' Or [Seller Name] = 'fine_jewelry' Or [Seller Name] = 'davidsjewelryandcoinexchange' Or [Seller Name] = 'jehambli-0' Or [Seller Name] = 'rparobeadam' Or [Seller Name] = 'clw893' Or [Seller Name] = 'salestandard' Or [Seller Name] = 'thecoziking' Or [Seller Name] = 'jerseygirlstreasures' Or [Seller Name] = 'smalltownbigcitysales' Or [Seller Name] = 'autumnstones' Or [Seller Name] = 'tiffiestrinketsntreasures' Or [Seller Name] = 'The Dream Store®' Or [Seller Name] = 'jahbusinessservicesinc' Or [Seller Name] = 'skyjewelers' Or [Seller Name] = 'superdealsforeverything' Or [Seller Name] = 'ruffinprecisionmetal' Or [Seller Name] = 'friendlydiamondsusa' Or [Seller Name] = 'bilylumis' Or [Seller Name] = 'adesertwillow' Or [Seller Name] = 'Mantiques and baseball' Or [Seller Name] = 'diamond2deal' Or [Seller Name] = 'nativetreasuresnm' Or [Seller Name] = 'The Vintage Strand' Or [Seller Name] = 'knivesexpress' Or [Seller Name] = 'AuthenticWatches' Or [Seller Name] = 'janandpeg' Or [Seller Name] = 'silverjewelrystore_nyc' Or [Seller Name] = 'silverjewelrystore_nyc' Or [Seller Name] = '31 Jewels Inc' Or [Seller Name] = 'thenaturalsapphireco' Or [Seller Name] = 'diamondexpo' Or [Seller Name] = 'diamondsofamerica' Or [Seller Name] = 'matchbookalbumstore' Or [Seller Name] = 'emarketproducts' Or [Seller Name] = 'SignatureWatches' Or [Seller Name] = 'Solitaire Lab Diamond' Or [Seller Name] = 'The Dream Store®' Or [Seller Name] = 'Gem and Harmony' Or [Seller Name] = '4 Sharp Corners' Or [Seller Name] = 'oliverstore_back' Or [Seller Name] = 'giftbysophia' Or [Seller Name] = 'giftsby_james_0' Or [Seller Name] = 'OutrageousJewelry' Or [Seller Name] = 'FleurtyLee Finds' Or [Seller Name] = '925usasilver' Or [Seller Name] = 'XtremeGems2010' Or [Seller Name] = 'cellarbuy1legacy' Or [Seller Name] = 'littleshopofcoins' Or [Seller Name] = 'mwexchng' Or [Seller Name] = 'Dealboyz' Or [Seller Name] = 'dungeonvendorsoffortitude' Or [Seller Name] = 'thingsromantic' Or [Seller Name] = 'giftby_rebecca' Or [Seller Name] = 'Remember When Post Cards and Ads' Or [Seller Name] = 'Sterilng N Steel Jewelry Co' Or [Seller Name] = 'theantiqueattic' Or [Seller Name] = 'The Vintage Strand' Or [Seller Name] = 'VividIce Diamonds' Or [Seller Name] = 'jburktoys' Or [Seller Name] = 'clear_creek_revival' Or [Seller Name] = 'theperry_5' Or [Seller Name] = 'azlansd-72' Or [Seller Name] = 'Diamond Traces Inc' Or [Seller Name] = 'northernlights9121' Or [Seller Name] = 'Shiree Odiz NY' Or [Seller Name] = 'diamond2deal_ss' Or [Seller Name] = 'superlight.diamonds' Or [Seller Name] = 'rustyrail' Or [Seller Name] = 'JA Diamonds' Or [Seller Name] = 'Diamond BLVD' Or [Seller Name] = 'gold-myna' Or [Seller Name] = 'railroadpaperguy' Or [Seller Name] = 'The Dream Store®' Or [Seller Name] = 'ZANY JANES' Or [Seller Name] = 'avariah' Or [Seller Name] = 'almostheaventreasures' Or [Seller Name] = 'djkabunga' Or [Seller Name] = 'jp-tech' Or [Seller Name] = 'wscoop' Or [Seller Name] = 'sunflowermountain' Or [Seller Name] = 'Potomac Jewelry' Or [Seller Name] = 'netayafinejewelryexperts' Or [Seller Name] = 'George''s Toy Chest' Or [Seller Name] = 'araiya-fine-jewelry' Or [Seller Name] = 'pezdudewelch' Or [Seller Name] = 'Gilman''s Mercantile' Or [Seller Name] = 'LaBarre_Galleries' Or [Seller Name] = 'rpppgraphs' Or [Seller Name] = 'reeflover' Or [Seller Name] = 'Remind Me Of A Time' Or [Seller Name] = 'cherrysauctions' Or [Seller Name] = 'authenticwatches*com' Or [Seller Name] = 'Rocknbabe' Or [Seller Name] = '1zanyjane' Or [Seller Name] = 'jewelrystoresnetwork' Or [Seller Name] = 'brillantejewels' Or [Seller Name] = 'iluv2golf' Or [Seller Name] = 'vintageimagephotos' Or [Seller Name] = 'hoodmining' Or [Seller Name] = 'jewelrycoinsnmore' Or [Seller Name] = 'sowhat11' Or [Seller Name] = 'araiya_fine_jewelry_in' Or [Seller Name] = 'Refried.jeans' Or [Seller Name] = 'Lex & Lu' Or [Seller Name] = 'christys$store' Or [Seller Name] = 'chatterbrains',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove Railroad,TRUE,REMOVE_ROWS,Title,"Contains([Title], 'Railroad')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove relisted items,TRUE,REMOVE_ROWS,Title,[Relist Parent ID] > '1',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove sellers 11,TRUE,REMOVE_ROWS,Title,[Seller Name] = 'dalefunstore' Or [Seller Name] = 'bestpapernmore' Or [Seller Name] = 'Long Gone Geek Vintage Ads' Or [Seller Name] = '237' Or [Seller Name] = 'altairthree' Or [Seller Name] = 'Kantique' Or [Seller Name] = 'jesusrocks3339' Or [Seller Name] = 'stansjewels' Or [Seller Name] = 'Haus of Brilliance' Or [Seller Name] = 'hausofbrilliance' Or [Seller Name] = 'm2ventures' Or [Seller Name] = 'katlovebeads' Or [Seller Name] = 'craftlabel' Or [Seller Name] = 'modernoptics',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove prizm,TRUE,REMOVE_ROWS,Title,"Contains([Title], 'Prizm') Or Contains([Title], 'Topps') Or Contains([Title], 'Bowman') Or Contains([Title], 'keychain') Or Contains([Title], 'stereoview') Or Contains([Title], 'trading card') Or [Title] = 'key chain'","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove japan,TRUE,REMOVE_ROWS,Title,"[Seller Country] = 'Japan' Or Contains([Seller Country], 'Japan') Or Contains([Seller Country], 'China') Or Contains([Seller Country], 'Shenzen') Or Contains([Seller Country], 'Tokyo') Or Contains([Seller Country], 'Hong Kong')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove stores antiques,FALSE,REMOVE_ROWS,Title,[Seller Store] = 'store' And [Category ID] = '1',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove japan location,TRUE,REMOVE_ROWS,Title,"Contains([Location], 'Japan') Or Contains([Location], 'China')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove stores collectibles,FALSE,REMOVE_ROWS,Title,[Category ID] = '20081' And [Seller Store] = 'store',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove watch stores,TRUE,REMOVE_ROWS,Title,"[Seller Store] = 'store' And Contains([Title], 'watch')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove australia,TRUE,REMOVE_ROWS,Title,"Contains([Location], 'australia')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove japan2,TRUE,REMOVE_ROWS,Title,"Contains([From Country], 'Japan') Or Contains([Seller Country], 'shanghai') Or Contains([From Country], 'shanghai') Or Contains([From Country], ' japan') Or Contains([Seller Country], ' japan')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove pen store,TRUE,REMOVE_ROWS,Title,"[Seller Store] = 'store' And Contains([Title], 'pen')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove india,TRUE,REMOVE_ROWS,Title,[Seller Country] = 'india' Or [Seller Country] = 'HongKong' Or [Seller Country] = 'France' Or [Seller Country] = 'Japan',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove knife store,TRUE,REMOVE_ROWS,Title,"[Seller Store] = 'store' And Contains([Title], 'knife')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove low MP,TRUE,REMOVE_ROWS,Title,"Contains([Title], '6.0MP') Or Contains([Title], '4.0MP') Or Contains([Title], '8.0MP') Or Contains([Title], '10.0MP') Or Contains([Title], '9.1MP') Or Contains([Title], '5.2MP') Or Contains([Title], '4.1MP') Or Contains([Title], '5.0MP') Or Contains([Title], '8.1MP') Or Contains([Title], '7.2MP') Or Contains([Title], '7.1MP') Or Contains([Title], '3.2mp') Or Contains([Title], '2.0mp') Or Contains([Title], '3.0mp') Or Contains([Title], '5.1 MP') Or Contains([Title], '7.1 MP')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove feedback less than 93p,TRUE,REMOVE_ROWS,Title,[Feedback Rating] < 93.0m,"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove less than 3 feedback,TRUE,REMOVE_ROWS,Title,[Feedback Score] < 3.0m,"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove i5,TRUE,REMOVE_ROWS,Title,"Contains([Title], 'i5')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+remove numbers seller name,TRUE,REMOVE_ROWS,Title,[Seller Name] Like '32165',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove unwanted flatware,FALSE,REMOVE_ROWS,Title,"[ai Recommendation] = 'Pass' And Contains([Alias], 'sterling flatware')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Highlight Pass Red,FALSE,FORMAT_CELLS,Title,[ai Recommendation] = 'PASS',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Red</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+AIBUY Green,FALSE,FORMAT_CELLS,Title,[ai Recommendation] = 'BUY',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Lime</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+AI-Gold,FALSE,ApplyAiPromptAction,Title,[Alias] = 'Gold',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Gold|SelectedDisplayTemplate=Gold|SelectedColumns=Gold|SelectedFieldsToSend=Gold
+Gold Green,FALSE,FORMAT_CELLS,Title,[ai verified gold] = 'Yes',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>0, 192, 0</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove AI-SilverFail,FALSE,REMOVE_ROWS,Title,[ai Qualify] = 'Fail',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Silver Pre-Filter,FALSE,ApplyAiPromptAction,Title,[Alias] = 'Sterling scrap' Or [Alias] = 'Bullion' Or [Alias] = 'Antique Silver',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Jewelry Prompt|SelectedDisplayTemplate=Jewelry Filter|SelectedColumns=Jewelry Qualify|SelectedFieldsToSend=Jewelry Filter
+AI-PreFilter Remove,FALSE,REMOVE_ROWS,Title,[ai Qualify] = 'No',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+SilverAnalysisAI,FALSE,ApplyAiPromptAction,Title,[ai Qualify] = 'Yes',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Sterling Flatware|SelectedDisplayTemplate=Sterling Flatware|SelectedColumns=Sterling Flatware|SelectedFieldsToSend=Sterling Flatware
+Remove Materials,FALSE,REMOVE_ROWS,Title,"Contains([Material], 'stainless') Or Contains([Material], 'acrylic') Or Contains([Material], 'rubber') Or Contains([Material], 'wooden') Or Contains([Material], 'plastic') Or Contains([Material], 'cloth') Or Contains([Material], 'silicone') Or Contains([Material], 'tungsten') Or Contains([Material], 'titanium') Or Contains([Type], 'Wristwatch Band') Or Contains([Metal], 'Stainless Steel') Or Contains([Material], 'Glass')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Jewelry Filter,FALSE,ApplyAiPromptAction,Title,[Alias] = 'New Gold Search',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Jewelry Prompt|SelectedDisplayTemplate=Jewelry Filter|SelectedColumns=Jewelry Qualify|SelectedFieldsToSend=Jewelry Filter
+Remove Jewelry Filter,FALSE,REMOVE_ROWS,Title,[ai JewelryQualify] = 'No',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove Jewelry Only List,FALSE,REMOVE_ROWS,Title,"[Alias] = 'Jewelry' And Contains([Title], 'Photo') And Contains([Title], 'Invicta')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Lego AI Prompt,TRUE,ApplyAiPromptAction,Title,[Alias] = 'Lego',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Lego|SelectedDisplayTemplate=Lego|SelectedColumns=Lego|SelectedFieldsToSend=Lego
+Lego Retired Green,FALSE,FORMAT_CELLS,Title,[Alias] = 'Lego' And [ai Qualify] = 'Yes',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Lime</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove over 30K feedback,TRUE,REMOVE_ROWS,Title,[Feedback Score] > 30000.0m,"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Sealed TCG,TRUE,ApplyAiPromptAction,Title,"Contains([Alias], 'TCG')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Sealed TCG|SelectedDisplayTemplate=Sealed TCG|SelectedColumns=Sealed TCG|SelectedFieldsToSend=Sealed TCG
+Remove Coins,TRUE,REMOVE_ROWS,Title,"Contains([Title], 'American Eagle') Or Contains([Title], 'Silver Dollar') Or Contains([Title], 'morgan dollar') Or Contains([Title], 'cents') Or Contains([Title], 'penny') Or Contains([Title], 'quarter') Or Contains([Title], 'American Silver Eagle')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+New Silver Search Analysis,TRUE,ApplyAiPromptAction,Title,"[Alias] = 'New Silver Search' Or [Alias] = 'New Silver Search 2' Or [Alias] = 'New Silver Search 3' Or Contains([Alias], 'Silver')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Silver Analysis|SelectedDisplayTemplate=Silver Analysis|SelectedColumns=Silver Analysis|SelectedFieldsToSend=Silver Analysis
+New Gold Search,TRUE,ApplyAiPromptAction,Title,"[Alias] = 'New Gold Search' Or [Alias] = 'New Gold Search 2' Or [Alias] = 'Gold Jewelry Search' Or [Alias] = 'New Gold Search' Or Contains([Alias], 'Gold')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=New Gold Search|SelectedDisplayTemplate=New Gold Search|SelectedColumns=Gold|SelectedFieldsToSend=Gold
+Remove if Ai Qualify=No,FALSE,REMOVE_ROWS,Title,[ai Qualify] = 'No',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Coral & Amber Analysis,TRUE,ApplyAiPromptAction,Title,[Alias] = 'Coral & Amber',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Default|SelectedDisplayTemplate=Default|SelectedColumns=Coral & Amber|SelectedFieldsToSend=Coral
+pass red,TRUE,FORMAT_CELLS,Title,"Contains([ai Recommendation], 'Pass')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Red</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Buy green,TRUE,FORMAT_CELLS,Title,"Contains([ai Recommendation], 'Buy')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Green</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Costume AI Prompt,TRUE,ApplyAiPromptAction,Title,"Contains([Alias], 'Costume')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Costume|SelectedDisplayTemplate=Costume|SelectedColumns=Costume|SelectedFieldsToSend=Costume
+Yellow Research,TRUE,FORMAT_CELLS,Title,"Contains([ai Recommendation], 'Research')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='Options' isnull='true' iskey='true'>
+    <property name='UseBackColor'>true</property>
+  </property>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor'>Yellow</property>
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>true</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove over 3K feedback Pokemon,TRUE,REMOVE_ROWS,Title,"[Feedback Score] > 3000.0m And Contains([Alias], 'Pokemon')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove Lego Sellers over 3K feedback,TRUE,REMOVE_ROWS,Title,"Contains([Alias], 'lego') And [Feedback Score] > 3000.0m","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Video Games AI Prompt,TRUE,ApplyAiPromptAction,Title,"Contains([Alias], 'VideoGames')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Video Games|SelectedDisplayTemplate=Video Games|SelectedColumns=Video Games|SelectedFieldsToSend=Video Games
+Remove Game Sellers over 3.5K,TRUE,REMOVE_ROWS,Title,"Contains([Alias], 'VideoGames') And [Feedback Score] > 3500.0m","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Remove Pass,FALSE,REMOVE_ROWS,Title,[ai Recommendation] = 'PASS',"<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",
+Watch prompt,TRUE,ApplyAiPromptAction,Title,"Contains([Alias], 'Watch') Or Contains([Alias], 'Watches')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Default|SelectedDisplayTemplate=Default|SelectedColumns=Watches|SelectedFieldsToSend=Watch
+Textbooks,TRUE,ApplyAiPromptAction,Title,"Contains([Alias], 'Textbook') Or Contains([Alias], 'Textbooks')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Default|SelectedDisplayTemplate=Default|SelectedColumns=Textbooks|SelectedFieldsToSend=Textbooks
+Platinum/Palladium,TRUE,ApplyAiPromptAction,Title,"Contains([Alias], 'Palladium') And Contains([Alias], 'Platnium')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Gold|SelectedDisplayTemplate=Gold|SelectedColumns=Gold|SelectedFieldsToSend=Gold
+Coins,TRUE,ApplyAiPromptAction,Title,"Contains([Alias], 'Coin')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Silver Analysis|SelectedDisplayTemplate=Silver Analysis|SelectedColumns=Silver Analysis|SelectedFieldsToSend=Silver Analysis
+Platinum,TRUE,ApplyAiPromptAction,Title,"Contains([Alias], 'Platinum')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Gold|SelectedDisplayTemplate=Gold|SelectedColumns=Gold|SelectedFieldsToSend=Gold
+Knives,TRUE,ApplyAiPromptAction,Title,"Contains([Alias], 'Knives') Or Contains([Alias], 'Knife')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Default|SelectedDisplayTemplate=Default|SelectedColumns=Knives|SelectedFieldsToSend=Knives
+Allen Bradley,TRUE,ApplyAiPromptAction,Title,"Contains([Alias], 'Allen Bradley')","<XtraSerializer version='1.0' application='xfilterAppearance'>
+  <property name='ForeColor' />
+  <property name='BorderColor' />
+  <property name='BackColor' />
+  <property name='BackColor2' />
+  <property name='Font'>Tahoma, 8.25pt</property>
+  <property name='GradientMode'>Horizontal</property>
+  <property name='FontStyleDelta'>Regular</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceOptions'>
+  <property name='HighPriority'>false</property>
+  <property name='UseForeColor'>false</property>
+  <property name='UseTextOptions'>false</property>
+  <property name='UseBorderColor'>false</property>
+  <property name='UseBackColor'>false</property>
+  <property name='UseImage'>false</property>
+  <property name='UseFont'>false</property>
+</XtraSerializer>;
+<XtraSerializer version='1.0' application='xfilterAppearanceTextOptions'>
+  <property name='WordWrap'>Default</property>
+  <property name='HotkeyPrefix'>Default</property>
+  <property name='HAlignment'>Default</property>
+  <property name='VAlignment'>Default</property>
+  <property name='Trimming'>Default</property>
+</XtraSerializer>",SelectedPromptProfile=Default|SelectedDisplayTemplate=Default|SelectedColumns=Allen Bradley|SelectedFieldsToSend=Allen bradley

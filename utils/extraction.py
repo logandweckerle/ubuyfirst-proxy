@@ -338,6 +338,77 @@ def detect_flatware(title: str) -> Tuple[bool, str, int, float]:
     return True, piece_name, quantity, estimated_weight
 
 
+def detect_sterling_handle(title: str) -> Tuple[bool, int, float]:
+    """
+    Detect if listing explicitly says "sterling handle" - meaning only handles are silver.
+
+    This catches pie servers, cake servers, carving sets, etc. where the blade/server
+    is stainless steel and only the handle is sterling silver (~15g per handle).
+
+    Returns: (is_handle_only, quantity, max_silver_grams)
+    """
+    title_normalized = title.replace('+', ' ')
+    if '%' in title_normalized:
+        try:
+            from urllib.parse import unquote
+            title_normalized = unquote(title_normalized)
+        except:
+            pass
+    title_lower = title_normalized.lower()
+
+    # Check for explicit "sterling handle" pattern
+    handle_patterns = [
+        'sterling handle', 'sterling silver handle',
+        'sterling handles', 'sterling silver handles',
+        'handle sterling', 'handles sterling',
+        '925 handle', '.925 handle',
+    ]
+
+    is_handle_only = any(pattern in title_lower for pattern in handle_patterns)
+    if not is_handle_only:
+        return False, 0, 0
+
+    # Extract quantity
+    quantity = 1
+    qty_patterns = [
+        re.compile(r'lot\s*of\s*(\d+)', re.IGNORECASE),
+        re.compile(r'set\s*of\s*(\d+)', re.IGNORECASE),
+        re.compile(r'(\d+)\s*(?:pc|pcs|pieces?)', re.IGNORECASE),
+        re.compile(r'(\d+)\s*(?:server|knife|knives|fork|spoon)', re.IGNORECASE),
+        re.compile(r'^(\d+)\s+', re.IGNORECASE),
+    ]
+
+    for pattern in qty_patterns:
+        match = pattern.search(title_lower)
+        if match:
+            try:
+                qty = int(match.group(1))
+                if qty > 0 and qty <= 50:
+                    quantity = qty
+                    break
+            except (ValueError, IndexError):
+                pass
+
+    # If no explicit quantity found but "lot" is mentioned, estimate from piece types
+    if quantity == 1 and 'lot' in title_lower:
+        piece_count = 0
+        serving_pieces = ['pie', 'cake', 'serving', 'carving', 'meat', 'tomato', 'fish', 'cheese', 'butter']
+        for piece in serving_pieces:
+            if piece in title_lower:
+                piece_count += 1
+        if piece_count > 1:
+            quantity = piece_count
+            logger.info(f"[HANDLE] Estimated {quantity} pieces from lot description")
+
+    # Sterling handles are ~15g silver each
+    SILVER_PER_HANDLE = 15
+    max_silver_grams = quantity * SILVER_PER_HANDLE
+
+    logger.info(f"[HANDLE] Detected {quantity} sterling HANDLE items = max {max_silver_grams}g silver (handles only)")
+
+    return True, quantity, max_silver_grams
+
+
 def detect_flatware_knives(title: str) -> Tuple[bool, int, float]:
     """
     Detect if listing is for sterling flatware knives and calculate actual silver content.
