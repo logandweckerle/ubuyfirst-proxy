@@ -450,6 +450,10 @@ def check_learned_pattern(title: str, category: str = "", price: float = 0) -> O
     """
     Check if a listing matches a learned PASS pattern.
 
+    IMPORTANT: For precious metals (gold/silver/platinum/palladium), adaptive PASS
+    patterns are DISABLED. Melt value math is more reliable than learned patterns.
+    Patterns can only BOOST confidence on good deals, never reject them.
+
     Returns:
         Dict with 'action' and 'reason' if pattern matches, None otherwise.
     """
@@ -462,6 +466,15 @@ def check_learned_pattern(title: str, category: str = "", price: float = 0) -> O
         reload_patterns()
 
     title_lower = title.replace('+', ' ').lower()
+    category_lower = category.lower() if category else ""
+
+    # BYPASS: Disable adaptive PASS for precious metals categories
+    # Melt value calculation is reliable - let math decide, not patterns
+    # Patterns learned from overpriced items shouldn't reject underpriced items
+    precious_metal_categories = ['gold', 'silver', 'platinum', 'palladium']
+    if category_lower in precious_metal_categories:
+        logger.debug(f"[ADAPTIVE] BYPASS - precious metals category '{category}', using melt value instead of patterns")
+        return None
 
     # BYPASS: If title has explicit weight, skip adaptive patterns - calculate melt directly
     # This prevents adaptive PASS on items like "14kt Gold Byzantine Necklace, 18" 12.96g"
