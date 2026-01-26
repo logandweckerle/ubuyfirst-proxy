@@ -838,7 +838,7 @@ def fast_extract_gold(
         return result
 
     # Step 1.5: Check for partial gold items (gold handle only = instant PASS)
-    text = f"{title} {description}".lower()
+    text = f"{title} {description}".replace('+', ' ').lower()
     for indicator in INSTANT_PASS_PARTIAL_GOLD:
         if indicator in text:
             result.instant_pass = True
@@ -928,15 +928,22 @@ def fast_extract_gold(
 
     # Gold jewelry weight estimates (grams) - conservative estimates
     GOLD_WEIGHT_ESTIMATES = {
-        # Rings
-        'signet ring': 12,      # Signet/shield rings are heavy (10-20g)
+        # Rings - men's class/school rings are much heavier than women's
+        "men's class ring": 20,     # Men's class rings 18-25g
+        'mens class ring': 20,
+        "men's school ring": 20,
+        "men's high school": 20,    # Men's high school ring
+        'mens high school': 20,
+        'high school class ring': 18,  # Could be men's or women's - conservative
+        'signet ring': 12,          # Signet/shield rings are heavy (10-20g)
         'shield ring': 12,
-        'class ring': 15,       # Class rings are very heavy
+        'class ring': 15,           # Class rings (women's/default ~15g)
         'college ring': 15,
-        'mens ring': 8,         # Men's rings heavier than ladies
-        "men's ring": 8,
-        'wedding band': 4,      # Standard wedding bands
-        'ring': 3,              # Default ring (ladies)
+        'school ring': 15,
+        'mens ring': 10,            # Men's rings heavier than ladies
+        "men's ring": 10,
+        'wedding band': 4,          # Standard wedding bands
+        'ring': 3,                  # Default ring (ladies)
 
         # Chains (per inch, multiply by length if known)
         'cuban chain': 0.8,     # Cuban links are heavy (per inch)

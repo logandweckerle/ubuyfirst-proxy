@@ -463,6 +463,13 @@ def check_learned_pattern(title: str, category: str = "", price: float = 0) -> O
 
     title_lower = title.replace('+', ' ').lower()
 
+    # BYPASS: If title has explicit weight, skip adaptive patterns - calculate melt directly
+    # This prevents adaptive PASS on items like "14kt Gold Byzantine Necklace, 18" 12.96g"
+    weight_pattern = re.compile(r'(\d+\.?\d*)\s*(?:gram|grams|gr|g)\b', re.IGNORECASE)
+    if weight_pattern.search(title_lower):
+        logger.debug(f"[ADAPTIVE] BYPASS - title has explicit weight, calculating melt value instead")
+        return None
+
     with _patterns_lock:
         # Check exact phrases first (highest confidence)
         for rule in _learned_patterns.get("exact_phrases", []):
