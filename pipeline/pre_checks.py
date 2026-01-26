@@ -21,11 +21,26 @@ def check_spam(data: dict, check_seller_spam_fn) -> Optional[JSONResponse]:
     Check if seller is blocked (spam/rapid-fire detection).
 
     Returns JSONResponse if blocked, None to continue.
+    High-value keywords bypass blocked seller check.
     """
     seller_name = data.get('SellerName', '') or data.get('StoreName', '')
     is_blocked, newly_blocked = check_seller_spam_fn(seller_name)
 
     if is_blocked:
+        # High-value keywords that bypass blocked seller check
+        title = str(data.get('Title', '')).lower().replace('+', ' ')
+        high_value_keywords = [
+            'scrap gold', 'gold scrap', 'scrap 10k', 'scrap 14k', 'scrap 18k',
+            '10k scrap', '14k scrap', '18k scrap', '10kt scrap', '14kt scrap', '18kt scrap',
+            'scrap 10kt', 'scrap 14kt', 'scrap 18kt',
+            'gold lot', 'jewelry lot', 'chain lot', 'ring lot',
+            'for refining', 'for melt', 'melt value'
+        ]
+
+        if any(kw in title for kw in high_value_keywords):
+            logger.info(f"[SPAM BYPASS] High-value keyword in title - sending to AI despite blocked seller '{seller_name}'")
+            return None  # Continue to AI analysis
+
         if newly_blocked:
             logger.warning(f"[SPAM] NEW BLOCK: '{seller_name}' - rapid-fire listing detected")
         else:

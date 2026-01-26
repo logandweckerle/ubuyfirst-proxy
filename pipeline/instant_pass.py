@@ -346,9 +346,16 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
     category_name = str(data.get('CategoryName', '')).lower().replace('+', ' ')
 
     # Fashion Jewelry - NOT real precious metal, instant PASS
+    # BUT: If title mentions karat markings, seller may have miscategorized real gold
     if 'fashion jewelry' in category_name or 'fashion+jewelry' in category_name.replace(' ', '+'):
-        logger.info(f"[INSTANT] PASS - Fashion Jewelry category (not precious metal)")
-        return ("Fashion Jewelry category - not real precious metal", "PASS")
+        karat_patterns = ['10k', '14k', '18k', '24k', '22k', '9k', '8k', '417', '585', '750', '916', '375']
+        has_karat_marking = any(k in title_lower for k in karat_patterns)
+        if has_karat_marking:
+            logger.info(f"[INSTANT] Fashion Jewelry BUT title has karat marking - sending to AI")
+            # Don't instant pass - let AI analyze
+        else:
+            logger.info(f"[INSTANT] PASS - Fashion Jewelry category (not precious metal)")
+            return ("Fashion Jewelry category - not real precious metal", "PASS")
 
     # Non-jewelry categories that slip through
     noise_categories = ['tapestries', 'tapestry', 'toys', 'educational', 'rugs', 'linens', 'textiles',
