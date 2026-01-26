@@ -149,9 +149,14 @@ class WatchAgent(BaseAgent):
         is_vintage = any(vi in title for vi in vintage_indicators)
 
         # === GOLD WATCHES WITH EXPLICIT WEIGHT = HIGH PRIORITY ===
-        # If seller states weight in title (e.g., "57 Grams", "19.2 Grams"), we can calculate melt value
+        # If seller states weight in title OR description, we can calculate melt value
         weight_pattern = re.compile(r'(\d+\.?\d*)\s*(gram|grams|gm|g|dwt|oz)\b', re.IGNORECASE)
         weight_match = weight_pattern.search(title)
+
+        # Also check description for weight (often listed there, not in title)
+        description = data.get("description", data.get("Description", "")).lower()
+        if not weight_match:
+            weight_match = weight_pattern.search(description)
 
         if has_gold and weight_match:
             stated_weight = float(weight_match.group(1))
@@ -162,16 +167,28 @@ class WatchAgent(BaseAgent):
             elif unit in ['oz']:
                 stated_weight = stated_weight * 31.1035
 
+            # Deduct movement weight (watches have non-gold movement inside)
+            # Ladies watch movement: ~2-3g, Men's: ~3-5g
+            is_ladies = any(kw in title for kw in ["ladies", "lady", "women", "womens", "woman's"])
+            movement_deduction = 3 if is_ladies else 4  # Conservative deduction
+            gold_weight = max(stated_weight - movement_deduction, stated_weight * 0.7)  # At least 70% is gold
+
             # Calculate estimated melt value based on karat
             karat_match = gold_pattern.search(title)
             if karat_match:
                 karat = int(karat_match.group(1))
                 purity = karat / 24.0
                 gold_gram_price = SPOT_PRICES.get("gold_oz", 2650) / 31.1035
-                melt_value = stated_weight * purity * gold_gram_price * 0.90  # 90% of melt
+                melt_value = gold_weight * purity * gold_gram_price
+                max_buy = melt_value * 0.90  # 90% of melt = max buy
 
-                if melt_value > price * 1.2:  # 20%+ margin
-                    return (f"GOLD WATCH with STATED WEIGHT ({stated_weight:.1f}g {karat}K) - melt ~${melt_value:.0f} vs ${price:.0f} list = HIGH PRIORITY", "RESEARCH")
+                price_to_melt_ratio = price / melt_value if melt_value > 0 else 999
+
+                # Clear BUY if price is <=90% of melt (our threshold)
+                if price <= max_buy:
+                    return (f"GOLD WATCH BUY: {stated_weight:.1f}g stated - {movement_deduction}g movement = {gold_weight:.1f}g gold @ {karat}K. Melt ${melt_value:.0f}, maxBuy ${max_buy:.0f}, price ${price:.0f} ({price_to_melt_ratio*100:.0f}% of melt)", "BUY")
+                elif price_to_melt_ratio <= 0.95:  # Within 5% of max buy - worth a look
+                    return (f"GOLD WATCH CLOSE: {gold_weight:.1f}g {karat}K = ${melt_value:.0f} melt. Price ${price:.0f} is {price_to_melt_ratio*100:.0f}% of melt (maxBuy ${max_buy:.0f})", "RESEARCH")
                 elif melt_value > price:
                     return (f"GOLD WATCH with STATED WEIGHT ({stated_weight:.1f}g {karat}K) - melt ~${melt_value:.0f} vs ${price:.0f} list = RESEARCH", "RESEARCH")
 
@@ -281,13 +298,16 @@ CRITICAL - NO HALLUCINATED VALUES:
         is_mid_tier = any(mb in brand for mb in self.MID_BRANDS) or any(mb in title for mb in self.MID_BRANDS)
         is_valuable_brand = is_premium or is_mid_tier
 
-        # CRITICAL: Valuable brand watches should NEVER be auto-BUY
-        # Value depends on: model, year, condition, box/papers, service history
-        # Even Tier 2 cannot reliably assess this - force RESEARCH for manual review
-        if is_valuable_brand and rec == "BUY":
+        # CRITICAL: Valuable brand watches should NEVER be auto-BUY for COLLECTIBLE value
+        # But GOLD MELT value BUYs are OK - brand doesn't matter when buying for scrap
+        # Check if this is a melt-based BUY (reasoning contains gold weight calculation)
+        reasoning = response.get("reasoning", "")
+        is_melt_buy = "GOLD WATCH BUY" in reasoning or "melt" in reasoning.lower() and "gold" in reasoning.lower()
+
+        if is_valuable_brand and rec == "BUY" and not is_melt_buy:
             response["Recommendation"] = "RESEARCH"
             brand_tier = "Premium" if is_premium else "Mid-tier"
-            response["reasoning"] = response.get("reasoning", "") + f" | SERVER: {brand_tier} watch brand - ALWAYS requires manual verification. Cannot auto-BUY."
+            response["reasoning"] = reasoning + f" | SERVER: {brand_tier} watch brand - ALWAYS requires manual verification. Cannot auto-BUY."
             response["tier0_block"] = "VALUABLE_WATCH_NO_AUTO_BUY"
 
         # CRITICAL: High-value watches should NEVER be auto-PASS
@@ -332,6 +352,25 @@ CRITICAL - NO HALLUCINATED VALUES:
                 response["reasoning"] = response.get("reasoning", "") + f" | SERVER: Market ${market_price:.0f} is {price_ratio:.1f}x listing ${listing_price:.0f} with confidence {confidence_val}% - likely hallucinated."
                 response["hallucination_guard"] = True
                 rec = "RESEARCH"
+
+        # === HIGH-PRICE WATCH GUARD ===
+        # For expensive watches (>$5000), we need MUCH higher evidence bar
+        # These are frequently overpriced and AI hallucinates values
+        if listing_price > 5000 and rec in ("BUY", "RESEARCH"):
+            # If market < listing, this is overpriced - PASS
+            if market_price > 0 and market_price < listing_price:
+                response["Recommendation"] = "PASS"
+                response["Qualify"] = "No"
+                response["reasoning"] = response.get("reasoning", "") + f" | SERVER: OVERPRICED - AI market ${market_price:.0f} < listing ${listing_price:.0f}. PASS."
+                print(f"[WATCH] OVERPRICED: market ${market_price:.0f} < listing ${listing_price:.0f} - PASS")
+                rec = "PASS"
+            # If confidence < 90 on expensive watch, don't trust it
+            elif confidence_val < 90 and rec == "BUY":
+                response["Recommendation"] = "PASS"
+                response["Qualify"] = "No"
+                response["reasoning"] = response.get("reasoning", "") + f" | SERVER: High-value watch ${listing_price:.0f} with confidence {confidence_val}% < 90% required. PASS."
+                print(f"[WATCH] LOW CONFIDENCE: ${listing_price:.0f} watch at {confidence_val}% confidence - PASS")
+                rec = "PASS"
 
         # === ENTRY-LEVEL BRAND BLOCK ===
         is_entry = any(eb in brand for eb in self.ENTRY_BRANDS) or any(eb in title for eb in self.ENTRY_BRANDS)
