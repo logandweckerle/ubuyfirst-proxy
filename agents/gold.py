@@ -53,6 +53,11 @@ class GoldAgent(BaseAgent):
             if brand in title and "watch" in title:
                 return (f"FILLED WATCH CASE - '{brand}' brand detected", "PASS")
 
+        # 10K watches are ALWAYS gold filled, never solid gold
+        # Only 14K and 18K watches can potentially be solid gold cases
+        if "watch" in title and ("10k" in title or "10kt" in title):
+            return ("10K WATCH = GOLD FILLED - 10K watches are always gold filled, not solid", "PASS")
+
         # Ladies/Women's watches - almost always gold-filled or plated, never solid gold
         # Even marked "10K" or "14K" is usually gold-filled for vintage ladies watches
         ladies_watch_keywords = ["ladies watch", "women watch", "women's watch", "womens watch",
