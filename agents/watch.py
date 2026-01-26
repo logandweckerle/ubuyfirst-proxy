@@ -241,6 +241,19 @@ class WatchAgent(BaseAgent):
         if is_broken and has_gold:
             return (f"BROKEN GOLD WATCH at ${price:.0f} - still has gold melt value", "RESEARCH")
 
+        # === SILVER POCKET WATCH MELT VALUE ===
+        # Silver pocket watch cases are typically 40-80g sterling (~$130-260 melt)
+        # Even non-working silver pocket watches have significant melt value
+        is_pocket = "pocket" in title
+        has_silver = any(kw in title for kw in ["silver", "sterling", "coin silver", "800 silver", "925"])
+        if is_pocket and has_silver:
+            # Estimate: typical silver pocket watch case = 50g sterling = ~$165 melt
+            # At under $100, likely good deal for melt alone
+            if price < 100:
+                return (f"SILVER POCKET WATCH at ${price:.0f} - cases typically 40-80g sterling ($130-260 melt) = potential BUY", "BUY")
+            elif price < 150:
+                return (f"SILVER POCKET WATCH at ${price:.0f} - verify case weight for melt value", "RESEARCH")
+
         if price > 200:
             for brand in fashion_brands:
                 if brand in title:

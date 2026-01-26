@@ -10,6 +10,25 @@ from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+# Word-to-number mapping for quantity detection
+WORD_TO_NUMBER = {
+    'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+    'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+    'eleven': 11, 'twelve': 12, 'pair': 2, 'dozen': 12,
+}
+
+def extract_word_quantity(text: str) -> int:
+    """Extract quantity from word numbers at start of title (TWO, PAIR, etc.)"""
+    text_lower = text.lower().strip()
+    # Check for word numbers at the beginning of the title
+    for word, num in WORD_TO_NUMBER.items():
+        if text_lower.startswith(word + ' '):
+            return num
+        # Also check for "a pair of", "a set of"
+        if f'a {word} ' in text_lower or f'{word} ' in text_lower[:20]:
+            return num
+    return 0
+
 # Pre-compiled regex patterns for performance
 # Note: ozt (troy oz) = 31.1g, oz (avoirdupois) = 28.35g
 # Pattern (\d*\.?\d+) handles both "0.8" and ".8" formats
@@ -309,26 +328,29 @@ def detect_flatware(title: str) -> Tuple[bool, str, int, float]:
     elif any(s in title_lower for s in ['5 1/2', '5.5"', '5 1/2"', 'small', 'cocktail', 'dessert']):
         size_modifier = 0.7
 
-    # Extract quantity
-    quantity = 1
-    qty_patterns = [
-        re.compile(r'(\d+)\s*(?:sterling|silver)', re.IGNORECASE),
-        re.compile(r'set\s*of\s*(\d+)', re.IGNORECASE),
-        re.compile(r'(\d+)\s*(?:pc|pcs|pieces?)', re.IGNORECASE),
-        re.compile(r'(\d+)\s*(?:fork|spoon|ladle|tong|server)s?\b', re.IGNORECASE),
-        re.compile(r'^(\d+)\s+', re.IGNORECASE),  # Number at start of title
-    ]
+    # Extract quantity - check word numbers first (TWO, PAIR, etc.)
+    quantity = extract_word_quantity(title_normalized)
 
-    for pattern in qty_patterns:
-        match = pattern.search(title_lower)
-        if match:
-            try:
-                qty = int(match.group(1))
-                if qty > 0 and qty <= 100:  # Sanity check
-                    quantity = qty
-                    break
-            except (ValueError, IndexError):
-                pass
+    if quantity == 0:
+        quantity = 1  # Default
+        qty_patterns = [
+            re.compile(r'(\d+)\s*(?:sterling|silver)', re.IGNORECASE),
+            re.compile(r'set\s*of\s*(\d+)', re.IGNORECASE),
+            re.compile(r'(\d+)\s*(?:pc|pcs|pieces?)', re.IGNORECASE),
+            re.compile(r'(\d+)\s*(?:fork|spoon|ladle|tong|server)s?\b', re.IGNORECASE),
+            re.compile(r'^(\d+)\s+', re.IGNORECASE),  # Number at start of title
+        ]
+
+        for pattern in qty_patterns:
+            match = pattern.search(title_lower)
+            if match:
+                try:
+                    qty = int(match.group(1))
+                    if qty > 0 and qty <= 100:  # Sanity check
+                        quantity = qty
+                        break
+                except (ValueError, IndexError):
+                    pass
 
     # Calculate estimated weight
     estimated_weight = base_weight * size_modifier * quantity
@@ -368,26 +390,29 @@ def detect_sterling_handle(title: str) -> Tuple[bool, int, float]:
     if not is_handle_only:
         return False, 0, 0
 
-    # Extract quantity
-    quantity = 1
-    qty_patterns = [
-        re.compile(r'lot\s*of\s*(\d+)', re.IGNORECASE),
-        re.compile(r'set\s*of\s*(\d+)', re.IGNORECASE),
-        re.compile(r'(\d+)\s*(?:pc|pcs|pieces?)', re.IGNORECASE),
-        re.compile(r'(\d+)\s*(?:server|knife|knives|fork|spoon)', re.IGNORECASE),
-        re.compile(r'^(\d+)\s+', re.IGNORECASE),
-    ]
+    # Extract quantity - check word numbers first (TWO, PAIR, etc.)
+    quantity = extract_word_quantity(title_normalized)
 
-    for pattern in qty_patterns:
-        match = pattern.search(title_lower)
-        if match:
-            try:
-                qty = int(match.group(1))
-                if qty > 0 and qty <= 50:
-                    quantity = qty
-                    break
-            except (ValueError, IndexError):
-                pass
+    if quantity == 0:
+        quantity = 1  # Default
+        qty_patterns = [
+            re.compile(r'lot\s*of\s*(\d+)', re.IGNORECASE),
+            re.compile(r'set\s*of\s*(\d+)', re.IGNORECASE),
+            re.compile(r'(\d+)\s*(?:pc|pcs|pieces?)', re.IGNORECASE),
+            re.compile(r'(\d+)\s*(?:server|knife|knives|fork|spoon)', re.IGNORECASE),
+            re.compile(r'^(\d+)\s+', re.IGNORECASE),
+        ]
+
+        for pattern in qty_patterns:
+            match = pattern.search(title_lower)
+            if match:
+                try:
+                    qty = int(match.group(1))
+                    if qty > 0 and qty <= 50:
+                        quantity = qty
+                        break
+                except (ValueError, IndexError):
+                    pass
 
     # If no explicit quantity found but "lot" is mentioned, estimate from piece types
     if quantity == 1 and 'lot' in title_lower:
@@ -447,28 +472,30 @@ def detect_flatware_knives(title: str) -> Tuple[bool, int, float]:
     if not is_knife:
         return False, 0, 0
 
-    # Extract quantity
-    quantity = 1
+    # Extract quantity - check word numbers first (TWO, PAIR, etc.)
+    quantity = extract_word_quantity(title_normalized)
 
-    # Patterns like "4 Sterling", "Set of 6", "6 knives", etc.
-    qty_patterns = [
-        re.compile(r'(\d+)\s*(?:sterling|silver)', re.IGNORECASE),
-        re.compile(r'set\s*of\s*(\d+)', re.IGNORECASE),
-        re.compile(r'(\d+)\s*(?:pc|pcs|pieces?)', re.IGNORECASE),
-        re.compile(r'(\d+)\s*knives?\b', re.IGNORECASE),
-        re.compile(r'^(\d+)\s+', re.IGNORECASE),  # Number at start of title
-    ]
+    if quantity == 0:
+        quantity = 1  # Default
+        # Patterns like "4 Sterling", "Set of 6", "6 knives", etc.
+        qty_patterns = [
+            re.compile(r'(\d+)\s*(?:sterling|silver)', re.IGNORECASE),
+            re.compile(r'set\s*of\s*(\d+)', re.IGNORECASE),
+            re.compile(r'(\d+)\s*(?:pc|pcs|pieces?)', re.IGNORECASE),
+            re.compile(r'(\d+)\s*knives?\b', re.IGNORECASE),
+            re.compile(r'^(\d+)\s+', re.IGNORECASE),  # Number at start of title
+        ]
 
-    for pattern in qty_patterns:
-        match = pattern.search(title_lower)
-        if match:
-            try:
-                qty = int(match.group(1))
-                if qty > 0 and qty <= 100:  # Sanity check
-                    quantity = qty
-                    break
-            except (ValueError, IndexError):
-                pass
+        for pattern in qty_patterns:
+            match = pattern.search(title_lower)
+            if match:
+                try:
+                    qty = int(match.group(1))
+                    if qty > 0 and qty <= 100:  # Sanity check
+                        quantity = qty
+                        break
+                except (ValueError, IndexError):
+                    pass
 
     # Calculate max silver content
     # Each knife handle contains ~15-20g of sterling silver
