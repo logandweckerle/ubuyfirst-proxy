@@ -1046,14 +1046,15 @@ def fast_extract_gold(
         result.karat_source = karat_source
         result.confidence += 30
 
-    # Step 4: Extract weight (gold rarely exceeds 500g)
-    # Don't overwrite if we already have an estimate (e.g., ladies watch)
-    if not result.weight_grams:
-        weight, weight_source = extract_weight(title, description, max_weight=500)
-        if weight:
-            result.weight_grams = weight
-            result.weight_source = weight_source
-            result.confidence += 40
+    # Step 4: Extract weight from TITLE FIRST (gold rarely exceeds 500g)
+    # Title weight ALWAYS takes priority over estimates
+    title_weight, title_weight_source = extract_weight(title, description, max_weight=500)
+    if title_weight:
+        # Title has explicit weight - use it, overriding any estimate
+        result.weight_grams = title_weight
+        result.weight_source = title_weight_source
+        result.confidence += 40
+    # If no title weight, keep the estimate (if any) from set detection above
 
     # Use result.weight_grams for calculations (may be from stated weight or estimate)
     weight = result.weight_grams
