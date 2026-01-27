@@ -27,31 +27,77 @@ class WatchAgent(BaseAgent):
 
     # Floor prices for premium watch brands/models - anything below = potential BUY
     # These are minimum values even in poor/non-working condition
+    # Updated with eBay sold auction data (Jan 2026) - 163 vintage watches analyzed
     PREMIUM_FLOOR_PRICES = {
-        # Omega models
+        # Omega models - Avg sold: $965 (32 sales totaling $30,877)
         "constellation": 500,
-        "seamaster": 400,
-        "speedmaster": 1500,
-        "de ville": 300,
-        "omega": 300,  # Generic Omega floor
-        # Rolex models
+        "seamaster": 400,      # High demand - gets 80-90 bids at $400-500
+        "speedmaster": 2500,   # Moonwatch sold $6,500 with 145 bids
+        "de ville": 350,       # $417 sale with 78 bids
+        "omega geneve": 300,   # Strong demand at $300-400
+        "omega": 300,          # Generic Omega floor
+        # Rolex models - Avg sold: $2,697 (46 sales totaling $124,073)
         "submariner": 5000,
-        "datejust": 3000,
+        "datejust": 3500,      # Multiple sales $3,950-$6,801
         "daytona": 15000,
         "gmt": 5000,
         "explorer": 4000,
-        "rolex": 2000,  # Generic Rolex floor
-        # Tudor
-        "tudor": 800,
-        # Cartier
+        "oyster perpetual": 3000,  # $3,808-$3,900 sales
+        "oysterquartz": 4000,  # $4,760 sale
+        "oysterdate": 3000,    # Tiffany dial sold $3,750
+        "rolex": 2500,         # Generic Rolex floor (raised from $2000)
+        # Tudor - Avg sold: $2,598 (4 sales totaling $10,390)
+        "tudor submariner": 3500,  # $4,100-$4,350 sales
+        "tudor": 1000,         # Raised from $800
+        # Cartier - Avg sold: $1,420 (5 sales, $7,101 total)
         "tank": 1000,
-        "santos": 1500,
-        "cartier": 800,
+        "santos": 2500,        # Santos Carree sold $4,400-$5,000
+        "santos galbee": 2800, # Multiple $2,950-$3,630 sales
+        "cartier": 1000,       # Raised from $800
+        # Patek Philippe - Avg sold: $6,830 (3 sales totaling $20,490)
+        "patek ellipse": 5000, # 18K sold $5,600-$8,800
+        "patek calatrava": 5500, # 18K sold $6,090
+        "patek": 5000,
         # Other premium
         "breitling": 800,
         "iwc": 1000,
         "panerai": 2000,
-        "patek": 5000,
+    }
+
+    # Market data from eBay sold auctions (Jan 2026 analysis)
+    # Use this for AI reference and validation
+    MARKET_DATA = {
+        # Brand averages (from 163 vintage watch sales = $243,003 total)
+        "brand_averages": {
+            "rolex": 2697,      # 46 items, $124,073 total
+            "patek": 6830,      # 3 items, $20,490 total
+            "omega": 965,       # 32 items, $30,877 total
+            "tudor": 2598,      # 4 items, $10,390 total
+            "cartier": 1420,    # 5 items, $7,101 total
+            "seiko": 456,       # 12 items, $5,470 total
+            "longines": 367,    # 5 items, $1,834 total
+            "hamilton": 286,    # 3 items, $858 total
+            "bulova": 287,      # 5 items, $1,435 total
+        },
+        # High-value model references (actual sold prices)
+        "model_references": {
+            "patek ellipse 18k": 8800,
+            "rolex datejust 116200": 6801,
+            "omega speedmaster moonwatch": 6500,
+            "patek calatrava 18k": 6090,
+            "rolex oysterquartz 17013": 4760,
+            "rolex date 14k": 4605,
+            "tudor submariner 7016": 4350,
+            "cartier santos carree": 5000,
+            "cartier santos galbee": 3300,
+        },
+        # High-demand under $500 (80+ bids = strong market)
+        "high_demand_models": {
+            "omega seamaster quartz": {"price": 475, "bids": 92},
+            "omega automatic 34mm": {"price": 480, "bids": 91},
+            "longines calatrava": {"price": 495, "bids": 87},
+            "omega 14k gold filled": {"price": 425, "bids": 84},
+        }
     }
 
     # Premium dial/feature keywords that add value
@@ -166,6 +212,20 @@ class WatchAgent(BaseAgent):
         is_premium = any(pb in title for pb in self.PREMIUM_BRANDS)
         is_mid_tier = any(mb in title for mb in self.MID_BRANDS)
         is_valuable_brand = is_premium or is_mid_tier  # Both tiers have significant resale value
+
+        # === MARKET DATA CHECK - Compare price to brand average sold prices ===
+        # If priced significantly below brand average, flag as opportunity
+        brand_averages = self.MARKET_DATA.get("brand_averages", {})
+        for brand_key, avg_price in brand_averages.items():
+            if brand_key in title:
+                price_to_avg_ratio = price / avg_price if avg_price > 0 else 1
+                # Under 40% of average = strong BUY signal
+                if price_to_avg_ratio < 0.40:
+                    return (f"UNDERPRICED vs MARKET: {brand_key.upper()} avg sold ${avg_price:.0f}, listed ${price:.0f} ({price_to_avg_ratio*100:.0f}% of avg) = BUY", "BUY")
+                # 40-60% of average = worth researching
+                elif price_to_avg_ratio < 0.60 and is_valuable_brand:
+                    return (f"BELOW MARKET AVG: {brand_key.upper()} avg ${avg_price:.0f}, listed ${price:.0f} ({price_to_avg_ratio*100:.0f}% of avg)", "RESEARCH")
+                break  # Only check first matching brand
 
         # === FLOOR PRICE CHECK - Premium watches priced below floor = BUY ===
         if is_premium:
@@ -309,6 +369,20 @@ class WatchAgent(BaseAgent):
                 elif melt_value > price:
                     return (f"GOLD WATCH with STATED WEIGHT ({stated_weight:.1f}g {karat}K) - melt ~${melt_value:.0f} vs ${price:.0f} list = RESEARCH", "RESEARCH")
 
+        # === HIGH-DEMAND MODEL CHECK ===
+        # These models get 80+ bids consistently - strong market demand
+        high_demand = self.MARKET_DATA.get("high_demand_models", {})
+        for model_key, model_data in high_demand.items():
+            model_words = model_key.split()
+            if all(word in title for word in model_words):
+                ref_price = model_data.get("price", 0)
+                ref_bids = model_data.get("bids", 0)
+                if price < ref_price * 0.8:  # Under 80% of reference = good deal
+                    return (f"HIGH-DEMAND MODEL: {model_key} sells ${ref_price} ({ref_bids} bids), listed ${price:.0f} = BUY", "BUY")
+                elif price < ref_price:
+                    return (f"HIGH-DEMAND: {model_key} avg ${ref_price} ({ref_bids} bids), listed ${price:.0f}", "RESEARCH")
+                break
+
         # === VINTAGE GOLD WATCHES = OPPORTUNITY ===
         # Vintage gold watches have value from gold content AND potential collector value
         # Flag these for RESEARCH - they're exactly what we're looking for
@@ -363,18 +437,34 @@ Analyze watches for RESALE VALUE. Return JSON with these EXACT fields:
     "model": "model if known"
 }}
 
-BRAND TIERS:
-- PREMIUM (00+): Rolex, Omega, Patek, Cartier, Breitling, Tudor
-- MID (00-500): Longines, Hamilton, Tissot, Movado, Bulova, Wittnauer
-- ENTRY (0-150): Seiko, Elgin, Waltham, Gruen, Benrus
+BRAND TIERS & AVERAGE SOLD PRICES (from 163 eBay auction sales):
+- PREMIUM: Rolex (avg $2,697), Patek ($6,830), Omega ($965), Tudor ($2,598), Cartier ($1,420)
+- MID: Longines ($367), Hamilton ($286), Bulova ($287), Tissot, Movado, Wittnauer
+- ENTRY: Seiko ($456), Elgin, Waltham, Gruen, Benrus
+
+VERIFIED SOLD PRICES (use as reference):
+- Patek Ellipse 18K: $8,800 (75 bids)
+- Rolex Datejust 116200: $6,801 (80 bids)
+- Omega Speedmaster Moonwatch: $6,500 (145 bids)
+- Patek Calatrava 18K: $6,090 (68 bids)
+- Rolex Oysterquartz 17013: $4,760 (86 bids)
+- Tudor Submariner 7016: $4,350 (90 bids)
+- Cartier Santos Carree: $5,000 (68 bids)
+- Cartier Santos Galbee: $3,300 (61 bids)
+
+HIGH-DEMAND MODELS UNDER $500 (strong auction competition):
+- Omega Seamaster Quartz: $475 (92 bids)
+- Omega Automatic: $480 (91 bids)
+- Longines Calatrava: $495 (87 bids)
 
 GOLD VALUES: 14K=${k14:.2f}/g, 18K=${k18:.2f}/g
-Gold-filled = minimal value (<0)
+Gold-filled = minimal value (<$30)
 
 RULES:
 - Negative Margin = PASS
 - Premium brands = default RESEARCH
 - confidence must be NUMBER 0-100
+- Use the verified sold prices above when available
 
 CRITICAL - NO HALLUCINATED VALUES:
 - If you cannot cite specific comparable sales or verified reference prices for this exact model, set confidence to 40 and Recommendation to RESEARCH
@@ -468,6 +558,30 @@ CRITICAL - NO HALLUCINATED VALUES:
                 response["Recommendation"] = "RESEARCH"
                 response["reasoning"] = response.get("reasoning", "") + f" | SERVER: Market ${market_price:.0f} is {price_ratio:.1f}x listing ${listing_price:.0f} with confidence {confidence_val}% - likely hallucinated."
                 response["hallucination_guard"] = True
+                rec = "RESEARCH"
+
+        # === MARKET DATA VALIDATION ===
+        # Cross-check AI's market price against our actual eBay sold data
+        brand_averages = self.MARKET_DATA.get("brand_averages", {})
+        detected_brand = None
+        for brand_key in brand_averages:
+            if brand_key in title:
+                detected_brand = brand_key
+                break
+
+        if detected_brand and market_price > 0:
+            brand_avg = brand_averages[detected_brand]
+            # If AI claims market price > 2x brand average, it's likely hallucinated
+            if market_price > brand_avg * 2 and confidence_val < 85:
+                response["reasoning"] = response.get("reasoning", "") + f" | SERVER: AI market ${market_price:.0f} > 2x {detected_brand} avg ${brand_avg:.0f} - likely inflated."
+                if rec == "BUY":
+                    response["Recommendation"] = "RESEARCH"
+                    rec = "RESEARCH"
+            # If AI claims market much lower than average, validate the listing is actually bad
+            elif market_price < brand_avg * 0.3 and rec == "PASS":
+                # AI might be undervaluing - force research
+                response["Recommendation"] = "RESEARCH"
+                response["reasoning"] = response.get("reasoning", "") + f" | SERVER: AI market ${market_price:.0f} seems low for {detected_brand} (avg ${brand_avg:.0f}) - verify."
                 rec = "RESEARCH"
 
         # === HIGH-PRICE WATCH GUARD ===
