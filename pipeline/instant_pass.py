@@ -691,6 +691,30 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
                         margin = max_buy - price_float
                         margin_pct = (margin / price_float * 100) if price_float > 0 else 0
 
+                        # === GOLD WATCH PENALTY (Historical data: -24% ROI) ===
+                        # Gold watches should NEVER instant BUY - too many are gold-filled mislabeled as solid
+                        if 'watch' in title_lower and margin_pct >= 30:
+                            logger.info(f"[INSTANT] GOLD WATCH - blocking instant BUY, needs manual verification")
+                            return (
+                                f"GOLD WATCH - Historical data shows -24% ROI on gold watches. {stated_weight}g {karat}K = ${melt_value:.0f} melt, but needs manual verification (gold-filled risk).",
+                                "RESEARCH",
+                                {
+                                    "karat": f"{karat}K",
+                                    "weight": str(stated_weight),
+                                    "goldweight": str(stated_weight),
+                                    "meltvalue": str(int(melt_value)),
+                                    "maxBuy": str(int(max_buy)),
+                                    "sellPrice": str(int(melt_value * 0.96)),
+                                    "listingPrice": str(int(price_float)),
+                                    "Profit": f"+{int(margin)}",
+                                    "confidence": 60,
+                                    "weightSource": "stated",
+                                    "verified": "needs-manual",
+                                    "instantBuy": False,
+                                    "goldWatchPenalty": True,
+                                }
+                            )
+
                         if margin_pct >= 30 and margin >= 20:
                             # Strong margin on stated weight - instant BUY
                             logger.info(f"[INSTANT BUY] Gold: {stated_weight}g {karat}K = ${melt_value:.0f} melt, listing ${price_float:.0f}, margin +${margin:.0f} ({margin_pct:.0f}%)")
@@ -805,6 +829,33 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
                             actual_silver_weight = stated_weight * 0.15
                             logger.info(f"[INSTANT] Weighted silver - letting AI analyze: {stated_weight}g total (~{actual_silver_weight:.0f}g silver) @ ${price_float:.0f}")
                             # Fall through to AI
+
+                        # === SILVER LOT PENALTY (Historical data: -44% ROI) ===
+                        # Silver lots should NEVER instant BUY - too many have plated/mixed items
+                        lot_keywords = ['lot', 'mixed', 'bulk', 'assorted', 'collection']
+                        is_lot = any(kw in title_lower for kw in lot_keywords)
+                        if is_lot and margin_pct >= 25:
+                            logger.info(f"[INSTANT] SILVER LOT - blocking instant BUY, needs manual verification")
+                            return (
+                                f"SILVER LOT - Historical data shows -44% ROI on silver lots. {stated_weight}g stated, but lots often have plated/mixed items. Manual verification required.",
+                                "RESEARCH",
+                                {
+                                    "karat": "925",
+                                    "weight": str(stated_weight),
+                                    "silverweight": str(stated_weight),
+                                    "meltvalue": str(int(melt_value)),
+                                    "maxBuy": str(int(max_buy)),
+                                    "sellPrice": str(int(melt_value * 0.82)),
+                                    "listingPrice": str(int(price_float)),
+                                    "Profit": f"+{int(margin)}",
+                                    "confidence": 50,
+                                    "weightSource": "stated",
+                                    "verified": "needs-manual",
+                                    "instantBuy": False,
+                                    "silverLotPenalty": True,
+                                }
+                            )
+
                         elif margin_pct >= 25 and margin >= 15:
                             # Strong margin on stated weight - instant BUY
                             logger.info(f"[INSTANT BUY] Silver: {stated_weight}g sterling = ${melt_value:.0f} melt, listing ${price_float:.0f}, margin +${margin:.0f} ({margin_pct:.0f}%)")

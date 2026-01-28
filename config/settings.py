@@ -209,7 +209,7 @@ DATABASE = DatabaseConfig()
 # ============================================================
 # Gold rates (multipliers from melt value)
 GOLD_SELL_RATE = 0.96     # 96% of melt - what we can sell gold for
-GOLD_MAX_BUY_RATE = 0.90  # 90% of melt - max we should pay
+GOLD_MAX_BUY_RATE = 0.85  # 85% of melt - max we should pay
 
 # Silver rates
 SILVER_SELL_RATE = 0.82   # 82% of melt - lower margin on silver

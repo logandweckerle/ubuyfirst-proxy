@@ -74,6 +74,13 @@ class SilverAgent(BaseAgent):
         if price > 1000:
             return (f"HIGH VALUE at ${price:.0f} - manual verification required", "RESEARCH")
 
+        # LOTS and MIXED ITEMS: Historical data shows -44% ROI on silver lots
+        # Lots are often overvalued, mixed quality, or have plated items included
+        lot_keywords = ["lot", "mixed lot", "jewelry lot", "bulk", "mixed jewelry"]
+        for kw in lot_keywords:
+            if kw in title:
+                return (f"SILVER LOT - Historical data shows negative ROI on lots. '{kw}' detected, manual verification required.", "RESEARCH")
+
         # Native American jewelry - collectible value beyond melt
         native_keywords = ["navajo", "zuni", "hopi", "native american", "southwest",
                          "squash blossom", "turquoise cluster"]
@@ -348,6 +355,28 @@ OUTPUT ONLY VALID JSON. NO OTHER TEXT.
 
         # Check for premium silver brands
         is_premium = any(brand in title for brand in self.PREMIUM_BRANDS)
+
+        # === HISTORICAL PERFORMANCE BOOSTS ===
+        # Based on analysis of matched buy/sell transactions:
+        # - Cuffs: 136% ROI, 85% win rate (33 items, $5,089 profit)
+        # - Necklaces: 260% ROI, 93% win rate (14 items, $3,971 profit)
+        # - Bracelets: 114% ROI (18 items, $2,523 profit)
+        current_confidence = response.get("confidence", 50)
+        if isinstance(current_confidence, str):
+            current_confidence = int(current_confidence.replace('%', '') or 50)
+
+        if "cuff" in title:
+            response["confidence"] = min(current_confidence + 10, 95)
+            response["reasoning"] = response.get("reasoning", "") + " | BOOST: Silver cuffs have 136% historical ROI (+10 confidence)"
+
+        if "necklace" in title:
+            response["confidence"] = min(current_confidence + 8, 95)
+            response["reasoning"] = response.get("reasoning", "") + " | BOOST: Silver necklaces have 260% historical ROI (+8 confidence)"
+
+        # Navajo/Native American turquoise items perform well
+        if any(kw in title for kw in ["navajo", "zuni", "native american"]) and "turquoise" in title:
+            response["confidence"] = min(current_confidence + 5, 95)
+            response["reasoning"] = response.get("reasoning", "") + " | BOOST: Native American turquoise has strong resale (+5 confidence)"
 
         # CRITICAL: High-value silver items should NOT auto-PASS
         # Gorham Chantilly, Towle French Provincial etc. have collector value

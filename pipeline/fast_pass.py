@@ -179,19 +179,38 @@ def check_agent_quick_pass(category: str, data: dict, total_price: str,
 
         agent = agent_class()
         price_float = float(str(total_price).replace('$', '').replace(',', ''))
-        reason, decision = agent.quick_pass(data, price_float)
+        result = agent.quick_pass(data, price_float)
 
-        if decision != "PASS":
+        # Handle 2-tuple (reason, decision) or 3-tuple (reason, decision, extra_data)
+        if len(result) == 2:
+            reason, decision = result
+            extra_data = {}
+        else:
+            reason, decision, extra_data = result
+
+        # Only short-circuit for PASS and RESEARCH decisions
+        if decision not in ("PASS", "RESEARCH"):
             return None
 
-        logger.info(f"[AGENT QUICK PASS] {category}: {reason}")
-        quick_result = {
-            'Qualify': 'No',
-            'Recommendation': 'PASS',
-            'reasoning': reason,
-            'confidence': 95,
-            'itemtype': 'Unknown',
-        }
+        logger.info(f"[AGENT QUICK PASS] {category} -> {decision}: {reason}")
+
+        if decision == "PASS":
+            quick_result = {
+                'Qualify': 'No',
+                'Recommendation': 'PASS',
+                'reasoning': reason,
+                'confidence': 95,
+                'itemtype': 'Unknown',
+            }
+        else:  # RESEARCH
+            quick_result = {
+                'Qualify': 'Maybe',
+                'Recommendation': 'RESEARCH',
+                'reasoning': reason,
+                'confidence': extra_data.get('confidence', 60),
+                'itemtype': extra_data.get('itemtype', 'Unknown'),
+                **extra_data,  # Include any extra data from quick_pass
+            }
         html = render_result_html_fn(quick_result, category, title)
         quick_result['html'] = html
         cache.set(title, total_price, quick_result, html)

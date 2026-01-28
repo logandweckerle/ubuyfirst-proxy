@@ -361,9 +361,11 @@ class WatchAgent(BaseAgent):
 
                 price_to_melt_ratio = price / melt_value if melt_value > 0 else 999
 
-                # Clear BUY if price is <=90% of melt (our threshold)
+                # === GOLD WATCH PENALTY (Historical: -24% ROI) ===
+                # Gold watches should NEVER auto-BUY - too many are gold-filled mislabeled as solid
+                # Changed from BUY to RESEARCH based on historical data analysis
                 if price <= max_buy:
-                    return (f"GOLD WATCH BUY: {stated_weight:.1f}g stated - {movement_deduction}g movement = {gold_weight:.1f}g gold @ {karat}K. Melt ${melt_value:.0f}, maxBuy ${max_buy:.0f}, price ${price:.0f} ({price_to_melt_ratio*100:.0f}% of melt)", "BUY")
+                    return (f"GOLD WATCH RESEARCH: {stated_weight:.1f}g stated - {movement_deduction}g movement = {gold_weight:.1f}g gold @ {karat}K. Melt ${melt_value:.0f}, maxBuy ${max_buy:.0f}, price ${price:.0f} ({price_to_melt_ratio*100:.0f}% of melt). HISTORICAL DATA: Gold watches have -24% ROI - verify not gold-filled!", "RESEARCH")
                 elif price_to_melt_ratio <= 0.95:  # Within 5% of max buy - worth a look
                     return (f"GOLD WATCH CLOSE: {gold_weight:.1f}g {karat}K = ${melt_value:.0f} melt. Price ${price:.0f} is {price_to_melt_ratio*100:.0f}% of melt (maxBuy ${max_buy:.0f})", "RESEARCH")
                 elif melt_value > price:
@@ -504,6 +506,37 @@ CRITICAL - NO HALLUCINATED VALUES:
         is_premium = any(pb in brand for pb in self.PREMIUM_BRANDS) or any(pb in title for pb in self.PREMIUM_BRANDS)
         is_mid_tier = any(mb in brand for mb in self.MID_BRANDS) or any(mb in title for mb in self.MID_BRANDS)
         is_valuable_brand = is_premium or is_mid_tier
+
+        # === OMEGA PENALTY ===
+        # Historical data shows -56% ROI on Omega watches (5 items, -$2,086 total loss)
+        # Primary loss: "57 GR OF 14K GOLD" Omega at $3,013 sold for $228 (gold-filled mislabeled)
+        # Force ALL Omega watches to RESEARCH - never auto-BUY
+        is_omega = "omega" in title or "omega" in brand
+        if is_omega and rec == "BUY":
+            response["Recommendation"] = "RESEARCH"
+            response["confidence"] = min(response.get("confidence", 50), 60)  # Cap confidence at 60
+            response["reasoning"] = response.get("reasoning", "") + " | HISTORICAL DATA: Omega watches have -56% ROI in our data. Manual verification required - watch for gold-filled mislabeled as solid gold."
+            rec = "RESEARCH"
+            print(f"[WATCH] OMEGA PENALTY: BUY -> RESEARCH (historical -56% ROI)")
+
+        # === TAG HEUER / ROLEX BOOSTS ===
+        # Historical data shows excellent performance:
+        # - Tag Heuer: 147% ROI (10 items, $3,409 profit)
+        # - Rolex: 931% ROI (2 items, $2,619 profit) - but small sample, still verify
+        current_conf = response.get("confidence", 50)
+        if isinstance(current_conf, str):
+            current_conf = int(str(current_conf).replace('%', '') or 50)
+
+        is_tag = "tag" in title or "heuer" in title or "tag heuer" in brand
+        is_rolex = "rolex" in title or "rolex" in brand
+
+        if is_tag and rec == "RESEARCH":
+            response["confidence"] = min(current_conf + 10, 90)
+            response["reasoning"] = response.get("reasoning", "") + " | BOOST: Tag Heuer has 147% historical ROI (+10 confidence)"
+
+        if is_rolex and rec == "RESEARCH":
+            response["confidence"] = min(current_conf + 15, 90)
+            response["reasoning"] = response.get("reasoning", "") + " | BOOST: Rolex has 931% historical ROI (+15 confidence, but verify authenticity)"
 
         # CRITICAL: Valuable brand watches should NEVER be auto-BUY for COLLECTIBLE value
         # But GOLD MELT value BUYs are OK - brand doesn't matter when buying for scrap

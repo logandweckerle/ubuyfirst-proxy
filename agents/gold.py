@@ -58,6 +58,12 @@ class GoldAgent(BaseAgent):
         if "watch" in title and ("10k" in title or "10kt" in title):
             return ("10K WATCH = GOLD FILLED - 10K watches are always gold filled, not solid", "PASS")
 
+        # GOLD WATCHES: Historical data shows -24% ROI on gold watches
+        # They are often overvalued, gold-filled mislabeled as solid, or have movement issues
+        # Force RESEARCH for ALL gold watches to verify manually
+        if "watch" in title and any(k in title for k in ["14k", "18k", "gold"]):
+            return ("GOLD WATCH - Historical data shows negative ROI on gold watches. Manual verification required.", "RESEARCH")
+
         # Ladies/Women's watches - almost always gold-filled or plated, never solid gold
         # Even marked "10K" or "14K" is usually gold-filled for vintage ladies watches
         ladies_watch_keywords = ["ladies watch", "women watch", "women's watch", "womens watch",
@@ -310,7 +316,7 @@ The other 70% is movement, dial, crystal, crown, hands, etc.
 - If description states total weight, multiply by 0.30 to get gold weight
 - Example: 57.2g pocket watch = ~17.2g of gold (30%)
 - Many sellers list total weight thinking it's all gold - IT'S NOT!
-- If price > (goldWeight * karatRate * 0.90), item is OVERPRICED for scrap
+- If price > (goldWeight * karatRate * 0.80), item is OVERPRICED for scrap
 - ALWAYS flag overpriced pocket watches as RESEARCH, not BUY
 
 === WEIGHT ESTIMATION ===
@@ -440,6 +446,39 @@ OUTPUT ONLY VALID JSON. NO OTHER TEXT.
                 response["reasoning"] = response.get("reasoning", "") + " | OVERRIDE: Negative profit = PASS"
         except:
             pass
+
+        # === PRICE RANGE PERFORMANCE ADJUSTMENTS ===
+        # Historical data shows strong correlation between price and success rate:
+        # - $0-50: 96% win rate, 508% ROI (BOOST)
+        # - $50-100: 85% win rate, 272% ROI (BOOST)
+        # - $100-200: 83% win rate, 141% ROI (NEUTRAL)
+        # - $200-500: 59% win rate, 73% ROI (CAUTION)
+        # - $500-1000: 75% win rate, 35% ROI (CAUTION)
+        # - $1000+: 67% win rate, 8% ROI (AVOID AUTO-BUY)
+        current_confidence = response.get("confidence", 50)
+        if isinstance(current_confidence, str):
+            current_confidence = int(current_confidence.replace('%', '') or 50)
+
+        if listing_price <= 50:
+            response["confidence"] = min(current_confidence + 15, 95)
+            response["reasoning"] = response.get("reasoning", "") + f" | BOOST: Under $50 items have 96% win rate (+15 confidence)"
+        elif listing_price <= 100:
+            response["confidence"] = min(current_confidence + 10, 95)
+            response["reasoning"] = response.get("reasoning", "") + f" | BOOST: $50-100 items have 85% win rate (+10 confidence)"
+        elif listing_price > 500:
+            response["confidence"] = max(current_confidence - 10, 30)
+            response["reasoning"] = response.get("reasoning", "") + f" | CAUTION: Over $500 items have lower win rates (-10 confidence)"
+
+        # === KARAT PERFORMANCE ADJUSTMENTS ===
+        # Historical data: 14K has best ROI at 103% (66 items)
+        # 18K: 48% ROI, 10K: 33% ROI
+        karat = response.get("karat", "").upper()
+        if "14K" in karat or "14K" in title.upper():
+            current_conf = response.get("confidence", 50)
+            if isinstance(current_conf, str):
+                current_conf = int(current_conf.replace('%', '') or 50)
+            response["confidence"] = min(current_conf + 5, 95)
+            response["reasoning"] = response.get("reasoning", "") + " | BOOST: 14K gold has best historical ROI (103%) (+5 confidence)"
 
         # HIGH-VALUE GOLD: BUY over $1000 = RESEARCH (too risky for auto-buy)
         if listing_price > 1000 and response.get("Recommendation") == "BUY":
