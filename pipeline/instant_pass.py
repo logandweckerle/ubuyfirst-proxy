@@ -366,15 +366,32 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
             logger.info(f"[HIGH-VALUE] Taxco/Mexico silver detected - skipping adaptive rules")
 
     # ============================================================
-    # ADAPTIVE RULES (Learned from Tier2 corrections)
+    # ADAPTIVE RULES (Learned from Tier2 corrections + Historical data)
     # ============================================================
     if not skip_adaptive:
         try:
-            from utils.adaptive_rules import check_learned_pattern
+            from utils.adaptive_rules import check_learned_pattern, check_historical_pass, get_buy_boost
+
+            # Check historical losers first (high confidence from real transactions)
+            historical_result = check_historical_pass(title_normalized, price_float)
+            if historical_result and historical_result.get("action") == "PASS":
+                logger.info(f"[HISTORICAL] PASS - {historical_result.get('reason', 'historical loser')}")
+                return (historical_result.get("reason", "Historical loser pattern"), "PASS")
+
+            # Check learned patterns from training overrides
             adaptive_result = check_learned_pattern(title_normalized, category, price_float)
             if adaptive_result and adaptive_result.get("action") == "PASS":
                 logger.info(f"[ADAPTIVE] PASS - {adaptive_result.get('reason', 'learned pattern')}")
                 return (adaptive_result.get("reason", "Adaptive rule match"), "PASS")
+
+            # Store buy boost for later use by AI
+            buy_boost = get_buy_boost(title_normalized, category, price_float)
+            if buy_boost:
+                if '_adaptive' not in data:
+                    data['_adaptive'] = {}
+                data['_adaptive']['buy_boost'] = buy_boost.get('confidence_boost', 0)
+                data['_adaptive']['boost_reason'] = buy_boost.get('reason', '')
+                logger.info(f"[ADAPTIVE] BUY BOOST +{buy_boost.get('confidence_boost', 0)} - {buy_boost.get('reason', '')}")
         except Exception as e:
             logger.debug(f"[ADAPTIVE] Check failed: {e}")
 

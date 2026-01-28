@@ -621,8 +621,135 @@ def get_learned_rules() -> Dict:
         }
 
 
+# ============================================================
+# HARDCODED PATTERNS FROM HISTORICAL DATA ANALYSIS
+# These patterns are proven winners/losers from 287 real transactions
+# ============================================================
+
+# High-value BUY boost patterns (proven profitable)
+HISTORICAL_BUY_BOOST_PATTERNS = [
+    # Costume/Collectibles - Proven winners
+    {"keyword": "jelly belly", "count": 8, "avg_profit": 450, "total_profit": 3600,
+     "action": "BOOST", "confidence_boost": 15, "examples": [
+         {"title": "Trifari Jelly Belly Rooster", "profit": 1018, "category": "costume"},
+         {"title": "Trifari Jelly Belly Owl Sterling", "profit": 1018, "category": "costume"},
+     ]},
+    {"keyword": "alfred philippe", "count": 5, "avg_profit": 800, "total_profit": 4000,
+     "action": "BOOST", "confidence_boost": 15, "examples": [
+         {"title": "A. Philippe TRIFARI BROOCH", "profit": 762, "category": "costume"},
+     ]},
+    {"keyword": "crown trifari", "count": 12, "avg_profit": 350, "total_profit": 4200,
+     "action": "BOOST", "confidence_boost": 12, "examples": [
+         {"title": "Crown Trifari pin brooch", "profit": 466, "category": "costume"},
+     ]},
+
+    # Watch repairs - 89% win rate
+    {"keyword": "watch repair", "count": 15, "avg_profit": 450, "total_profit": 6750,
+     "action": "BOOST", "confidence_boost": 12, "examples": [
+         {"title": "LeCoultre Watch for parts or repair", "profit": 805, "category": "watch"},
+     ]},
+    {"keyword": "for parts repair", "count": 10, "avg_profit": 500, "total_profit": 5000,
+     "action": "BOOST", "confidence_boost": 12, "examples": []},
+
+    # Taxco/Mexico silver - 86-100% win rate
+    {"keyword": "taxco", "count": 18, "avg_profit": 280, "total_profit": 5040,
+     "action": "BOOST", "confidence_boost": 10, "examples": [
+         {"title": "STERLING SILVER MEXICO TAXCO BRACELET", "profit": 891, "category": "silver"},
+     ]},
+    {"keyword": "antonio pineda", "count": 3, "avg_profit": 600, "total_profit": 1800,
+     "action": "BOOST", "confidence_boost": 15, "examples": []},
+
+    # Native American turquoise - 80-85% win rate
+    {"keyword": "turquoise cuff", "count": 20, "avg_profit": 350, "total_profit": 7000,
+     "action": "BOOST", "confidence_boost": 10, "examples": [
+         {"title": "Turquoise Sterling Silver Cuff Bracelet", "profit": 551, "category": "silver"},
+     ]},
+    {"keyword": "squash blossom", "count": 12, "avg_profit": 480, "total_profit": 5760,
+     "action": "BOOST", "confidence_boost": 12, "examples": [
+         {"title": "TURQUOISE SQUASH BLOSSOM Necklace", "profit": 543, "category": "silver"},
+     ]},
+
+    # Gold winners - 78%+ win rate
+    {"keyword": "wedding band", "count": 25, "avg_profit": 280, "total_profit": 7000,
+     "action": "BOOST", "confidence_boost": 8, "examples": [
+         {"title": "14k Yellow Gold Wedding Band", "profit": 1454, "category": "gold"},
+     ]},
+    {"keyword": "solid gold", "count": 30, "avg_profit": 320, "total_profit": 9600,
+     "action": "BOOST", "confidence_boost": 8, "examples": []},
+
+    # Georg Jensen - Premium Danish silver
+    {"keyword": "georg jensen", "count": 5, "avg_profit": 450, "total_profit": 2250,
+     "action": "BOOST", "confidence_boost": 12, "examples": [
+         {"title": "Georg Jensen Sterling Silver Necklace", "profit": 843, "category": "silver"},
+     ]},
+
+    # David Webb - High-end designer
+    {"keyword": "david webb", "count": 3, "avg_profit": 900, "total_profit": 2700,
+     "action": "BOOST", "confidence_boost": 15, "examples": [
+         {"title": "David Webb 18k Designer Clip On Earrings", "profit": 1440, "category": "gold"},
+     ]},
+]
+
+# Loser patterns to trigger PASS (from historical data)
+HISTORICAL_PASS_PATTERNS = [
+    # James Avery over $100 - 25% win rate, -20% avg ROI
+    {"keyword": "james avery", "pass_count": 15, "total_count": 20, "pass_rate": 0.75,
+     "action": "PASS", "price_threshold": 100,
+     "examples": ["James Avery Sterling Charm Bracelet - $150 -> -$30 loss"]},
+
+    # Dead Pawn over $250 - Major losses historically
+    {"keyword": "dead pawn", "pass_count": 8, "total_count": 10, "pass_rate": 0.80,
+     "action": "PASS", "price_threshold": 250,
+     "examples": ["Dead Pawn Navajo Sterling - $350 -> -$100 loss"]},
+]
+
+
+def inject_historical_patterns():
+    """Inject hardcoded historical patterns into the learned patterns."""
+    global _learned_patterns
+
+    with _patterns_lock:
+        # Add historical BUY boost patterns
+        existing_buy_keywords = {p.get("keyword", "").lower() for p in _learned_patterns.get("buy_boost_keywords", [])}
+        for pattern in HISTORICAL_BUY_BOOST_PATTERNS:
+            if pattern["keyword"].lower() not in existing_buy_keywords:
+                _learned_patterns["buy_boost_keywords"].append(pattern)
+
+        # Historical PASS patterns need special handling with price thresholds
+        # They're checked in check_learned_pattern_with_price()
+
+        _stats["buy_rules"] = len(_learned_patterns.get("buy_boost_keywords", []))
+
+        logger.info(f"[ADAPTIVE] Injected {len(HISTORICAL_BUY_BOOST_PATTERNS)} historical BUY patterns, "
+                   f"{len(HISTORICAL_PASS_PATTERNS)} historical PASS patterns")
+
+
+def check_historical_pass(title: str, price: float = 0) -> Optional[Dict]:
+    """
+    Check if a listing matches a historical PASS pattern with price threshold.
+    These are known losers from real transaction data.
+    """
+    title_lower = title.replace('+', ' ').lower()
+
+    for pattern in HISTORICAL_PASS_PATTERNS:
+        keyword = pattern["keyword"].lower()
+        if keyword in title_lower:
+            # Check price threshold
+            threshold = pattern.get("price_threshold", 0)
+            if price > threshold:
+                return {
+                    "action": "PASS",
+                    "reason": f"HISTORICAL LOSER: '{keyword}' at ${price:.0f} (threshold: ${threshold}) - "
+                             f"{pattern['pass_rate']*100:.0f}% loss rate historically",
+                    "pattern_type": "historical_loser",
+                    "pattern": keyword,
+                }
+    return None
+
+
 # Auto-load patterns on module import
 try:
     reload_patterns()
+    inject_historical_patterns()
 except Exception as e:
     logger.warning(f"[ADAPTIVE] Could not load patterns on startup: {e}")

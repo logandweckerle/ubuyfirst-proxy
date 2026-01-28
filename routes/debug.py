@@ -347,8 +347,9 @@ async def adaptive_stats():
 async def adaptive_reload():
     """Force reload adaptive learning patterns"""
     try:
-        from utils.adaptive_rules import reload_patterns
+        from utils.adaptive_rules import reload_patterns, inject_historical_patterns
         count = reload_patterns(force=True)
+        inject_historical_patterns()
         return {"status": "ok", "patterns_loaded": count}
     except Exception as e:
         logger.error(f"[ADAPTIVE] Error reloading: {e}")
