@@ -138,6 +138,51 @@ class SilverAgent(BaseAgent):
                 elif weight >= 20 and price <= melt_value * 2.5:
                     return (f"{origin} SILVER: {weight}g = ${melt_value:.0f} melt. Price ${price:.0f} may have collector upside.", "RESEARCH")
 
+        # ============================================================
+        # JAMES AVERY - Historical 25% win rate, -20% avg ROI
+        # Overpriced for silver content, collectors pay retail not wholesale
+        # ============================================================
+        if 'james avery' in title:
+            if price > 100:
+                return (f"JAMES AVERY at ${price:.0f} - Historical 25% win rate, -20% ROI. Overpriced for melt.", "PASS")
+            else:
+                return (f"JAMES AVERY at ${price:.0f} - usually overpriced, verify carefully", "RESEARCH")
+
+        # ============================================================
+        # DEAD PAWN - High-priced dead pawn items are often overvalued
+        # Historical data shows major losses on expensive dead pawn
+        # ============================================================
+        if 'dead pawn' in title and price > 250:
+            return (f"DEAD PAWN at ${price:.0f} - High-priced dead pawn often overvalued. Historical losses.", "PASS")
+
+        # ============================================================
+        # STERLING CUFFS - Historical 85% win rate, 250% avg ROI
+        # Even without turquoise, sterling cuffs perform well
+        # ============================================================
+        is_cuff = 'cuff' in title
+        if is_cuff and not (is_native or has_turquoise):
+            weight_match = re.search(r'(\d+\.?\d*)\s*(?:g(?:ram)?s?)\b', title, re.IGNORECASE)
+            if weight_match:
+                weight = float(weight_match.group(1))
+                sterling_rate = self.get_sterling_rate()
+                melt_value = weight * sterling_rate
+                if weight >= 25 and price <= melt_value * 1.5:
+                    return (f"STERLING CUFF DEAL: {weight}g = ${melt_value:.0f} melt. Price ${price:.0f} - Historical 85% win rate!", "BUY")
+
+        # ============================================================
+        # STERLING NECKLACES - Historical 93% win rate, 345% avg ROI
+        # Heavy sterling necklaces are very profitable
+        # ============================================================
+        is_necklace = 'necklace' in title
+        if is_necklace:
+            weight_match = re.search(r'(\d+\.?\d*)\s*(?:g(?:ram)?s?)\b', title, re.IGNORECASE)
+            if weight_match:
+                weight = float(weight_match.group(1))
+                sterling_rate = self.get_sterling_rate()
+                melt_value = weight * sterling_rate
+                if weight >= 30 and price <= melt_value * 1.3:
+                    return (f"STERLING NECKLACE DEAL: {weight}g = ${melt_value:.0f} melt. Price ${price:.0f} - Historical 93% win rate!", "BUY")
+
         # Tiffany or designer silver - may have collectible premium
         if "tiffany" in title and price > 300:
             return (f"TIFFANY at ${price:.0f} - may have collectible premium", "RESEARCH")

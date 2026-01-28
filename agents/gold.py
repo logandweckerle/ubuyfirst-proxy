@@ -168,13 +168,52 @@ class GoldAgent(BaseAgent):
             if price > 500:
                 return (f"DIAMOND JEWELRY at ${price:.0f} - need AI to estimate gold weight", "RESEARCH")
 
-        # Wedding bands often have diamonds even without "diamond" in title
+        # ============================================================
+        # PLAIN GOLD WEDDING BANDS - Historical 3215% ROI on cheap finds
+        # Plain bands without diamonds are pure gold value
+        # ============================================================
+        is_wedding_band = 'wedding band' in title or 'wedding ring' in title
+        is_plain = not has_diamond and 'diamond' not in title and 'stone' not in title
+
+        if is_wedding_band and is_plain and karat_match:
+            # Plain wedding bands - calculate pure gold value
+            karat = int(karat_match.group(1))
+            gold_gram = SPOT_PRICES.get("gold_oz", 2650) / 31.1035
+            karat_mult = karat / 24
+
+            # Estimate weight for wedding bands: 4-12g typical for men's, 2-5g for women's
+            is_mens = 'men' in title or 'size 10' in title or 'size 11' in title or 'size 12' in title
+            estimated_weight = 8 if is_mens else 4
+            estimated_melt = estimated_weight * gold_gram * karat_mult
+            max_buy = estimated_melt * 0.60  # Be conservative on estimates
+
+            if price <= max_buy:
+                return (f"PLAIN WEDDING BAND: {karat}K, ~{estimated_weight}g est = ${estimated_melt:.0f} melt. Price ${price:.0f} - HIGH potential!", "BUY")
+            elif price <= estimated_melt * 0.85:
+                return (f"PLAIN WEDDING BAND: {karat}K, ~{estimated_weight}g est. Price ${price:.0f} worth checking.", "RESEARCH")
+
+        # Wedding bands with diamonds - different handling
         wedding_keywords = ["wedding band", "wedding ring", "bridal ring", "bridal band",
                           "anniversary band", "eternity band", "princess cut", "round cut"]
         for kw in wedding_keywords:
-            if kw in title:
+            if kw in title and not is_plain:
                 if price > 500:
                     return (f"WEDDING/BRIDAL JEWELRY at ${price:.0f} - likely has diamonds, value in stones", "RESEARCH")
+
+        # ============================================================
+        # GOLD BRACELETS - Historical 80% win rate, 444% avg ROI
+        # Gold bracelets are consistently profitable
+        # ============================================================
+        is_bracelet = 'bracelet' in title or 'bangle' in title
+        if is_bracelet and weight_match and karat_match:
+            gold_weight = float(weight_match.group(1))
+            karat = int(karat_match.group(1))
+            gold_gram = SPOT_PRICES.get("gold_oz", 2650) / 31.1035
+            karat_mult = karat / 24
+            melt_value = gold_weight * gold_gram * karat_mult
+
+            if price <= melt_value * 0.75:
+                return (f"GOLD BRACELET DEAL: {gold_weight}g {karat}K = ${melt_value:.0f} melt. Price ${price:.0f} - Historical 80% win rate!", "BUY")
 
         # CORAL/JADE items - coral is HEAVY, often 50-70% of total weight
         # This drastically reduces gold content - needs careful analysis

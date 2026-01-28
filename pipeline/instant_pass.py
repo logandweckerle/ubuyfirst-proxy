@@ -484,6 +484,31 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
                 return (f"Title contains '{keyword}'", "PASS")
 
     # ============================================================
+    # HISTORICAL LOSERS - Patterns with poor performance
+    # ============================================================
+
+    # James Avery - Historical 25% win rate, -20% avg ROI
+    # Collectors pay retail, not wholesale - overpriced for melt
+    if 'james avery' in title_lower and price_float > 100:
+        logger.info(f"[INSTANT] PASS - James Avery @ ${price_float:.0f} (historical 25% win rate)")
+        return (f"JAMES AVERY at ${price_float:.0f} - Historical 25% win rate, -20% ROI. Overpriced for melt.", "PASS")
+
+    # Dead Pawn at high prices - Historical major losses
+    if 'dead pawn' in title_lower and price_float > 250:
+        logger.info(f"[INSTANT] PASS - Dead Pawn @ ${price_float:.0f} (historical losers)")
+        return (f"DEAD PAWN at ${price_float:.0f} - High-priced dead pawn often overvalued. Historical losses.", "PASS")
+
+    # Large sterling lots (200-500g) - Historical 25% win rate
+    # Heavy lots are often overvalued or have hidden plated items
+    if category == 'silver':
+        weight_match = re.search(r'(\d+)\s*(?:gram|grams|g)\b', title_lower)
+        if weight_match:
+            weight = int(weight_match.group(1))
+            if 200 <= weight <= 600 and 'lot' in title_lower and price_float > 200:
+                logger.info(f"[INSTANT] PASS - Large sterling lot {weight}g @ ${price_float:.0f}")
+                return (f"LARGE STERLING LOT: {weight}g at ${price_float:.0f} - Historical 25% win rate on 200-500g lots. Often overvalued.", "PASS")
+
+    # ============================================================
     # DIAMOND/STONE JEWELRY FILTERS (Gold category)
     # Items priced for stone value, not gold melt value
     # Based on learning_patterns PASS data analysis
