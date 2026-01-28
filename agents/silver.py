@@ -117,6 +117,27 @@ class SilverAgent(BaseAgent):
                 if price > 200:
                     return (f"NATIVE AMERICAN at ${price:.0f} - collectible value", "RESEARCH")
 
+        # ============================================================
+        # TAXCO / MEXICO SILVER - Historical 86-100% win rate, 123-148% avg ROI
+        # Mexican silver has collector value beyond melt
+        # ============================================================
+        is_taxco = 'taxco' in title
+        is_mexico = 'mexico' in title or 'mexican' in title
+
+        if is_taxco or is_mexico:
+            weight_match = re.search(r'(\d+\.?\d*)\s*(?:g(?:ram)?s?)\b', title, re.IGNORECASE)
+            if weight_match:
+                weight = float(weight_match.group(1))
+                sterling_rate = self.get_sterling_rate()
+                melt_value = weight * sterling_rate
+                origin = "TAXCO" if is_taxco else "MEXICAN"
+
+                # Taxco/Mexico at <200% melt with decent weight = BUY
+                if weight >= 30 and price <= melt_value * 2.0:
+                    return (f"{origin} SILVER DEAL: {weight}g = ${melt_value:.0f} melt. Price ${price:.0f} - Historical 86-100% win rate!", "BUY")
+                elif weight >= 20 and price <= melt_value * 2.5:
+                    return (f"{origin} SILVER: {weight}g = ${melt_value:.0f} melt. Price ${price:.0f} may have collector upside.", "RESEARCH")
+
         # Tiffany or designer silver - may have collectible premium
         if "tiffany" in title and price > 300:
             return (f"TIFFANY at ${price:.0f} - may have collectible premium", "RESEARCH")

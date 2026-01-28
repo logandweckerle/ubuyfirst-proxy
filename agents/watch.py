@@ -153,6 +153,22 @@ class WatchAgent(BaseAgent):
     def quick_pass(self, data: dict, price: float) -> tuple:
         title = data.get("Title", "").lower()
 
+        # ============================================================
+        # WATCHES FOR REPAIR/PARTS - Historical 89-100% win rate, 324-377% avg ROI
+        # Complete watches marked "for repair" or "for parts" still have significant value
+        # ============================================================
+        is_for_repair = 'for repair' in title or 'for parts' in title or 'needs repair' in title or 'as is' in title
+        is_premium = any(pb in title for pb in self.PREMIUM_BRANDS)
+        is_mid_tier = any(mb in title for mb in self.MID_BRANDS)
+
+        if is_for_repair and (is_premium or is_mid_tier) and price < 200:
+            brand = next((b for b in self.PREMIUM_BRANDS + self.MID_BRANDS if b in title), "unknown")
+            return (f"REPAIR WATCH DEAL: {brand.upper()} for repair at ${price:.0f} - Historical 89% win rate, 324% avg ROI!", "BUY")
+
+        if is_for_repair and (is_premium or is_mid_tier) and price < 400:
+            brand = next((b for b in self.PREMIUM_BRANDS + self.MID_BRANDS if b in title), "unknown")
+            return (f"REPAIR WATCH: {brand.upper()} for repair at ${price:.0f} - worth verifying condition", "RESEARCH")
+
         # === SMART WATCHES - Not collectible, depreciate fast ===
         smart_watch_keywords = ["apple watch", "fitbit", "garmin", "samsung galaxy watch",
                                "galaxy watch", "amazfit", "huawei watch", "wear os",

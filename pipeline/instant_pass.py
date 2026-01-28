@@ -347,6 +347,24 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
             skip_adaptive = True
             logger.info(f"[HIGH-VALUE] Alfred Philippe detected - skipping adaptive rules")
 
+    elif category == 'watch':
+        # Premium watches for repair: 89-100% win rate, 324-377% avg ROI
+        premium_watch_brands = ['rolex', 'omega', 'patek', 'cartier', 'breitling', 'iwc',
+                               'tudor', 'longines', 'hamilton', 'bulova', 'lecoultre',
+                               'jaeger', 'audemars', 'vacheron', 'zenith', 'tag heuer']
+        is_premium_watch = any(b in title_lower for b in premium_watch_brands)
+        is_for_repair = any(kw in title_lower for kw in ['for parts', 'for repair', 'needs repair', 'as is'])
+
+        if is_premium_watch and is_for_repair:
+            skip_adaptive = True
+            logger.info(f"[HIGH-VALUE] Premium watch for repair detected - skipping adaptive rules")
+
+    elif category == 'silver':
+        # Taxco/Mexico silver: 86-100% win rate
+        if 'taxco' in title_lower or 'mexico' in title_lower:
+            skip_adaptive = True
+            logger.info(f"[HIGH-VALUE] Taxco/Mexico silver detected - skipping adaptive rules")
+
     # ============================================================
     # ADAPTIVE RULES (Learned from Tier2 corrections)
     # ============================================================
@@ -1013,13 +1031,19 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
     # JADE/STONE CHECK - High non-metal value items
     # These items are valued for the stone, NOT the metal
     # Without stated weight, we can't verify metal content
+    # EXCEPTION: Native American turquoise - 71% win rate even without weight
     # ============================================================
     if category in ['silver', 'gold']:
-        high_nonmetal_keywords = ['jade', 'coral', 'turquoise',
-                                   'jasper', 'lapis', 'malachite']
+        high_nonmetal_keywords = ['jade', 'coral', 'jasper', 'lapis', 'malachite']
+        # Note: Turquoise is handled separately below for Native American items
         has_high_nonmetal = any(kw in title_lower for kw in high_nonmetal_keywords)
 
-        if has_high_nonmetal:
+        # Check if this is Native American turquoise (historical 71% win rate)
+        is_native_turquoise = 'turquoise' in title_lower and any(
+            kw in title_lower for kw in ['navajo', 'zuni', 'hopi', 'native', 'southwest', 'american indian', 'squash', 'cuff']
+        )
+
+        if has_high_nonmetal and not is_native_turquoise:
             # Combine all description fields for weight extraction
             combined_desc_stone = ' '.join(filter(None, [
                 data.get('description', ''),
@@ -1030,6 +1054,19 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
             if not stated_weight:
                 logger.info(f"[JADE/STONE] PASS - High non-metal value item without stated weight: {title[:60]}")
                 return (f"JADE/CARVED STONE: Item valued for stone, not metal. No weight stated - cannot verify metal content.", "PASS")
+
+        # Native American turquoise without weight -> RESEARCH (not PASS)
+        # Historical data: 71% win rate, value is in craftsmanship + turquoise
+        if is_native_turquoise:
+            combined_desc_stone = ' '.join(filter(None, [
+                data.get('description', ''),
+                data.get('Description', ''),
+                data.get('ConditionDescription', ''),
+            ]))
+            stated_weight, _ = extract_weight_from_title(title, combined_desc_stone)
+            if not stated_weight and price_float < 200:
+                logger.info(f"[NATIVE TURQUOISE] RESEARCH - No weight but historical 71% win rate: {title[:60]}")
+                return (f"NATIVE TURQUOISE: No weight stated, but historical data shows 71% win rate on Native American turquoise. Worth researching.", "RESEARCH")
 
     # ============================================================
     # WATCH CATEGORY FILTERS
