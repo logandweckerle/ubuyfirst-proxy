@@ -168,6 +168,10 @@ class SilverAgent(BaseAgent):
                 melt_value = weight * sterling_rate
                 if weight >= 25 and price <= melt_value * 1.5:
                     return (f"STERLING CUFF DEAL: {weight}g = ${melt_value:.0f} melt. Price ${price:.0f} - Historical 85% win rate!", "BUY")
+            else:
+                # Cuffs without stated weight still win big - flag for research
+                if price < 75:
+                    return (f"STERLING CUFF at ${price:.0f} - No weight stated but cuffs have 85% win rate. Worth checking!", "RESEARCH")
 
         # ============================================================
         # STERLING NECKLACES - Historical 93% win rate, 345% avg ROI

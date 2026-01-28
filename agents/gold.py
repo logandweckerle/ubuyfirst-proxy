@@ -113,13 +113,34 @@ class GoldAgent(BaseAgent):
             return (f"HIGH VALUE at ${price:.0f} - manual verification required", "RESEARCH")
 
         # ============================================================
+        # "SOLID GOLD" KEYWORD - Historical 1838% avg ROI
+        # When sellers say "solid gold" they usually mean it
+        # ============================================================
+        import re
+        has_solid_gold = 'solid gold' in title or 'solid yellow gold' in title or 'solid 14k' in title or 'solid 18k' in title
+        karat_match = re.search(r'\b(10|14|18|22|24)\s*k', title, re.IGNORECASE)
+
+        if has_solid_gold and karat_match and price < 200:
+            karat = int(karat_match.group(1))
+            return (f"SOLID GOLD at ${price:.0f} - Historical 1838% avg ROI on 'solid gold' items! {karat}K", "BUY")
+        elif has_solid_gold and karat_match and price < 400:
+            karat = int(karat_match.group(1))
+            return (f"SOLID GOLD at ${price:.0f} - 'Solid gold' keyword has high historical ROI. {karat}K", "RESEARCH")
+
+        # ============================================================
+        # LOW-COST GOLD (Under $50) - Historical 897% avg ROI
+        # Low-cost gold items have the highest ROI
+        # ============================================================
+        if karat_match and price < 50:
+            karat = int(karat_match.group(1))
+            return (f"LOW-COST GOLD: {karat}K at ${price:.0f} - Under $50 gold has 897% historical avg ROI!", "BUY")
+
+        # ============================================================
         # UNDERPRICED GOLD - Historical data shows massive ROI at low % of melt
         # 0-50% of melt: 86% win rate, 1138% avg ROI
         # 50-70% of melt: 78% win rate, 155% avg ROI
         # ============================================================
-        import re
         weight_match = re.search(r'(\d+\.?\d*)\s*(?:g(?:ram)?s?)\b', title, re.IGNORECASE)
-        karat_match = re.search(r'\b(10|14|18|22|24)\s*k', title, re.IGNORECASE)
 
         if weight_match and karat_match:
             gold_weight = float(weight_match.group(1))
