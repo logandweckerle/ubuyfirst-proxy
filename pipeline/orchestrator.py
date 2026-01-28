@@ -1559,8 +1559,19 @@ async def run_analysis(request: Request):
                         server_score -= 5
                         score_reasons.append(f"Trusted estimate ({full_weight_source.split(':')[-1] if ':' in full_weight_source else 'heavy item'}): -5")
                     else:
-                        server_score -= 30
-                        score_reasons.append("Estimated weight: -30")
+                        # Check if this is "plain gold" without stones/complexity
+                        title_lower = title.lower() if title else ''
+                        stone_indicators = ['diamond', 'stone', 'gem', 'pearl', 'jade', 'turquoise',
+                                          'opal', 'sapphire', 'ruby', 'emerald', 'tanzanite', 'cameo']
+                        has_stones = any(s in title_lower for s in stone_indicators)
+
+                        if category == 'gold' and not has_stones:
+                            # Plain gold - weight estimates are more reliable
+                            server_score -= 15
+                            score_reasons.append("Estimated weight (plain gold): -15")
+                        else:
+                            server_score -= 30
+                            score_reasons.append("Estimated weight: -30")
                 else:
                     server_score -= 40
                     score_reasons.append("No weight: -40")
