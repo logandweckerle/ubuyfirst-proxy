@@ -924,6 +924,13 @@ def fast_extract_gold(
         'cuban', 'miami cuban', 'rope chain', 'franco', 'herringbone',
         'byzantine', 'figaro', 'mariner', 'anchor', 'box chain',
         'tennis bracelet', 'bangle', 'cuff bracelet', 'id bracelet',
+        # Military/service rings - same weight as class rings
+        'military ring', 'army ring', 'navy ring', 'marine ring', 'air force ring',
+        'service ring', 'veteran ring', 'infantry', 'usmc', 'usaf',
+        # Military abbreviations
+        'army inf', 'us army', 'us navy', 'us marine', 'usn ', 'queen of battle',
+        # Large ring sizes indicate men's rings (heavier)
+        'size 10', 'size 11', 'size 12', 'size 13', 'size 14', 'size 15',
     ]
 
     # Gold jewelry weight estimates (grams) - conservative estimates
@@ -940,6 +947,20 @@ def fast_extract_gold(
         'class ring': 15,           # Class rings (women's/default ~15g)
         'college ring': 15,
         'school ring': 15,
+        # Military/service rings - similar to class rings (15-25g for men's)
+        'military ring': 18,
+        'army ring': 18,
+        'navy ring': 18,
+        'marine ring': 18,
+        'air force ring': 18,
+        'service ring': 18,
+        'infantry ring': 18,        # Infantry = "Queen of Battle"
+        'usmc ring': 18,
+        'veteran ring': 15,
+        # Military abbreviations and keywords
+        'army inf': 18,             # Army Infantry
+        'us army': 15,              # Generic US Army ring
+        'queen of battle': 18,      # Infantry motto = infantry ring
         'mens ring': 10,            # Men's rings heavier than ladies
         "men's ring": 10,
         'wedding band': 4,          # Standard wedding bands
@@ -985,7 +1006,9 @@ def fast_extract_gold(
             break
 
     # Estimate weight if none found and we can identify item type
-    if not result.weight_grams and not has_non_metal:
+    # For HEAVY_GOLD_INDICATORS (military rings, class rings, etc.), estimate even with small stones
+    # These items have substantial gold (15-25g) and small accent stones (0.1-0.5g)
+    if not result.weight_grams and (not has_non_metal or is_potentially_heavy):
         estimated_weight = None
         estimate_type = None
 

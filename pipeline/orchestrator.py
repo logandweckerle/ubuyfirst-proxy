@@ -1012,6 +1012,40 @@ async def run_analysis(request: Request):
                 agent = agent_class()
                 result = agent.validate_response(result)
 
+            # === FAST EXTRACT WEIGHT OVERRIDE ===
+            # If fast_extract estimated a heavy weight (military ring, class ring, etc.)
+            # ALWAYS mark the weightSource with our reliable estimate type for scoring
+            if fast_result and fast_result.weight_grams and fast_result.weight_source:
+                if 'estimate:' in str(fast_result.weight_source) and fast_result.weight_grams >= 10:
+                    estimate_type = fast_result.weight_source.replace('estimate:', '')
+                    # Check for reliable heavy gold estimates that deserve trusted scoring
+                    reliable_estimates = ['military', 'army', 'navy', 'marine', 'infantry', 'queen of battle',
+                                        'class ring', 'college ring', 'school ring', 'signet', 'championship']
+                    is_reliable = any(kw in estimate_type.lower() for kw in reliable_estimates)
+
+                    if is_reliable:
+                        # Get AI's weight
+                        ai_weight_str = result.get('weight', result.get('goldweight', ''))
+                        ai_weight = None
+                        try:
+                            ai_weight = float(str(ai_weight_str).replace('g', '').replace('G', '').strip())
+                        except:
+                            pass
+
+                        # If AI weight is much lower, override with our estimate
+                        if ai_weight and ai_weight < fast_result.weight_grams * 0.5:
+                            logger.warning(f"[FAST] WEIGHT OVERRIDE: AI={ai_weight}g << fast_extract={fast_result.weight_grams}g ({estimate_type}) - using estimate")
+                            if category == 'gold':
+                                result['goldweight'] = str(fast_result.weight_grams)
+                            else:
+                                result['silverweight'] = str(fast_result.weight_grams)
+                            result['weight'] = f"{fast_result.weight_grams}g"
+
+                        # ALWAYS set the trusted estimate weightSource for reliable estimates
+                        # This ensures proper scoring even if AI's weight matches
+                        result['weightSource'] = f'estimate:{estimate_type}'
+                        logger.info(f"[FAST] Trusted estimate: {fast_result.weight_grams}g from {estimate_type}")
+
             # Add listing price to result for display
             result['listingPrice'] = total_price
 
@@ -1512,9 +1546,21 @@ async def run_analysis(request: Request):
                 elif weight_source in ['stated', 'title']:
                     server_score += 15
                     score_reasons.append("Stated weight: +15")
-                elif has_weight and weight_source in ['estimate', 'estimated', '', 'unknown', 'na']:
-                    server_score -= 30
-                    score_reasons.append("Estimated weight: -30")
+                elif has_weight and (weight_source in ['estimate', 'estimated', '', 'unknown', 'na'] or weight_source.startswith('estimate:')):
+                    # Check for reliable heavy gold estimates (military rings, class rings, etc.)
+                    # These have distinctive keywords that reliably indicate heavy items
+                    full_weight_source = result.get('weightSource', '').lower()
+                    reliable_estimates = ['military', 'army', 'navy', 'marine', 'infantry', 'queen of battle',
+                                        'class ring', 'college ring', 'school ring', 'signet', 'championship']
+                    is_reliable_estimate = any(kw in full_weight_source for kw in reliable_estimates)
+
+                    if is_reliable_estimate:
+                        # Trusted estimate from known heavy item type - small penalty only
+                        server_score -= 5
+                        score_reasons.append(f"Trusted estimate ({full_weight_source.split(':')[-1] if ':' in full_weight_source else 'heavy item'}): -5")
+                    else:
+                        server_score -= 30
+                        score_reasons.append("Estimated weight: -30")
                 else:
                     server_score -= 40
                     score_reasons.append("No weight: -40")

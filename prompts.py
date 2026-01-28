@@ -45,10 +45,10 @@ and the METAL ALONE doesn't justify the price = PASS
 - Diamonds/gemstones = $0 added value (just deduct weight)
 
 ### Karat Rates (at ${gold_oz:,.0f}/oz)
-- 24K: ${gold_oz/31.1035:.2f}/g, max buy ${gold_oz/31.1035*0.90:.2f}
-- 18K: ${gold_oz/31.1035*0.70:.2f}/g, max buy ${gold_oz/31.1035*0.70*0.90:.2f}
-- 14K: ${gold_oz/31.1035*0.583:.2f}/g, max buy ${gold_oz/31.1035*0.583*0.90:.2f}
-- 10K: ${gold_oz/31.1035*0.417:.2f}/g, max buy ${gold_oz/31.1035*0.417*0.90:.2f}
+- 24K: ${gold_oz/31.1035:.2f}/g, max buy ${gold_oz/31.1035*0.80:.2f}
+- 18K: ${gold_oz/31.1035*0.70:.2f}/g, max buy ${gold_oz/31.1035*0.70*0.80:.2f}
+- 14K: ${gold_oz/31.1035*0.583:.2f}/g, max buy ${gold_oz/31.1035*0.583*0.80:.2f}
+- 10K: ${gold_oz/31.1035*0.417:.2f}/g, max buy ${gold_oz/31.1035*0.417*0.80:.2f}
 
 ### Gold INSTANT PASS
 - Single earring (worthless)
@@ -583,10 +583,12 @@ IF NO SCALE PHOTO ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢Ã
 === ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â STONE-HEAVY PIECES (MINIMAL GOLD - USUALLY PASS) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ===
 Some jewelry is 80-95% gemstones with very little gold!
 
-GEMSTONE BEAD NECKLACES (peridot, amethyst, garnet, citrine, pearl, coral strands):
-- These are BEADED jewelry where gems are strung on wire
-- Gold content: ONLY clasp + small spacer beads = 3-8g total
+GEMSTONE BEADED JEWELRY (peridot, amethyst, garnet, citrine, pearl, coral, onyx, tiger eye, lapis, turquoise, jade, agate, malachite):
+- Beaded necklaces AND bracelets where gems/stones are the main component
+- Gold content: ONLY clasp + small spacer beads = 2-5g total
 - Do NOT use total weight for gold calculation!
+- "14K Black Onyx Beaded Bracelet 11.3g" = onyx beads are ~9g, gold clasp/findings ~2-3g = PASS
+- ANY listing with "beaded" + stone name = stone-heavy, gold is minimal
 
 RED FLAGS - STONE-HEAVY PIECE:
 - Description says "XX cttw" or "total carat weight gemstone"
@@ -746,14 +748,14 @@ SCRAP RATES (what refiners pay) - USE THESE EXACT VALUES:
 === PRICING MODEL (SHOW YOUR WORK) ===
 DEFINITIONS:
 - meltValue = goldWeight ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â karatRate (the theoretical 100% value)
-- maxBuy = meltValue ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.90 (our ceiling - NEVER pay more than this)
+- maxBuy = meltValue ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.80 (our ceiling - NEVER pay more than this)
 - sellPrice = meltValue ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.96 (what refiner actually pays us)
 - Profit = maxBuy - listingPrice (positive = can buy, negative = PASS)
 
 CALCULATION STEPS:
 1. goldWeight = totalWeight - stoneWeight (deduct ALL stones/pearls/diamonds)
 2. meltValue = goldWeight ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â karatRate
-3. maxBuy = meltValue ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.90
+3. maxBuy = meltValue ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.80
 4. sellPrice = meltValue ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.96
 5. Profit = maxBuy - listingPrice
 6. If Profit < 0 = PASS (no exceptions!)
@@ -761,10 +763,10 @@ CALCULATION STEPS:
 EXAMPLE - 18K pendant, 8.2g on scale, listed at $700:
 - Gold weight: 8.2g (no stones)
 - Melt: 8.2g ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${k18:.2f} = ${8.2 * k18:.0f}
-- maxBuy: ${8.2 * k18:.0f} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.90 = ${8.2 * k18 * 0.90:.0f} (our ceiling)
+- maxBuy: ${8.2 * k18:.0f} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.80 = ${8.2 * k18 * 0.80:.0f} (our ceiling)
 - sellPrice: ${8.2 * k18:.0f} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â 0.96 = ${8.2 * k18 * 0.96:.0f} (what we get)
 - Profit: ${8.2 * k18 * 0.96:.0f} - $700 = ${8.2 * k18 * 0.96 - 700:.0f}
-- $700 < maxBuy ${8.2 * k18 * 0.90:.0f} = BUY with ${8.2 * k18 * 0.96 - 700:.0f} profit
+- $700 < maxBuy ${8.2 * k18 * 0.80:.0f} = BUY with ${8.2 * k18 * 0.96 - 700:.0f} profit
 
 === WEIGHT ESTIMATION ===
 
@@ -838,7 +840,15 @@ IF YOU SEE PROMINENT STONES ON EARRINGS + NO SCALE:
 | Standard band | 2-4g |
 | Class ring womens | 5-8g |
 | Class ring mens | 8-15g |
+| Military/service ring mens | 12-20g |
+| Military/service ring womens | 6-10g |
 | Heavy/chunky ring | 6-12g |
+
+MILITARY RING KEYWORDS (estimate 12-20g for mens, 6-10g for womens):
+- Army, Navy, Marine, Air Force, Coast Guard, USMC, USAF, USN
+- Infantry, Inf, Cavalry, Artillery, Airborne, Ranger, Special Forces
+- Military, Service, Veteran, "Queen of Battle" (infantry motto)
+- Large sizes (10+) often indicate mens military rings
 
 ** CHAINS **
 | Type | Per Inch |
@@ -1071,8 +1081,8 @@ EXAMPLE - 14K chain with pearl pendant (like in photos):
 - Pearl visible ~10mm = deduct 2g
 - Gold weight: 4.84 - 2 = 2.84g
 - Melt: 2.84g ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${k14:.2f} = ${2.84 * k14:.0f}
-- maxBuy: ${2.84 * k14 * 0.90:.0f}
-- At $300 list: Margin = ${2.84 * k14 * 0.90:.0f} - $300 = -${300 - 2.84 * k14 * 0.90:.0f} = PASS
+- maxBuy: ${2.84 * k14 * 0.80:.0f}
+- At $300 list: Margin = ${2.84 * k14 * 0.80:.0f} - $300 = -${300 - 2.84 * k14 * 0.80:.0f} = PASS
 
 === ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â MIXED KARAT LOTS - CALCULATE EACH ITEM SEPARATELY ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ===
 
@@ -1089,7 +1099,7 @@ RIGHT: Calculate EACH item:
 - 3.9g ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${k10:.2f} (10K) = ${3.9 * k10:.0f}
 - 1.5g ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ${k14:.2f} (14K) = ${1.5 * k14:.0f}
 - TOTAL MELT = ${1.2 * k18 + 3.9 * k10 + 1.5 * k14:.0f}
-- maxBuy (90%) = ${(1.2 * k18 + 3.9 * k10 + 1.5 * k14) * 0.90:.0f}
+- maxBuy (90%) = ${(1.2 * k18 + 3.9 * k10 + 1.5 * k14) * 0.80:.0f}
 - sellPrice (96%) = ${(1.2 * k18 + 3.9 * k10 + 1.5 * k14) * 0.96:.0f}
 
 WHEN TO CALCULATE SEPARATELY:
@@ -1173,13 +1183,20 @@ Final score: 0-100 (output as INTEGER like 45 or 75, NOT "High"!)
 HIGH FAKE RISK (be extra cautious):
 - Cuban, Figaro, Franco, Rope chains
 - "Hip-hop" style jewelry
-- Too-good-to-be-true prices
-- New sellers, stock photos
+- New sellers with stock photos AND no feedback
+- Prices below 30% of melt (extreme outliers)
+
+NOT HIGH RISK (common legitimate deals):
+- "NEW" gold jewelry below melt = NORMAL on eBay (liquidators, estate, etc.)
+- Herringbone, Wheat, Snake, Box chains = lower fake risk than Cuban/Rope
+- Stated weight with reasonable price (50-80% of melt) = typical deal territory
+- Italian gold ("Italy", "585") = generally authentic
 
 LOWER RISK:
-- Class rings, dental gold, broken scrap
+- Class rings, military/service rings, dental gold, broken scrap
 - Vintage pieces with obvious wear
 - Known brand markings (but no premium!)
+- Herringbone chains (rarely faked, easy to verify)
 
 === REASONING FORMAT (REQUIRED) ===
 Single karat: "DETECTION: [karat], [item type], [SCALE: X.XXg] or [EST: Xg] | STONES: [deduction or None] | CALC: [gold wt]g ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â $[rate] = $[melt], sell 96% = $[sell], list $[price] | PROFIT: $[sell - price] | DECISION: [BUY/PASS] [why]"
@@ -1199,7 +1216,7 @@ MIXED LOT: "DETECTION: Mixed lot [karats] with STATED weights | CALC: 1.2gÃƒÆ
 - watchDeduction: "3g movement+crystal" or "0" or "NA"
 - goldweight: weight after ALL deductions including pearls (MUST BE A NUMBER like "6.6")
 - meltvalue: calculated melt (FOR MIXED LOTS: sum of individual calculations)
-- maxBuy: meltvalue ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â 0.90 (MUST BE A NUMBER - this is our ceiling)
+- maxBuy: meltvalue ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â 0.80 (MUST BE A NUMBER - this is our ceiling)
 - sellPrice: meltvalue ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â 0.96 (MUST BE A NUMBER - what refiner pays us)
 - Profit: sellPrice - listingPrice (MUST BE A NUMBER like "-172" or "+50")
 - confidence: INTEGER 0-100 (NOT "High"!) - if weightSource="estimate" MAXIMUM is 50, if "scale" start at 75
@@ -1767,6 +1784,71 @@ OUTPUT ONLY VALID JSON. NO OTHER TEXT.
 """
 
 
+WATCH_PROMPT = """
+Analyze this watch listing for arbitrage opportunity. Return JSON.
+
+=== WATCH VALUATION - TWO VALUE SOURCES ===
+
+1. METAL MELT VALUE (gold/silver case)
+   - Same rules as gold/silver analysis - calculate melt from case weight
+   - Deduct movement weight (quartz: 3-4g, mechanical: 5-8g, crystal: 1-2g)
+
+2. COLLECTIBLE/ANTIQUE VALUE (often MUCH higher than melt!)
+   - Antique pocket watches (pre-1920) have significant collector value
+   - USE THE HIGHER of melt value or collectible value
+
+=== ANTIQUE POCKET WATCH IDENTIFICATION ===
+HIGH VALUE MAKERS (antique pocket watches $200-2000+):
+- English: Roskell, Barraud, Dent, Frodsham, Mudge, Tompion, Prior, Breguet
+- American: Waltham, Elgin, Hamilton, Illinois, Howard, Ball, South Bend, Hampden
+- Swiss: Patek Philippe, IWC, Longines, Omega, Vacheron Constantin
+
+POSITIVE VALUE SIGNALS:
+- Silver case with hallmarks (coin silver, sterling, .800, .935)
+- Key-wind or key-set mechanism (pre-1890)
+- Fusee movement (English, high quality)
+- Hunter or half-hunter case (protective cover over face)
+- Fob chain included (adds $20-50+ value)
+- Key included (adds $10-30 value)
+- Engraved/decorated case
+- Working condition mentioned
+- "Estate", "antique", "vintage" in title
+
+ANTIQUE SILVER POCKET WATCH PRICING:
+| Condition | Unknown Maker | Known Maker | Premium Maker |
+|-----------|--------------|-------------|---------------|
+| Non-working/parts | $30-60 | $50-100 | $100-300 |
+| Working | $60-120 | $100-250 | $200-500+ |
+| With fob chain+key | Add $30-80 | Add $30-80 | Add $30-80 |
+
+=== DECISION RULES ===
+- BUY if listing price < 50% of estimated collectible value
+- RESEARCH if listing price < 70% of estimated collectible value
+- PASS if listing price >= market value or item is common/modern
+
+=== JSON OUTPUT (ALL REQUIRED) ===
+- Qualify: "Yes"/"No"
+- Recommendation: "BUY"/"RESEARCH"/"PASS"
+- verified: "Yes"/"No"/"Unknown"
+- karat: karat if gold, "Sterling"/"CoinSilver"/"800Silver" if silver, "NA" if unknown
+- itemtype: "Watch"
+- weightSource: "scale"/"stated"/"estimate"
+- weight: total weight or "NA"
+- goldweight: precious metal weight after deductions, or "NA"
+- meltvalue: calculated melt value or "0"
+- collectibleValue: estimated collectible/resale value (USE THIS for antique watches)
+- maxBuy: the HIGHER of (melt × 0.80) or (collectibleValue × 0.50)
+- sellPrice: the HIGHER of (melt × 0.96) or (collectibleValue × 0.70)
+- Profit: sellPrice - listingPrice
+- confidence: INTEGER 0-100
+- confidenceBreakdown: explain scoring
+- fakerisk: "High"/"Medium"/"Low"
+- reasoning: "WATCH: [maker/era] [metal] [condition] | COLLECTIBLE: est $[value] | MELT: $[value] | USING: [higher value source] | list $[price] | PROFIT: $[calc] | DECISION: [why]"
+
+OUTPUT ONLY VALID JSON. NO OTHER TEXT.
+"""
+
+
 # ============================================================
 # PROMPT DISPATCHER
 # ============================================================
@@ -1789,6 +1871,8 @@ def get_category_prompt(category: str) -> str:
         return COSTUME_PROMPT
     elif category == "videogames":
         return VIDEO_GAMES_PROMPT
+    elif category == "watch":
+        return WATCH_PROMPT
     else:
         return get_silver_prompt()  # Default
 
