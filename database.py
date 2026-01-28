@@ -774,8 +774,21 @@ SELLER_AVATARS = {
 # Trusted sellers from purchase history (populated at runtime)
 TRUSTED_SELLERS = set()
 
+# Historical trusted sellers (100% win rate with 2+ transactions from matched_transactions.csv)
+HISTORICAL_TRUSTED_SELLERS = {
+    'seconhandtreasures2u',  # 2tx, $892 profit
+    'gosps',                 # 2tx, $336 profit
+}
+
+# Historical problematic sellers (50%+ loss rate with 2+ transactions)
+HISTORICAL_PROBLEMATIC_SELLERS = {
+    'itagirl76',    # 100% loss rate on sterling lots
+    'jacal-8745',   # 50% loss rate on gold rings
+    'lisaannmary',  # 50% loss rate on sterling lots
+}
+
 def load_trusted_sellers():
-    """Load sellers with 3+ purchases from purchase_history.db"""
+    """Load sellers with 3+ purchases from purchase_history.db + historical data"""
     global TRUSTED_SELLERS
     try:
         import sqlite3
@@ -792,7 +805,11 @@ def load_trusted_sellers():
             ''')
             TRUSTED_SELLERS = {row[0] for row in cursor.fetchall()}
             conn.close()
-            logger.info(f"[SELLER] Loaded {len(TRUSTED_SELLERS)} trusted sellers from purchase history")
+
+        # Add historical trusted sellers
+        TRUSTED_SELLERS.update(HISTORICAL_TRUSTED_SELLERS)
+
+        logger.info(f"[SELLER] Loaded {len(TRUSTED_SELLERS)} trusted sellers (incl. {len(HISTORICAL_TRUSTED_SELLERS)} from historical data)")
     except Exception as e:
         logger.warning(f"[SELLER] Could not load trusted sellers: {e}")
 
@@ -809,6 +826,11 @@ def get_seller_avatar(seller: str, ebay_data: dict = None) -> dict:
 
     seller_lower = seller.lower().strip()
     matched_avatars = []
+
+    # Check historical problematic sellers (flag with warning)
+    if seller_lower in HISTORICAL_PROBLEMATIC_SELLERS:
+        logger.warning(f"[SELLER] HISTORICAL PROBLEMATIC SELLER: {seller_lower}")
+        # Still continue with normal analysis, but this will be logged
 
     # Check if trusted seller first (highest priority)
     if seller_lower in TRUSTED_SELLERS:

@@ -37,13 +37,14 @@ SELLER_PATTERNS = {
     'dealer': {'pattern': r'dealer|wholesale|trade|broker', 'score': -8, 'reason': 'Professional dealer'},
 }
 
-# Username characteristics
+# Username characteristics (updated with historical transaction data)
 USERNAME_SCORING = {
     'has_numbers': {'check': lambda s: any(c.isdigit() for c in s), 'score': 3, 'reason': 'Casual username (has numbers)'},
     'short_name': {'check': lambda s: len(s) < 10, 'score': 2, 'reason': 'Short username'},
     'has_underscore': {'check': lambda s: '_' in s, 'score': 4, 'reason': 'Username with underscore'},
-    'has_dash': {'check': lambda s: '-' in s, 'score': -2, 'reason': 'Username with dash'},
-    'long_name': {'check': lambda s: len(s) > 20, 'score': 0, 'reason': 'Long username'},
+    'has_dash': {'check': lambda s: '-' in s, 'score': -5, 'reason': 'Username with dash (55% win rate - below baseline)'},
+    'long_name': {'check': lambda s: len(s) > 20, 'score': 5, 'reason': 'Long username (67% win rate - above baseline)'},
+    'has_vintage': {'check': lambda s: 'vintage' in s.lower(), 'score': 10, 'reason': 'Vintage in username (100% historical win rate)'},
 }
 
 # Feedback score buckets
@@ -151,25 +152,29 @@ PHOTO_COUNT_SCORING = {
     'many': {'score': -5, 'reason': '9+ photos (2.7% BUY rate - pro seller)'},
 }
 
-# Brand scoring - premium brands = sellers know value
+# Brand scoring - updated with historical transaction data (287 transactions)
 BRAND_SCORING = {
     # HIGH VALUE - brands that correlate with good deals
     'omega': {'score': 15, 'reason': 'Omega (19% BUY rate!)'},
-    'trifari': {'score': 12, 'reason': 'Trifari (12.5% BUY rate)'},
+    'trifari': {'score': 15, 'reason': 'Trifari (78% historical win rate, 451% avg ROI)'},
     'fashion jewelry': {'score': 10, 'reason': 'Fashion jewelry (11.8% BUY rate)'},
     'rolex': {'score': 8, 'reason': 'Rolex (9.4% BUY rate)'},
     'seiko': {'score': 5, 'reason': 'Seiko (4.8% BUY rate)'},
     'handmade': {'score': 3, 'reason': 'Handmade (casual seller)'},
     'unbranded': {'score': 5, 'reason': 'Unbranded (casual seller)'},
 
+    # HISTORICAL WINNERS - Updated based on real transaction data
+    'taxco': {'score': 10, 'reason': 'Taxco (86-100% historical win rate, 404% ROI)'},
+    'native american': {'score': 10, 'reason': 'Native American (80%+ historical win rate)'},
+    'georg jensen': {'score': 12, 'reason': 'Georg Jensen (544% historical avg ROI)'},
+    'antonio pineda': {'score': 12, 'reason': 'Antonio Pineda (premium Mexican silver)'},
+
     # AVOID - premium silver brands where sellers know value
     'gorham': {'score': -15, 'reason': 'Gorham (0% BUY rate - premium brand)'},
     'towle': {'score': -15, 'reason': 'Towle (0% BUY rate - premium brand)'},
-    'taxco': {'score': -12, 'reason': 'Taxco (0% BUY rate - designer silver)'},
     'reed & barton': {'score': -12, 'reason': 'Reed & Barton (premium brand)'},
     'wallace': {'score': -10, 'reason': 'Wallace (premium brand)'},
     'international silver': {'score': -8, 'reason': 'International Silver (known brand)'},
-    'native american': {'score': -10, 'reason': 'Native American (0% BUY rate - collectors market)'},
 }
 
 # Title length scoring - short titles = casual sellers
@@ -187,6 +192,34 @@ VINTAGE_SCORING = {
     False: {'score': 0, 'reason': 'Not vintage'},
 }
 
+# ============================================================
+# HISTORICAL SELLER DATA (from 287 real transactions)
+# ============================================================
+
+# Trusted sellers - 100% win rate with 2+ purchases
+HISTORICAL_TRUSTED_SELLERS = {
+    'seconhandtreasures2u',  # 2tx, $892 profit
+    'gosps',                 # 2tx, $336 profit
+}
+
+# Problematic sellers - 50%+ loss rate with 2+ purchases
+HISTORICAL_PROBLEMATIC_SELLERS = {
+    'itagirl76': {'reason': '100% loss rate on sterling lots', 'loss_rate': 100},
+    'jacal-8745': {'reason': '50% loss rate on gold rings', 'loss_rate': 50},
+    'lisaannmary': {'reason': '50% loss rate on sterling lots', 'loss_rate': 50},
+}
+
+# Seller patterns that correlate with losses (from historical data)
+HISTORICAL_LOSS_PATTERNS = {
+    # Sterling lot sellers with high loss rates
+    'lot_seller_pattern': {
+        'title_keywords': ['sterling lot', 'silver lot', '925 lot'],
+        'seller_indicators': ['lot', 'bulk', 'wholesale'],
+        'reason': 'Sterling lot sellers have 25% win rate historically',
+        'score_modifier': -10,
+    },
+}
+
 
 def score_seller(data: Dict) -> Tuple[int, List[str]]:
     """
@@ -199,6 +232,19 @@ def score_seller(data: Dict) -> Tuple[int, List[str]]:
 
     seller_name = (data.get('SellerName', '') or data.get('StoreName', '') or '').lower()
     feedback = data.get('FeedbackScore', data.get('feedbackScore', ''))
+
+    # === HISTORICAL SELLER CHECKS (highest priority) ===
+    if seller_name in HISTORICAL_TRUSTED_SELLERS:
+        score += 25
+        reasons.append(f"HISTORICAL TRUSTED SELLER (+25)")
+        logger.info(f"[SELLER] Historical trusted seller: {seller_name}")
+
+    if seller_name in HISTORICAL_PROBLEMATIC_SELLERS:
+        prob_data = HISTORICAL_PROBLEMATIC_SELLERS[seller_name]
+        penalty = -20 if prob_data['loss_rate'] >= 75 else -10
+        score += penalty
+        reasons.append(f"HISTORICAL PROBLEMATIC SELLER: {prob_data['reason']} ({penalty})")
+        logger.info(f"[SELLER] Historical problematic seller: {seller_name} - {prob_data['reason']}")
     condition = (data.get('Condition', '') or '').lower().replace('+', ' ')
     title = (data.get('Title', '') or '').lower()
     description = data.get('Description', '')
