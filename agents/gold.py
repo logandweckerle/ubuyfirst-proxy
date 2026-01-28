@@ -112,22 +112,38 @@ class GoldAgent(BaseAgent):
         if price > 2000:
             return (f"HIGH VALUE at ${price:.0f} - manual verification required", "RESEARCH")
 
-        # Diamond-heavy listings - value in stones, not gold
-        diamond_keywords = ["diamond ring", "diamond bracelet", "diamond necklace",
-                          "diamond earrings", "diamond pendant", "engagement ring"]
-        for kw in diamond_keywords:
-            if kw in title:
-                # Only research if price suggests diamond value
-                if price > 500:
-                    return (f"DIAMOND JEWELRY at ${price:.0f} - value may be in stones", "RESEARCH")
-
-        # Detect cttw/ctw (carats total weight) - indicates diamond content
-        # "cttw" or "ctw" or "ct tw" or ".66ct" patterns
+        # ============================================================
+        # DIAMOND ITEMS - Historical data shows diamonds are FREE UPSIDE
+        # If gold weight is stated and price < 90% of gold melt, BUY IT
+        # Diamonds add value when selling but sellers often price at melt
+        # ============================================================
         import re
-        carat_pattern = r'\b\d*\.?\d+\s*(?:cttw|ctw|ct\s*tw|carat|carats?)\b'
-        if re.search(carat_pattern, title, re.IGNORECASE):
-            if price > 300:
-                return (f"CARAT WEIGHT DETECTED at ${price:.0f} - likely diamond jewelry, value in stones", "RESEARCH")
+        has_diamond = 'diamond' in title or re.search(r'\b\d*\.?\d+\s*(?:cttw|ctw|ct\s*tw)\b', title, re.IGNORECASE)
+
+        if has_diamond:
+            # Check if gold weight is stated in title
+            weight_match = re.search(r'(\d+\.?\d*)\s*(?:g(?:ram)?s?)\b', title, re.IGNORECASE)
+            karat_match = re.search(r'\b(10|14|18|22|24)\s*k', title, re.IGNORECASE)
+
+            if weight_match and karat_match:
+                gold_weight = float(weight_match.group(1))
+                karat = int(karat_match.group(1))
+                gold_gram = SPOT_PRICES.get("gold_oz", 2650) / 31.1035
+                karat_mult = karat / 24
+                melt_value = gold_weight * gold_gram * karat_mult
+                max_buy = melt_value * 0.90
+
+                if price <= max_buy:
+                    # HISTORICAL DATA: Diamond items bought at <90% melt = 40-540% ROI
+                    # Diamonds are $0 for scrap but add massive upside when selling
+                    return (f"DIAMOND + GOLD DEAL: {gold_weight}g {karat}K = ${melt_value:.0f} melt. Price ${price:.0f} < maxBuy ${max_buy:.0f}. Diamonds are FREE upside!", "BUY")
+                elif price <= melt_value * 1.1:
+                    # Slightly over but still potentially good
+                    return (f"DIAMOND JEWELRY: {gold_weight}g {karat}K = ${melt_value:.0f} melt. Price ${price:.0f} is near melt. Could negotiate.", "RESEARCH")
+
+            # No stated weight - need AI to estimate
+            if price > 500:
+                return (f"DIAMOND JEWELRY at ${price:.0f} - need AI to estimate gold weight", "RESEARCH")
 
         # Wedding bands often have diamonds even without "diamond" in title
         wedding_keywords = ["wedding band", "wedding ring", "bridal ring", "bridal band",

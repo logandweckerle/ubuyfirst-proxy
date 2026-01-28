@@ -188,8 +188,8 @@ def check_agent_quick_pass(category: str, data: dict, total_price: str,
         else:
             reason, decision, extra_data = result
 
-        # Only short-circuit for PASS and RESEARCH decisions
-        if decision not in ("PASS", "RESEARCH"):
+        # Short-circuit for PASS, RESEARCH, and BUY decisions
+        if decision not in ("PASS", "RESEARCH", "BUY"):
             return None
 
         logger.info(f"[AGENT QUICK PASS] {category} -> {decision}: {reason}")
@@ -202,6 +202,19 @@ def check_agent_quick_pass(category: str, data: dict, total_price: str,
                 'confidence': 95,
                 'itemtype': 'Unknown',
             }
+        elif decision == "BUY":
+            # Instant BUY from agent quick_pass - historical data patterns
+            quick_result = {
+                'Qualify': 'Yes',
+                'Recommendation': 'BUY',
+                'reasoning': f"[INSTANT BUY] {reason}",
+                'confidence': extra_data.get('confidence', 90),
+                'itemtype': extra_data.get('itemtype', 'Unknown'),
+                'instantBuy': True,
+                **extra_data,  # Include any extra data from quick_pass
+            }
+            stats["buy_count"] += 1
+            logger.info(f"[AGENT QUICK PASS] INSTANT BUY - {reason}")
         else:  # RESEARCH
             quick_result = {
                 'Qualify': 'Maybe',

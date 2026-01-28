@@ -329,16 +329,36 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
         price_float = 0
 
     # ============================================================
+    # HIGH-VALUE PATTERN EXCEPTIONS (Skip adaptive rules for known winners)
+    # These patterns have proven historical win rates and should go to agent quick_pass
+    # ============================================================
+    skip_adaptive = False
+    if category == 'costume':
+        # Jelly Belly: 75% win rate, 228% avg ROI
+        if 'jelly belly' in title_lower:
+            skip_adaptive = True
+            logger.info(f"[HIGH-VALUE] Jelly Belly detected - skipping adaptive rules")
+        # Crown Trifari: 78% win rate
+        elif 'crown' in title_lower and 'trifari' in title_lower:
+            skip_adaptive = True
+            logger.info(f"[HIGH-VALUE] Crown Trifari detected - skipping adaptive rules")
+        # Alfred Philippe: 309% avg ROI
+        elif 'philippe' in title_lower or 'phillipe' in title_lower:
+            skip_adaptive = True
+            logger.info(f"[HIGH-VALUE] Alfred Philippe detected - skipping adaptive rules")
+
+    # ============================================================
     # ADAPTIVE RULES (Learned from Tier2 corrections)
     # ============================================================
-    try:
-        from utils.adaptive_rules import check_learned_pattern
-        adaptive_result = check_learned_pattern(title_normalized, category, price_float)
-        if adaptive_result and adaptive_result.get("action") == "PASS":
-            logger.info(f"[ADAPTIVE] PASS - {adaptive_result.get('reason', 'learned pattern')}")
-            return (adaptive_result.get("reason", "Adaptive rule match"), "PASS")
-    except Exception as e:
-        logger.debug(f"[ADAPTIVE] Check failed: {e}")
+    if not skip_adaptive:
+        try:
+            from utils.adaptive_rules import check_learned_pattern
+            adaptive_result = check_learned_pattern(title_normalized, category, price_float)
+            if adaptive_result and adaptive_result.get("action") == "PASS":
+                logger.info(f"[ADAPTIVE] PASS - {adaptive_result.get('reason', 'learned pattern')}")
+                return (adaptive_result.get("reason", "Adaptive rule match"), "PASS")
+        except Exception as e:
+            logger.debug(f"[ADAPTIVE] Check failed: {e}")
 
     # ============================================================
     # CATEGORY-BASED INSTANT PASS (Filter noise from broad searches)
@@ -434,14 +454,16 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
     # ============================================================
 
     # KEYWORD-BASED INSTANT PASS (All categories)
+    # Skip for high-value patterns that have proven win rates
 
     # ============================================================
 
-    for keyword in _config['instant_pass_keywords']:
+    if not skip_adaptive:
+        for keyword in _config['instant_pass_keywords']:
 
-        if keyword in title_lower:
+            if keyword in title_lower:
 
-            return (f"Title contains '{keyword}'", "PASS")
+                return (f"Title contains '{keyword}'", "PASS")
 
     # ============================================================
     # DIAMOND/STONE JEWELRY FILTERS (Gold category)

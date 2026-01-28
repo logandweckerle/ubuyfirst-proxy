@@ -22,6 +22,34 @@ class CostumeAgent(BaseAgent):
         """
         title = data.get("Title", "").lower()
 
+        # ============================================================
+        # TRIFARI / JELLY BELLY - Historical data shows HIGH ROI
+        # Crown Trifari: 78% win rate, 272% avg ROI
+        # Jelly Belly: 75% win rate, 228% avg ROI
+        # Alfred Philippe: 75% win rate, 309% avg ROI
+        # Sweet spot: Under $200 cost
+        # ============================================================
+        is_trifari = 'trifari' in title
+        is_crown = 'crown' in title and is_trifari
+        is_jelly_belly = 'jelly belly' in title
+        is_philippe = 'philippe' in title or 'phillipe' in title
+
+        if is_jelly_belly and price < 150:
+            # HISTORICAL DATA: Jelly Belly under $150 = 75% win rate, 228% avg ROI
+            return (f"JELLY BELLY DEAL at ${price:.0f} - Historical 75% win rate, 228% avg ROI!", "BUY")
+
+        if is_philippe and price < 250:
+            # HISTORICAL DATA: Alfred Philippe pieces = 309% avg ROI
+            return (f"ALFRED PHILIPPE at ${price:.0f} - Historical 309% avg ROI, designer collectible!", "BUY")
+
+        if is_crown and price < 100:
+            # Crown Trifari under $100 = strong buy
+            return (f"CROWN TRIFARI at ${price:.0f} - Premium vintage mark, 78% win rate!", "BUY")
+
+        if is_trifari and price < 50:
+            # Any Trifari under $50 is likely underpriced
+            return (f"TRIFARI DEAL at ${price:.0f} - Vintage costume brand, strong collector market", "BUY")
+
         # Modern fashion brands = instant PASS
         for brand in self.TIER_4:
             if brand in title:

@@ -12,6 +12,7 @@ import re
 import logging
 import traceback
 from typing import Dict, Any, Optional
+from pipeline.instant_pass import estimate_chain_weight
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class ValidationConfig:
     
     # Rate constants
     GOLD_SELL_RATE: float = 0.96
-    GOLD_MAX_BUY_RATE: float = 0.90
+    GOLD_MAX_BUY_RATE: float = 0.80
     SILVER_SELL_RATE: float = 0.82
     SILVER_MAX_BUY_RATE: float = 0.70
 
@@ -45,7 +46,7 @@ def configure_validation(
     get_spot_prices,
     spot_prices: Dict,
     gold_sell_rate: float = 0.96,
-    gold_max_buy_rate: float = 0.90,
+    gold_max_buy_rate: float = 0.80,
     silver_sell_rate: float = 0.82,
     silver_max_buy_rate: float = 0.70,
 ):
@@ -833,7 +834,7 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
                 correct_sell = correct_melt * 0.96
 
-                correct_buy = correct_melt * 0.90
+                correct_buy = correct_melt * config.GOLD_MAX_BUY_RATE
 
                 listing_price_float = float(str(listing_price).replace('$', '').replace(',', '') or 0)
 
@@ -916,7 +917,7 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
                     correct_melt = metal_weight * gold_price_per_gram * karat_purity
                     correct_sell = correct_melt * 0.96
-                    correct_buy = correct_melt * 0.90
+                    correct_buy = correct_melt * config.GOLD_MAX_BUY_RATE
                     listing_price_float = float(str(listing_price).replace('$', '').replace(',', '') or 0)
                     correct_margin = correct_buy - listing_price_float
 
@@ -1055,7 +1056,7 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
 
                     correct_sell = correct_melt * 0.96
 
-                    correct_buy = correct_melt * 0.90
+                    correct_buy = correct_melt * config.GOLD_MAX_BUY_RATE
 
                     listing_price_float = float(str(listing_price).replace('$', '').replace(',', '') or 0)
 
@@ -1140,7 +1141,7 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
                 # Recalculate with corrected weight
                 if metal_weight > 0:
                     correct_melt = metal_weight * sterling_price
-                    correct_buy = correct_melt * 0.90
+                    correct_buy = correct_melt * config.GOLD_MAX_BUY_RATE
                     correct_margin = correct_buy - price_val
 
                     result['meltvalue'] = f"${correct_melt:.0f}"
@@ -1898,6 +1899,79 @@ def validate_and_fix_margin(result: dict, listing_price, category: str, title: s
                 if high_confidence_verified:
                     logger.info(f"[CALC] ESTIMATED WEIGHT + BUY: HIGH CONFIDENCE ({ai_confidence}%) - trusting AI weight verification (profit ${correct_profit:.0f})")
                     # Don't override - let BUY stand
+
+                # POSITIVE EV CHAIN BYPASS: If chain heuristic estimates weight well above break-even,
+                # the expected value is positive even without stated weight. Keep as BUY.
+                # Example: 24" herringbone 14K = ~36g estimated, break-even ~7g = strong +EV
+                elif category == 'gold' and title:
+                    chain_est_weight, chain_type, chain_length = estimate_chain_weight(title)
+                    if chain_est_weight and chain_length:
+                        # Calculate break-even weight for this karat at listing price
+                        # Match "14K", "14k", "14kt", "585" etc. in title
+                        karat_match = None
+                        title_lower_chain = title.lower()
+                        hallmark_to_karat = {'585': '14K', '750': '18K', '417': '10K', '375': '9K', '916': '22K', '999': '24K'}
+                        for hallmark, karat_key in hallmark_to_karat.items():
+                            if hallmark in title_lower_chain and karat_key in karat_rates:
+                                karat_match = karat_rates[karat_key]
+                                break
+                        if not karat_match:
+                            for karat_name, rate in karat_rates.items():
+                                # Match "14K", "14kt", "14 k", "14 karat"
+                                karat_num = karat_name.replace('K', '')
+                                if re.search(rf'\b{karat_num}\s*k(?:t|arat)?\b', title_lower_chain):
+                                    karat_match = rate
+                                    break
+                        if karat_match:
+                            breakeven_weight = listing_price / (karat_match * config.GOLD_MAX_BUY_RATE) if karat_match > 0 else 999
+                            weight_ratio = chain_est_weight / breakeven_weight if breakeven_weight > 0 else 0
+                            if weight_ratio >= 2.0:
+                                # Estimated weight is 2x+ break-even = strong positive EV
+                                logger.info(f"[CALC] POSITIVE EV CHAIN: {chain_type} {chain_length}\" est {chain_est_weight:.0f}g, break-even {breakeven_weight:.0f}g, ratio {weight_ratio:.1f}x - keeping BUY")
+                                result['reasoning'] = result.get('reasoning', '') + f" [SERVER: +EV chain heuristic - {chain_type} {chain_length}\" est {chain_est_weight:.0f}g vs {breakeven_weight:.0f}g break-even]"
+                                # Don't override - let BUY stand
+                            elif weight_ratio >= 1.5:
+                                # Moderate positive EV - keep as RESEARCH not PASS
+                                logger.info(f"[CALC] MODERATE EV CHAIN: {chain_type} {chain_length}\" est {chain_est_weight:.0f}g, break-even {breakeven_weight:.0f}g, ratio {weight_ratio:.1f}x - RESEARCH")
+                                result['Recommendation'] = 'RESEARCH'
+                                result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Moderate +EV chain - {chain_type} {chain_length}\" est {chain_est_weight:.0f}g vs {breakeven_weight:.0f}g break-even, verify weight]"
+                                current_rec = 'RESEARCH'
+                            else:
+                                # Chain estimate doesn't clear threshold, fall through to normal logic
+                                if correct_profit < 30:
+                                    logger.warning(f"[CALC] ESTIMATED WEIGHT + BUY: Forcing PASS (profit ${correct_profit:.0f} too thin)")
+                                    result['Recommendation'] = 'PASS'
+                                    result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Weight estimated + thin margin ${correct_profit:.0f} - PASS]"
+                                    current_rec = 'PASS'
+                                else:
+                                    logger.warning(f"[CALC] ESTIMATED WEIGHT + BUY: Forcing RESEARCH (profit ${correct_profit:.0f})")
+                                    result['Recommendation'] = 'RESEARCH'
+                                    result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Weight estimated - verify before buying (est profit ${correct_profit:.0f})]"
+                                    current_rec = 'RESEARCH'
+                        else:
+                            # No karat match, fall through to normal logic
+                            if correct_profit < 30:
+                                logger.warning(f"[CALC] ESTIMATED WEIGHT + BUY: Forcing PASS (profit ${correct_profit:.0f} too thin)")
+                                result['Recommendation'] = 'PASS'
+                                result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Weight estimated + thin margin ${correct_profit:.0f} - PASS]"
+                                current_rec = 'PASS'
+                            else:
+                                logger.warning(f"[CALC] ESTIMATED WEIGHT + BUY: Forcing RESEARCH (profit ${correct_profit:.0f})")
+                                result['Recommendation'] = 'RESEARCH'
+                                result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Weight estimated - verify before buying (est profit ${correct_profit:.0f})]"
+                                current_rec = 'RESEARCH'
+                    else:
+                        # No chain estimate available, fall through to normal logic
+                        if correct_profit < 30:
+                            logger.warning(f"[CALC] ESTIMATED WEIGHT + BUY: Forcing PASS (profit ${correct_profit:.0f} too thin)")
+                            result['Recommendation'] = 'PASS'
+                            result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Weight estimated + thin margin ${correct_profit:.0f} - PASS]"
+                            current_rec = 'PASS'
+                        else:
+                            logger.warning(f"[CALC] ESTIMATED WEIGHT + BUY: Forcing RESEARCH (profit ${correct_profit:.0f})")
+                            result['Recommendation'] = 'RESEARCH'
+                            result['reasoning'] = result.get('reasoning', '') + f" [SERVER: Weight estimated - verify before buying (est profit ${correct_profit:.0f})]"
+                            current_rec = 'RESEARCH'
 
                 # ABSOLUTE RULE: Estimated weight cannot be BUY (unless high confidence)
 

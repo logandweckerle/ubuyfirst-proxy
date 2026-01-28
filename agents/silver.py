@@ -81,7 +81,35 @@ class SilverAgent(BaseAgent):
             if kw in title:
                 return (f"SILVER LOT - Historical data shows negative ROI on lots. '{kw}' detected, manual verification required.", "RESEARCH")
 
-        # Native American jewelry - collectible value beyond melt
+        # ============================================================
+        # NATIVE AMERICAN / TURQUOISE - Historical data shows HIGH ROI
+        # Cuffs: 80% win rate, 199% avg ROI
+        # Squash Blossom: 83% win rate, 253% avg ROI
+        # Key: If price < 150% of sterling melt, turquoise is FREE upside
+        # ============================================================
+        import re
+        is_native = any(kw in title for kw in ['navajo', 'zuni', 'hopi', 'native american', 'southwest'])
+        has_turquoise = 'turquoise' in title
+        is_cuff = 'cuff' in title
+        is_squash = 'squash' in title or 'squash blossom' in title
+
+        if (is_native or has_turquoise) and (is_cuff or is_squash):
+            # Check for stated weight
+            weight_match = re.search(r'(\d+\.?\d*)\s*(?:g(?:ram)?s?)\b', title, re.IGNORECASE)
+            if weight_match:
+                weight = float(weight_match.group(1))
+                sterling_rate = self.get_sterling_rate()
+                melt_value = weight * sterling_rate
+                max_buy_melt = melt_value * 1.5  # Allow up to 150% of melt for turquoise premium
+
+                style = "SQUASH BLOSSOM" if is_squash else "CUFF"
+                if weight >= 50 and price <= max_buy_melt:
+                    # HISTORICAL DATA: Heavy turquoise cuffs/squash bought at <150% melt = high ROI
+                    return (f"NATIVE {style} DEAL: {weight}g sterling = ${melt_value:.0f} melt. Price ${price:.0f} is good. Turquoise adds collector premium!", "BUY")
+                elif weight >= 30 and price <= melt_value * 2:
+                    return (f"NATIVE {style}: {weight}g = ${melt_value:.0f} melt. Price ${price:.0f} may have upside.", "RESEARCH")
+
+        # Other Native American jewelry - still flag for research
         native_keywords = ["navajo", "zuni", "hopi", "native american", "southwest",
                          "squash blossom", "turquoise cluster"]
         for kw in native_keywords:
