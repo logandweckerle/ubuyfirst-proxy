@@ -151,6 +151,7 @@ uBuyFirst POST → main.py → orchestrator.py → Response
 | `agents/watch.py` | Watch analysis | Brand tiers, chronograph detection, gold content |
 | `utils/extraction.py` | Weight/karat regex | Extract "14K 10 grams" from titles |
 | `utils/spam_detection.py` | Seller blocking | 2+ listings in 30s = spam |
+| `utils/rag_context.py` | RAG vector search | Find similar past purchases for weight estimation |
 | `config/settings.py` | Environment config | API keys, webhook URLs |
 
 ### Response Format (CRITICAL)
@@ -237,6 +238,11 @@ The Keywords CSV has searches for TWO different computers:
 - **Fixed Discord notification timing** - now sends AFTER all validation (server score, high-value gold, etc.)
   - Previously: Discord sent before server score could force BUY→RESEARCH
   - Now: Discord only fires for items that remain BUY after ALL checks
+- **Added RAG context system** - uses past purchase history for weight estimation
+  - LanceDB vector store with 774 indexed purchases
+  - sentence-transformers embeddings (all-MiniLM-L6-v2)
+  - Finds similar past purchases and suggests weight ranges
+  - Injects historical context into AI prompts for gold/silver
 
 ### 2026-01-07
 - Implemented seller spam detection (auto-block after 2 listings in 30s)

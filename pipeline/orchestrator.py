@@ -38,6 +38,14 @@ from .tier2 import (
     tier2_reanalyze_openai,
 )
 
+# RAG context for similar purchase lookup
+try:
+    from utils.rag_context import build_rag_context, index_purchases
+    _RAG_AVAILABLE = True
+except ImportError:
+    _RAG_AVAILABLE = False
+    logger.warning("[RAG] rag_context module not available - RAG disabled")
+
 logger = logging.getLogger(__name__)
 
 
@@ -274,6 +282,15 @@ def configure_orchestrator(
     _lookup_user_price = lookup_user_price
 
     logger.info("[ORCHESTRATOR] Configured with all dependencies")
+
+    # Initialize RAG index (runs in background, doesn't block startup)
+    if _RAG_AVAILABLE:
+        try:
+            # Index purchases if not already done
+            count = index_purchases(force_rebuild=False)
+            logger.info(f"[RAG] Purchase index ready with {count} items")
+        except Exception as e:
+            logger.warning(f"[RAG] Failed to initialize: {e}")
 
 
 def _trim_listings():
@@ -923,6 +940,17 @@ async def run_analysis(request: Request):
                     logger.info(f"[FLATWARE] Injecting estimate into prompt: {flat_qty}x {piece_type} = {estimated_weight:.0f}g")
             except Exception as e:
                 logger.warning(f"[FLATWARE] Detection error: {e}")
+
+        # === RAG CONTEXT: Similar past purchases ===
+        rag_context = ""
+        if _RAG_AVAILABLE and category in ('gold', 'silver'):
+            try:
+                rag_context = build_rag_context(title, price_float, category, str(data.get('Description', '')))
+                if rag_context and "No similar past purchases" not in rag_context:
+                    fast_context += f"\n\n{rag_context}"
+                    logger.info(f"[RAG] Injected historical purchase context for {category}")
+            except Exception as e:
+                logger.warning(f"[RAG] Context retrieval error: {e}")
 
         # Inject PriceCharting context for TCG/LEGO/videogames
         if pc_context:

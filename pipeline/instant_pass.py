@@ -542,7 +542,10 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
     if category == 'gold':
         is_pearl_necklace = ('pearl' in title_lower and
                             any(kw in title_lower for kw in ['necklace', 'strand', 'string', 'cultured']))
-        is_clasp_only = 'clasp' in title_lower
+        # Only trigger for standalone clasps, not "bracelet with clasp" descriptions
+        # Patterns like "gold clasp", "14k clasp" but NOT "heavy clasp bracelet"
+        clasp_only_patterns = ['gold clasp', '14k clasp', '10k clasp', '18k clasp', 'clasp only', 'just clasp']
+        is_clasp_only = any(p in title_lower for p in clasp_only_patterns)
 
         if is_pearl_necklace or is_clasp_only:
             # Pearl necklaces: clasp is only 2-4g of gold
