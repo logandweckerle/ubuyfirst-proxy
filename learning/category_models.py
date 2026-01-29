@@ -307,8 +307,45 @@ class GoldModel(CategoryModel):
 
     category = "gold"
 
-    # LEARNED FROM MISSED OPPORTUNITY ANALYSIS:
+    # LEARNED FROM HISTORICAL TRANSACTIONS (287 real purchases) + MISSED OPPORTUNITY ANALYSIS:
     opportunity_signals = [
+        # === NEW FROM HISTORICAL DATA (287 transactions) ===
+        OpportunitySignal(
+            name="solid_gold_keyword",
+            weight=0.35,
+            description="'Solid gold' keyword = 1838% historical avg ROI",
+            conditions={
+                "title_contains": ["solid gold", "solid 14k", "solid 18k", "solid 10k"],
+            }
+        ),
+        OpportunitySignal(
+            name="low_cost_gold",
+            weight=0.3,
+            description="Gold under $50 = 897% historical avg ROI",
+            conditions={
+                "price_max": 50,
+                "title_contains": ["14k", "18k", "10k", "gold"],
+            }
+        ),
+        OpportunitySignal(
+            name="wedding_band",
+            weight=0.3,
+            description="Plain wedding bands = 78% historical win rate",
+            conditions={
+                "title_contains": ["wedding band", "wedding ring", "plain band"],
+                "title_not_contains": ["diamond", "stone", "cz"],
+            }
+        ),
+        OpportunitySignal(
+            name="gold_bracelet_bangle",
+            weight=0.25,
+            description="Gold bracelets/bangles = strong historical performance",
+            conditions={
+                "title_contains": ["bracelet", "bangle"],
+                "title_not_contains": ["gold tone", "plated", "filled"],
+            }
+        ),
+        # === EXISTING SIGNALS (validated by historical data) ===
         OpportunitySignal(
             name="estate_seller_gold",
             weight=0.3,
@@ -362,6 +399,9 @@ class GoldModel(CategoryModel):
     ]
 
     priority_keywords = [
+        # NEW from historical data
+        "solid gold", "wedding band", "plain band", "gold bangle",
+        # Existing validated
         "michael anthony", "14k scrap", "18k scrap", "10k scrap",
         "gold lot", "scrap gold", "class ring", "signet ring",
         "italian gold", "milor", "14k grams", "18k grams",
@@ -391,8 +431,50 @@ class SilverModel(CategoryModel):
 
     category = "silver"
 
-    # LEARNED FROM MISSED OPPORTUNITY ANALYSIS:
+    # LEARNED FROM HISTORICAL TRANSACTIONS (287 real purchases) + MISSED OPPORTUNITY ANALYSIS:
     opportunity_signals = [
+        # === NEW FROM HISTORICAL DATA (287 transactions) ===
+        OpportunitySignal(
+            name="sterling_cuff_bracelet",
+            weight=0.35,
+            description="Sterling cuffs = 85% historical win rate",
+            conditions={
+                "title_contains": ["sterling cuff", "silver cuff", "925 cuff"],
+            }
+        ),
+        OpportunitySignal(
+            name="sterling_necklace_chain",
+            weight=0.3,
+            description="Sterling necklaces/chains = 78% historical win rate",
+            conditions={
+                "title_contains": ["sterling necklace", "sterling chain", "925 necklace", "925 chain"],
+            }
+        ),
+        OpportunitySignal(
+            name="taxco_mexico_silver",
+            weight=0.4,
+            description="Taxco/Mexico silver = 86-100% historical win rate, 404% ROI",
+            conditions={
+                "title_contains": ["taxco", "mexico", "mexican silver"],
+            }
+        ),
+        OpportunitySignal(
+            name="turquoise_native_american",
+            weight=0.35,
+            description="Turquoise/Native American = 80%+ historical win rate",
+            conditions={
+                "title_contains": ["turquoise", "navajo", "native american", "squash blossom"],
+            }
+        ),
+        OpportunitySignal(
+            name="georg_jensen",
+            weight=0.4,
+            description="Georg Jensen = 544% historical avg ROI",
+            conditions={
+                "title_contains": ["georg jensen", "jensen"],
+            }
+        ),
+        # === EXISTING SIGNALS (validated by historical data) ===
         OpportunitySignal(
             name="vintage_925_no_stones",
             weight=0.35,
@@ -434,17 +516,45 @@ class SilverModel(CategoryModel):
                 "title_contains": ["ladle", "serving", "bowl", "tray", "compote", "pitcher"],
             }
         ),
+    ]
+
+    # === NEGATIVE SIGNALS (losers from historical data) ===
+    negative_signals = [
         OpportunitySignal(
-            name="mexican_silver",
-            weight=0.2,
-            description="Mexican silver often underpriced",
+            name="james_avery_overpriced",
+            weight=-0.3,
+            description="James Avery >$100 = 25% win rate, -20% ROI",
             conditions={
-                "title_contains": ["mexican", "mexico", "taxco", "sanborns"],
+                "title_contains": ["james avery"],
+                "price_min": 100,
+            }
+        ),
+        OpportunitySignal(
+            name="dead_pawn_overpriced",
+            weight=-0.25,
+            description="Dead Pawn >$250 = historical losses",
+            conditions={
+                "title_contains": ["dead pawn"],
+                "price_min": 250,
+            }
+        ),
+        OpportunitySignal(
+            name="large_sterling_lot",
+            weight=-0.2,
+            description="Large sterling lots (200-500g) = 25% win rate",
+            conditions={
+                "title_contains": ["sterling lot", "silver lot", "925 lot"],
+                "price_min": 150,
             }
         ),
     ]
 
     priority_keywords = [
+        # NEW from historical data
+        "sterling cuff", "sterling necklace", "turquoise cuff",
+        "squash blossom", "georg jensen", "antonio pineda",
+        "taxco bracelet", "navajo cuff",
+        # Existing validated
         "sterling scrap", "sterling lot", "925 scrap",
         "gorham", "towle", "wallace", "reed barton",
         "sterling flatware", "sterling serving",
@@ -463,6 +573,9 @@ class SilverModel(CategoryModel):
         "gorham", "towle", "wallace", "reed & barton",
         "kirk", "stieff", "international", "alvin",
         "whiting", "durgin", "shreve",
+        # NEW from historical data
+        "georg jensen", "antonio pineda", "los castillo",
+        "hector aguilar", "margot de taxco",
     ]
 
 
@@ -471,8 +584,36 @@ class WatchModel(CategoryModel):
 
     category = "watch"
 
-    # LEARNED FROM MISSED OPPORTUNITY ANALYSIS:
+    # LEARNED FROM HISTORICAL TRANSACTIONS (287 real purchases) + MISSED OPPORTUNITY ANALYSIS:
     opportunity_signals = [
+        # === NEW FROM HISTORICAL DATA (89% win rate on premium watch repairs) ===
+        OpportunitySignal(
+            name="premium_watch_repair",
+            weight=0.45,
+            description="Premium watch for repair = 89% historical win rate, 324% avg ROI",
+            conditions={
+                "title_contains": ["rolex", "omega", "cartier", "breitling", "patek", "lecoultre", "jaeger"],
+                "title_not_contains": ["working", "runs", "excellent"],
+            }
+        ),
+        OpportunitySignal(
+            name="mid_tier_watch_repair",
+            weight=0.35,
+            description="Mid-tier watch for repair = good historical performance",
+            conditions={
+                "title_contains": ["longines", "tissot", "tudor", "movado", "tag heuer", "hamilton"],
+                "title_not_contains": ["working", "runs", "excellent"],
+            }
+        ),
+        OpportunitySignal(
+            name="parts_repair_keyword",
+            weight=0.4,
+            description="'For parts/repair' = 89% win rate across premium brands",
+            conditions={
+                "title_contains": ["for parts", "for repair", "needs repair", "not working", "parts repair"],
+            }
+        ),
+        # === EXISTING SIGNALS (validated by historical data) ===
         OpportunitySignal(
             name="estate_pocket_watch",
             weight=0.4,
@@ -489,14 +630,6 @@ class WatchModel(CategoryModel):
             conditions={
                 "title_contains": ["14k", "18k", "10k", "solid gold", "gold case"],
                 "title_not_contains": ["gold filled", "gf", "plated", "tone"],
-            }
-        ),
-        OpportunitySignal(
-            name="parts_repair_lot",
-            weight=0.3,
-            description="Parts/repair watches are underpriced",
-            conditions={
-                "title_contains": ["parts", "repair", "not working", "broken", "as is", "project", "lot"],
             }
         ),
         OpportunitySignal(
@@ -535,6 +668,11 @@ class WatchModel(CategoryModel):
     ]
 
     priority_keywords = [
+        # NEW from historical data - repair watches
+        "omega repair", "omega parts", "rolex repair", "rolex parts",
+        "cartier repair", "breitling repair", "lecoultre repair",
+        "watch for repair", "watch needs repair", "watch not working",
+        # Existing validated
         "pocket watch lot", "watch parts lot", "watchmaker lot",
         "gold watch", "14k watch", "18k watch", "10k watch",
         "coin silver pocket", "railroad pocket",
@@ -547,21 +685,24 @@ class WatchModel(CategoryModel):
     noise_keywords = [
         "smartwatch", "smart watch", "apple watch", "fitbit",
         "michael kors", "fossil", "guess", "invicta",
-        "fashion watch", "quartz",  # For vintage searches
+        "fashion watch",
     ]
 
     reliable_brands = [
+        # Premium brands (especially for repair)
+        "rolex", "omega", "cartier", "breitling", "patek philippe",
+        "jaeger lecoultre", "vacheron", "audemars piguet",
+        # Mid-tier with good repair value
+        "longines", "tissot", "tudor", "tag heuer", "movado",
         # Pocket watches with known value
         "waltham", "elgin", "hamilton", "illinois", "howard", "ball",
         # Vintage wrist with parts value
-        "omega", "longines", "tissot", "bulova", "gruen",
+        "bulova", "gruen", "wittnauer",
     ]
 
     avoid_brands = [
         # Fashion watches - no resale
         "michael kors", "fossil", "guess", "invicta", "stuhrling",
-        # Hard to value without expertise
-        "rolex", "patek", "audemars",  # These need expert verification
     ]
 
 

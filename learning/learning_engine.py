@@ -376,5 +376,192 @@ def run_learning_cycle():
     return results
 
 
+def learn_from_historical_transactions(csv_path: str = None) -> Dict[str, Any]:
+    """
+    Learn from historical transaction data (matched_transactions.csv).
+
+    This analyzes actual purchase outcomes (profit/loss) to:
+    1. Identify winning patterns
+    2. Identify losing patterns
+    3. Update keyword performance with real profit data
+    4. Update seller scores with real outcomes
+    """
+    import csv
+    from collections import defaultdict
+
+    if csv_path is None:
+        csv_path = Path(__file__).parent.parent / "matched_transactions.csv"
+
+    results = {
+        "total_transactions": 0,
+        "winners": 0,
+        "losers": 0,
+        "by_category": defaultdict(lambda: {"count": 0, "profit": 0, "winners": 0, "losers": 0}),
+        "winning_patterns": [],
+        "losing_patterns": [],
+        "seller_performance": defaultdict(lambda: {"count": 0, "profit": 0, "win_rate": 0}),
+        "keyword_performance": defaultdict(lambda: {"count": 0, "profit": 0, "win_rate": 0}),
+    }
+
+    if not Path(csv_path).exists():
+        logger.warning(f"[LEARNING] Historical data not found: {csv_path}")
+        return results
+
+    # Category mapping
+    category_map = {
+        'Gold': 'gold',
+        'Silver': 'silver',
+        'Watch': 'watch',
+        'Other': 'costume',
+    }
+
+    # Keywords to track
+    keywords_to_track = [
+        # Gold
+        "solid gold", "wedding band", "class ring", "signet", "gold bracelet",
+        "14k", "18k", "10k", "michael anthony", "italian", "milor",
+        # Silver
+        "sterling cuff", "turquoise", "navajo", "taxco", "mexico", "georg jensen",
+        "squash blossom", "sterling necklace", "james avery", "dead pawn",
+        # Watch
+        "for repair", "for parts", "not working", "omega", "rolex", "breitling",
+        "cartier", "pocket watch", "lecoultre",
+        # Costume
+        "jelly belly", "trifari", "crown trifari", "alfred philippe",
+    ]
+
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                cost = float(row['Cost']) if row['Cost'] else 0
+                sold = float(row['Sold']) if row['Sold'] else 0
+                profit = float(row['Profit']) if row['Profit'] else 0
+                roi = float(row['ROI %']) if row['ROI %'] else 0
+                seller = row.get('Seller', '').strip().lower()
+                title = row.get('Purchase Title', '').lower()
+                category_raw = row.get('Category', 'Other')
+                category = category_map.get(category_raw, 'other')
+
+                if cost <= 0:
+                    continue
+
+                results["total_transactions"] += 1
+                is_winner = roi >= 50
+                is_loser = roi < 0
+
+                if is_winner:
+                    results["winners"] += 1
+                if is_loser:
+                    results["losers"] += 1
+
+                # Update category stats
+                results["by_category"][category]["count"] += 1
+                results["by_category"][category]["profit"] += profit
+                if is_winner:
+                    results["by_category"][category]["winners"] += 1
+                if is_loser:
+                    results["by_category"][category]["losers"] += 1
+
+                # Update seller performance
+                if seller:
+                    results["seller_performance"][seller]["count"] += 1
+                    results["seller_performance"][seller]["profit"] += profit
+                    if is_winner:
+                        results["seller_performance"][seller]["win_rate"] += 1
+
+                # Update keyword performance
+                for kw in keywords_to_track:
+                    if kw in title:
+                        results["keyword_performance"][kw]["count"] += 1
+                        results["keyword_performance"][kw]["profit"] += profit
+                        if is_winner:
+                            results["keyword_performance"][kw]["win_rate"] += 1
+
+                # Track winning/losing patterns
+                if roi >= 150:  # Big winner
+                    results["winning_patterns"].append({
+                        "title": title[:60],
+                        "category": category,
+                        "cost": cost,
+                        "profit": profit,
+                        "roi": roi,
+                    })
+                elif roi < -20:  # Significant loss
+                    results["losing_patterns"].append({
+                        "title": title[:60],
+                        "category": category,
+                        "cost": cost,
+                        "profit": profit,
+                        "roi": roi,
+                    })
+
+            except (ValueError, KeyError) as e:
+                continue
+
+    # Calculate win rates
+    for seller, data in results["seller_performance"].items():
+        if data["count"] > 0:
+            data["win_rate"] = data["win_rate"] / data["count"]
+
+    for kw, data in results["keyword_performance"].items():
+        if data["count"] > 0:
+            data["win_rate"] = data["win_rate"] / data["count"]
+
+    # Sort patterns by ROI
+    results["winning_patterns"].sort(key=lambda x: -x["roi"])
+    results["losing_patterns"].sort(key=lambda x: x["roi"])
+
+    logger.info(f"[LEARNING] Processed {results['total_transactions']} historical transactions")
+    logger.info(f"[LEARNING] Winners: {results['winners']}, Losers: {results['losers']}")
+
+    return results
+
+
+def print_historical_learning_report(results: Dict[str, Any]):
+    """Print a formatted report of historical learning results."""
+    print("\n" + "=" * 70)
+    print("HISTORICAL TRANSACTION LEARNING REPORT")
+    print("=" * 70)
+
+    print(f"\nTotal Transactions: {results['total_transactions']}")
+    print(f"Winners (50%+ ROI): {results['winners']} ({results['winners']/results['total_transactions']*100:.1f}%)")
+    print(f"Losers (<0% ROI): {results['losers']} ({results['losers']/results['total_transactions']*100:.1f}%)")
+
+    print("\n--- BY CATEGORY ---")
+    for cat, data in sorted(results["by_category"].items(), key=lambda x: -x[1]["profit"]):
+        win_rate = data["winners"] / data["count"] * 100 if data["count"] > 0 else 0
+        print(f"  {cat}: {data['count']} tx, ${data['profit']:.0f} profit, {win_rate:.0f}% win rate")
+
+    print("\n--- TOP KEYWORDS BY WIN RATE (5+ occurrences) ---")
+    keyword_list = [(kw, d) for kw, d in results["keyword_performance"].items() if d["count"] >= 5]
+    keyword_list.sort(key=lambda x: -x[1]["win_rate"])
+    for kw, data in keyword_list[:15]:
+        print(f"  '{kw}': {data['win_rate']*100:.0f}% win rate ({data['count']} tx, ${data['profit']:.0f} profit)")
+
+    print("\n--- TOP SELLERS BY WIN RATE (3+ transactions) ---")
+    seller_list = [(s, d) for s, d in results["seller_performance"].items() if d["count"] >= 3]
+    seller_list.sort(key=lambda x: -x[1]["win_rate"])
+    for seller, data in seller_list[:10]:
+        print(f"  {seller}: {data['win_rate']*100:.0f}% win rate ({data['count']} tx, ${data['profit']:.0f} profit)")
+
+    print("\n--- BIGGEST WINNERS ---")
+    for pattern in results["winning_patterns"][:10]:
+        print(f"  {pattern['roi']:.0f}% ROI | ${pattern['cost']:.0f} -> ${pattern['cost']+pattern['profit']:.0f} | {pattern['title']}")
+
+    print("\n--- BIGGEST LOSERS ---")
+    for pattern in results["losing_patterns"][:5]:
+        print(f"  {pattern['roi']:.0f}% ROI | ${pattern['cost']:.0f} -> ${pattern['cost']+pattern['profit']:.0f} | {pattern['title']}")
+
+
 if __name__ == "__main__":
+    # Run standard learning cycle
     run_learning_cycle()
+
+    # Also learn from historical transactions if available
+    print("\n" + "=" * 70)
+    print("LEARNING FROM HISTORICAL TRANSACTIONS")
+    print("=" * 70)
+    historical_results = learn_from_historical_transactions()
+    if historical_results["total_transactions"] > 0:
+        print_historical_learning_report(historical_results)
