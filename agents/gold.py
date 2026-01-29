@@ -1,7 +1,12 @@
 """
 Gold Agent - Handles gold jewelry/scrap analysis
+
+Two analysis paths:
+1. STATED WEIGHT: Weight in title/description/scale photo -> calculate melt directly
+2. NO WEIGHT: Visual estimation required -> more photos, different prompt, clasp/quality analysis
 """
 
+import re
 from .base import BaseAgent, Tier1Model, Tier2Model
 from config import SPOT_PRICES
 
@@ -15,6 +20,96 @@ class GoldAgent(BaseAgent):
     default_tier1_model = Tier1Model.GPT4O_MINI
     default_tier2_model = Tier2Model.GPT4O
 
+    # ============================================================
+    # QUALITY MARKERS - Indicate solid vs hollow construction
+    # ============================================================
+    QUALITY_GOOD = {
+        "italy": 10,           # Italian gold is typically solid, well-made
+        "uno-a-erre": 15,      # Premium Italian manufacturer
+        "unoaerre": 15,
+        "18k": 10,             # Higher karat = more value per gram
+        "18kt": 10,
+        "750": 10,             # 18K hallmark
+        "solid gold": 15,      # Seller explicitly says solid
+        "solid 14k": 15,
+        "solid 18k": 20,
+        "heavy": 10,           # Seller mentions heavy
+    }
+
+    QUALITY_BAD = {
+        "milor": -20,          # Often hollow/light Italian brand
+        "hollow": -30,         # Explicitly hollow
+        "semi-hollow": -15,
+        "light weight": -15,
+        "lightweight": -15,
+        "thin": -10,
+    }
+
+    # ============================================================
+    # CLASP TYPES - Indicate expected weight of chains/bracelets
+    # ============================================================
+    CLASP_HEAVY = [
+        "tongue in groove", "tongue-in-groove", "box clasp",
+        "safety chain", "safety clasp", "double safety",
+        "lobster claw",  # Medium-heavy
+    ]
+
+    CLASP_LIGHT = [
+        "spring ring", "springring",
+    ]
+
+    # ============================================================
+    # WEIGHT ESTIMATES BY ITEM TYPE (grams)
+    # Used when no weight stated - conservative estimates
+    # ============================================================
+    WEIGHT_ESTIMATES = {
+        # Chains by style (18" length baseline)
+        "rope_chain_thin": (2, 4),
+        "rope_chain_medium": (5, 10),
+        "rope_chain_thick": (15, 30),
+        "figaro_thin": (3, 6),
+        "figaro_medium": (8, 15),
+        "figaro_thick": (20, 40),
+        "cuban_thin": (5, 10),
+        "cuban_medium": (15, 30),
+        "cuban_thick": (40, 80),
+        "herringbone": (3, 8),
+        "box_chain": (2, 5),
+        "snake_chain": (3, 8),
+
+        # Bracelets
+        "bracelet_thin": (3, 6),
+        "bracelet_medium": (8, 15),
+        "bracelet_thick": (20, 40),
+        "bangle_thin": (5, 10),
+        "bangle_thick": (15, 30),
+        "cuban_bracelet": (15, 40),
+        "tennis_bracelet": (8, 15),  # Has stones, gold portion
+
+        # Rings
+        "ring_womens_thin": (1, 2),
+        "ring_womens_medium": (2, 4),
+        "ring_mens_band": (4, 8),
+        "ring_mens_thick": (8, 15),
+        "class_ring_womens": (5, 8),
+        "class_ring_mens": (10, 18),
+        "wedding_band_womens": (2, 4),
+        "wedding_band_mens": (4, 8),
+
+        # Earrings (pair)
+        "studs_small": (0.5, 1.5),
+        "studs_large": (1.5, 3),
+        "hoops_small": (1, 3),
+        "hoops_large": (3, 8),
+        "drop_earrings": (2, 5),
+
+        # Other
+        "pendant_small": (1, 3),
+        "pendant_medium": (3, 8),
+        "pendant_large": (8, 15),
+        "charm": (1, 4),
+    }
+
     def get_karat_rates(self) -> dict:
         """Calculate current karat rates from spot price"""
         gold_oz = SPOT_PRICES.get("gold_oz", 2650)
@@ -26,6 +121,346 @@ class GoldAgent(BaseAgent):
             "22K": gold_gram * 0.917,
             "24K": gold_gram,
         }
+
+    def has_stated_weight(self, data: dict) -> tuple:
+        """
+        Check if weight is explicitly stated in title or description.
+        Returns (has_weight: bool, weight_grams: float or None, source: str)
+        """
+        title = data.get("Title", "").lower()
+        description = data.get("Description", data.get("description", "")).lower()
+        combined = f"{title} {description}"
+
+        # Weight patterns: "10 grams", "10g", "10.5 grams", "15 dwt", etc.
+        weight_patterns = [
+            r'(\d+\.?\d*)\s*(?:g(?:ram)?s?)\b',  # grams
+            r'(\d+\.?\d*)\s*dwt\b',               # pennyweight
+            r'(\d+\.?\d*)\s*oz\b',                # ounces
+        ]
+
+        for pattern in weight_patterns:
+            match = re.search(pattern, combined, re.IGNORECASE)
+            if match:
+                weight = float(match.group(1))
+                # Convert to grams
+                if 'dwt' in match.group(0).lower():
+                    weight = weight * 1.555
+                elif 'oz' in match.group(0).lower():
+                    weight = weight * 31.1035
+
+                # Determine source priority
+                if re.search(pattern, title, re.IGNORECASE):
+                    return (True, weight, "title")
+                else:
+                    return (True, weight, "description")
+
+        return (False, None, None)
+
+    def analyze_no_weight_indicators(self, data: dict, price: float) -> dict:
+        """
+        Analyze listings without stated weight for visual indicators.
+        Returns analysis dict with quality score, estimated weight range, and flags.
+        """
+        title = data.get("Title", "").lower()
+        description = data.get("Description", data.get("description", "")).lower()
+        combined = f"{title} {description}"
+
+        analysis = {
+            "quality_score": 50,  # Base score
+            "quality_notes": [],
+            "weight_estimate_low": 0,
+            "weight_estimate_high": 0,
+            "item_type": None,
+            "clasp_type": None,
+            "green_flags": [],
+            "red_flags": [],
+            "confidence_boost": 0,
+            "requires_photos": True,
+            "recommended_images": 6,  # More images for no-weight
+        }
+
+        # === QUALITY MARKERS ===
+        for marker, score in self.QUALITY_GOOD.items():
+            if marker in combined:
+                analysis["quality_score"] += score
+                analysis["quality_notes"].append(f"+{score}: {marker}")
+                if "solid" in marker:
+                    analysis["green_flags"].append(f"Seller says '{marker}' but no weight = opportunity")
+
+        for marker, score in self.QUALITY_BAD.items():
+            if marker in combined:
+                analysis["quality_score"] += score  # score is negative
+                analysis["quality_notes"].append(f"{score}: {marker}")
+                if "milor" in marker:
+                    analysis["red_flags"].append("Milor brand often hollow/light")
+
+        # === CLASP TYPE DETECTION ===
+        for clasp in self.CLASP_HEAVY:
+            if clasp in combined:
+                analysis["clasp_type"] = "heavy"
+                analysis["quality_notes"].append(f"Heavy clasp: {clasp}")
+                analysis["confidence_boost"] += 5
+                break
+
+        for clasp in self.CLASP_LIGHT:
+            if clasp in combined:
+                analysis["clasp_type"] = "light"
+                analysis["quality_notes"].append(f"Light clasp: {clasp}")
+                break
+
+        # === ITEM TYPE DETECTION AND WEIGHT ESTIMATION ===
+        karat_rates = self.get_karat_rates()
+        karat = None
+        karat_match = re.search(r'\b(10|14|18|22|24)\s*k', title, re.IGNORECASE)
+        if karat_match:
+            karat = int(karat_match.group(1))
+
+        # Detect item type and estimate weight
+        if "cuban" in combined:
+            if "bracelet" in combined:
+                analysis["item_type"] = "cuban_bracelet"
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 15, 40
+            else:
+                if "thick" in combined or "heavy" in combined:
+                    analysis["item_type"] = "cuban_thick"
+                    analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 40, 80
+                else:
+                    analysis["item_type"] = "cuban_medium"
+                    analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 15, 30
+
+        elif "rope" in combined:
+            if "thick" in combined or "heavy" in combined:
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 15, 30
+            elif "thin" in combined:
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 2, 4
+            else:
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 5, 10
+            analysis["item_type"] = "rope_chain"
+
+        elif "figaro" in combined:
+            if "thick" in combined or "heavy" in combined:
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 20, 40
+            else:
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 8, 15
+            analysis["item_type"] = "figaro_chain"
+
+        elif "herringbone" in combined:
+            analysis["item_type"] = "herringbone"
+            analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 3, 8
+
+        elif "bracelet" in combined or "bangle" in combined:
+            if "bangle" in combined:
+                analysis["item_type"] = "bangle"
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 8, 20
+            elif "tennis" in combined:
+                analysis["item_type"] = "tennis_bracelet"
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 8, 15
+            else:
+                analysis["item_type"] = "bracelet"
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 8, 20
+
+        elif "ring" in combined:
+            if "class ring" in combined:
+                if "men" in combined:
+                    analysis["item_type"] = "class_ring_mens"
+                    analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 10, 18
+                else:
+                    analysis["item_type"] = "class_ring_womens"
+                    analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 5, 8
+            elif "wedding" in combined or "band" in combined:
+                if "men" in combined:
+                    analysis["item_type"] = "wedding_band_mens"
+                    analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 4, 8
+                else:
+                    analysis["item_type"] = "wedding_band_womens"
+                    analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 2, 4
+            else:
+                analysis["item_type"] = "ring"
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 2, 5
+
+        elif "chain" in combined or "necklace" in combined:
+            # Check length for weight adjustment
+            length_match = re.search(r'(\d+)\s*["\']?\s*(?:inch|in\b|")', combined)
+            length_mult = 1.0
+            if length_match:
+                length = int(length_match.group(1))
+                length_mult = length / 18.0  # Baseline 18"
+
+            if "thick" in combined or "heavy" in combined:
+                base_low, base_high = 10, 20
+            elif "thin" in combined:
+                base_low, base_high = 2, 4
+            else:
+                base_low, base_high = 4, 10
+
+            analysis["item_type"] = "chain"
+            analysis["weight_estimate_low"] = base_low * length_mult
+            analysis["weight_estimate_high"] = base_high * length_mult
+
+        elif "earring" in combined:
+            if "hoop" in combined:
+                analysis["item_type"] = "hoops"
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 2, 6
+            elif "stud" in combined:
+                analysis["item_type"] = "studs"
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 0.5, 2
+            else:
+                analysis["item_type"] = "earrings"
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 1, 4
+
+        elif "pendant" in combined:
+            analysis["item_type"] = "pendant"
+            analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 2, 8
+
+        # === GREEN FLAG: Solid gold + no weight stated ===
+        has_solid = any(kw in combined for kw in ["solid gold", "solid 14k", "solid 18k", "solid 10k"])
+        if has_solid:
+            analysis["green_flags"].append("'Solid gold' stated but NO WEIGHT = seller doesn't know value")
+            analysis["confidence_boost"] += 15
+
+        # === SELLER PROFILE GREEN FLAGS ===
+        seller = data.get("SellerName", "").lower()
+        seller_type = data.get("SellerBusiness", "").lower()
+        if any(kw in seller for kw in ["estate", "thrift", "goodwill", "salvation", "hospice"]):
+            analysis["green_flags"].append(f"Estate/thrift seller: {seller}")
+            analysis["confidence_boost"] += 10
+
+        if seller_type == "private":
+            analysis["green_flags"].append("Private seller (casual, may not know value)")
+            analysis["confidence_boost"] += 5
+
+        # === CALCULATE POTENTIAL VALUE ===
+        if karat and analysis["weight_estimate_low"] > 0:
+            rate = karat_rates.get(f"{karat}K", 0)
+            analysis["melt_estimate_low"] = analysis["weight_estimate_low"] * rate
+            analysis["melt_estimate_high"] = analysis["weight_estimate_high"] * rate
+            analysis["max_buy_conservative"] = analysis["melt_estimate_low"] * 0.80  # Conservative
+
+            # Check if price is attractive
+            if price < analysis["max_buy_conservative"]:
+                analysis["green_flags"].append(
+                    f"Price ${price:.0f} < conservative maxBuy ${analysis['max_buy_conservative']:.0f}"
+                )
+                analysis["confidence_boost"] += 20
+
+        return analysis
+
+    def get_no_weight_prompt(self) -> str:
+        """
+        Specialized prompt for listings WITHOUT stated weight.
+        Focuses on visual estimation from photos.
+        """
+        gold_oz = SPOT_PRICES.get("gold_oz", 2650)
+        gold_gram = gold_oz / 31.1035
+        k10 = gold_gram * 0.417
+        k14 = gold_gram * 0.583
+        k18 = gold_gram * 0.75
+
+        return f"""
+=== GOLD VISUAL WEIGHT ESTIMATION ===
+
+This listing has NO STATED WEIGHT. You must ESTIMATE weight from photos.
+
+=== CRITICAL: PHOTO ANALYSIS ===
+1. FIRST: Check ALL images for a scale photo (digital display with numbers)
+   - If you find a scale photo, USE THAT EXACT WEIGHT and set weightSource="scale"
+
+2. If NO scale photo, estimate weight by analyzing:
+   - THICKNESS: Compare to known items (pencil-thick chain = 15-30g)
+   - CLASP SIZE: Heavy clasps (tongue-in-groove, box clasp) = heavy item
+   - CONSTRUCTION: Solid vs hollow appearance
+   - SIZE REFERENCE: If shown on hand/wrist, estimate dimensions
+
+=== WEIGHT ESTIMATION GUIDE ===
+CHAINS (18" baseline - adjust for length):
+| Style | Thin | Medium | Thick/Heavy |
+|-------|------|--------|-------------|
+| Rope | 2-4g | 5-10g | 15-30g |
+| Figaro | 3-6g | 8-15g | 20-40g |
+| Cuban | 5-10g | 15-30g | 40-80g |
+| Herringbone | 3-8g | - | - |
+| Box/Snake | 2-5g | - | - |
+
+BRACELETS:
+| Type | Weight Range |
+|------|-------------|
+| Thin link | 3-6g |
+| Medium | 8-15g |
+| Cuban/Heavy | 20-40g |
+| Bangle thin | 5-10g |
+| Bangle thick | 15-30g |
+
+RINGS:
+| Type | Weight |
+|------|--------|
+| Women's thin | 1-2g |
+| Women's medium | 2-4g |
+| Men's band | 4-8g |
+| Men's thick/class | 10-18g |
+
+=== CLASP INDICATORS ===
+HEAVY ITEM CLASPS:
+- Tongue-in-groove
+- Box clasp with safety
+- Double safety chain
+- Large lobster claw
+
+LIGHT ITEM CLASPS:
+- Spring ring (small round clasp)
+
+=== QUALITY MARKERS ===
+POSITIVE (add weight confidence):
+- "Italy" stamped = solid construction (except Milor)
+- "Uno-A-Erre" = premium Italian maker
+- "Solid" stated = likely as described
+- Heavy clasp = substantial piece
+
+NEGATIVE (reduce weight estimate):
+- "Milor" = often hollow/light
+- "Hollow" = 20% of solid weight
+- "Semi-hollow" = 55% of solid weight
+- Spring ring clasp on bracelet = lighter piece
+
+=== CURRENT PRICING ===
+- 10K: ${k10:.2f}/gram
+- 14K: ${k14:.2f}/gram
+- 18K: ${k18:.2f}/gram
+
+=== PRICING MODEL (ESTIMATED WEIGHT) ===
+Because weight is ESTIMATED, use CONSERVATIVE approach:
+1. Estimate weight range (low - high)
+2. Use LOW estimate for calculations
+3. meltValue = lowEstimate × karatRate
+4. maxBuy = meltValue × 0.80 (more conservative than stated weight)
+5. If listingPrice < maxBuy = potential BUY
+6. If close = RESEARCH
+
+=== OUTPUT FORMAT ===
+{{
+  "Qualify": "Yes"/"No",
+  "Recommendation": "BUY"/"RESEARCH"/"PASS",
+  "verified": "No",
+  "karat": "10K"/"14K"/"18K",
+  "itemtype": "Chain"/"Bracelet"/"Ring"/"Earrings"/etc,
+  "weightSource": "estimate",
+  "weightEstimateLow": number,
+  "weightEstimateHigh": number,
+  "weight": "~X-Yg (estimated)",
+  "goldweight": use low estimate,
+  "meltvalue": calculated from low estimate,
+  "maxBuy": meltvalue × 0.80,
+  "Profit": maxBuy - listingPrice,
+  "confidence": 40-60 MAX for estimates,
+  "visualAnalysis": "Describe what you see: thickness, clasp type, construction",
+  "fakerisk": "Medium" (always medium for estimates),
+  "reasoning": "VISUAL: [what you observed] | EST: ~Xg based on [item type, thickness] | CALC: Xg × $Y = $Z melt | DECISION: [why]"
+}}
+
+IMPORTANT:
+- Confidence CANNOT exceed 60 for estimated weights
+- Recommendation can be BUY if price is significantly below conservative estimate
+- Always describe your visual analysis in reasoning
+"""
 
     def quick_pass(self, data: dict, price: float) -> tuple:
         """
@@ -556,7 +991,19 @@ OUTPUT ONLY VALID JSON. NO OTHER TEXT.
         # - $1000+: 67% win rate, 8% ROI (AVOID AUTO-BUY)
         current_confidence = response.get("confidence", 50)
         if isinstance(current_confidence, str):
-            current_confidence = int(current_confidence.replace('%', '') or 50)
+            # Handle text-based confidence values
+            conf_lower = current_confidence.lower().replace('%', '').strip()
+            if conf_lower in ('high', 'very high'):
+                current_confidence = 85
+            elif conf_lower in ('medium', 'moderate'):
+                current_confidence = 60
+            elif conf_lower in ('low', 'very low'):
+                current_confidence = 35
+            else:
+                try:
+                    current_confidence = int(conf_lower or 50)
+                except ValueError:
+                    current_confidence = 50
 
         if listing_price <= 50:
             response["confidence"] = min(current_confidence + 15, 95)
@@ -575,7 +1022,18 @@ OUTPUT ONLY VALID JSON. NO OTHER TEXT.
         if "14K" in karat or "14K" in title.upper():
             current_conf = response.get("confidence", 50)
             if isinstance(current_conf, str):
-                current_conf = int(current_conf.replace('%', '') or 50)
+                conf_lower = current_conf.lower().replace('%', '').strip()
+                if conf_lower in ('high', 'very high'):
+                    current_conf = 85
+                elif conf_lower in ('medium', 'moderate'):
+                    current_conf = 60
+                elif conf_lower in ('low', 'very low'):
+                    current_conf = 35
+                else:
+                    try:
+                        current_conf = int(conf_lower or 50)
+                    except ValueError:
+                        current_conf = 50
             response["confidence"] = min(current_conf + 5, 95)
             response["reasoning"] = response.get("reasoning", "") + " | BOOST: 14K gold has best historical ROI (103%) (+5 confidence)"
 

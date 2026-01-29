@@ -52,9 +52,8 @@ def finalize_result(result: dict, html: str, title: str, total_price: str,
 
     logger.info(f"[RESPONSE] FINAL Recommendation: {result.get('Recommendation')} (this should be post-Tier2)")
 
-    if response_type == 'json':
-        logger.info("[RESPONSE] Returning JSON (response_type=json) with html field for display")
-        return JSONResponse(content=result)
-    else:
-        logger.info("[RESPONSE] Returning HTML (response_type=html)")
-        return HTMLResponse(content=html)
+    # Always return JSON with html field - uBuyFirst needs both:
+    # - JSON fields for data columns (Recommendation, etc.)
+    # - html field for display template
+    logger.info(f"[RESPONSE] Returning JSON with html field (response_type was: {response_type})")
+    return JSONResponse(content=result)

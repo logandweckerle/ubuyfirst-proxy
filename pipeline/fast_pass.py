@@ -158,9 +158,8 @@ def check_pc_quick_pass(pc_result: dict, category: str, title: str,
     stats["pass_count"] += 1
     logger.info(f"[QUICK PASS] Saved 30+ seconds by skipping images!")
 
-    if response_type == 'json':
-        return JSONResponse(content=quick_result)
-    return HTMLResponse(content=html)
+    # Always return JSON with html field for uBuyFirst columns + display
+    return JSONResponse(content=quick_result)
 
 
 def check_agent_quick_pass(category: str, data: dict, total_price: str,
@@ -229,9 +228,8 @@ def check_agent_quick_pass(category: str, data: dict, total_price: str,
         cache.set(title, total_price, quick_result, html)
         stats["pass_count"] += 1
 
-        if response_type == 'json':
-            return JSONResponse(content=quick_result)
-        return HTMLResponse(content=html)
+        # Always return JSON with html field for uBuyFirst columns + display
+        return JSONResponse(content=quick_result)
 
     except Exception as e:
         logger.error(f"[AGENT QUICK PASS] Error: {e}")
@@ -269,9 +267,8 @@ async def check_textbook(category: str, data: dict, total_price: str, title: str
         else:
             stats["pass_count"] += 1
 
-        if response_type == 'json':
-            return JSONResponse(content=textbook_result)
-        return HTMLResponse(content=html)
+        # Always return JSON with html field for uBuyFirst columns + display
+        return JSONResponse(content=textbook_result)
 
     except Exception as e:
         logger.error(f"[TEXTBOOK] Error: {e}")
@@ -341,9 +338,8 @@ def check_gold_price_per_gram(category: str, title: str, total_price: str,
         stats["pass_count"] += 1
         logger.info(f"[QUICK PASS] Saved time by skipping images!")
 
-        if response_type == 'json':
-            return JSONResponse(content=quick_result)
-        return HTMLResponse(content=html)
+        # Always return JSON with html field for uBuyFirst columns + display
+        return JSONResponse(content=quick_result)
 
     except Exception as e:
         logger.debug(f"[QUICK PASS] Gold check error: {e}")
@@ -405,9 +401,8 @@ def check_fast_extract_pass(fast_result: Any, category: str, data: dict,
     stats["pass_count"] += 1
     logger.info(f"[FAST] Saved ALL AI time with instant PASS!")
 
-    if response_type == 'json':
-        return JSONResponse(content=quick_result)
-    return HTMLResponse(content=html)
+    # Always return JSON with html field for uBuyFirst columns + display
+    return JSONResponse(content=quick_result)
 
 
 def check_lazy_image_skip(fast_result: Any, category: str, price_float: float,
@@ -456,9 +451,8 @@ def check_lazy_image_skip(fast_result: Any, category: str, price_float: float,
     timing['total'] = _time.time() - start_time
     logger.info(f"[LAZY] Saved 6+ seconds (no images, no AI) - PASS in {timing['total']*1000:.0f}ms")
 
-    if response_type == 'json':
-        return JSONResponse(content=quick_result)
-    return HTMLResponse(content=html)
+    # Always return JSON with html field for uBuyFirst columns + display
+    return JSONResponse(content=quick_result)
 
 
 def determine_image_needs(fast_result: Any, category: str, price_float: float) -> bool:

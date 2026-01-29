@@ -27,11 +27,13 @@ class WatchAgent(BaseAgent):
 
     # Floor prices for premium watch brands/models - anything below = potential BUY
     # These are minimum values even in poor/non-working condition
-    # Updated with eBay sold auction data (Jan 2026) - 163 vintage watches analyzed
+    # Updated with owner's real purchase data (Jan 2026)
     PREMIUM_FLOOR_PRICES = {
-        # Omega models - Avg sold: $965 (32 sales totaling $30,877)
-        "constellation": 500,
-        "seamaster": 400,      # High demand - gets 80-90 bids at $400-500
+        # Omega models - OWNER DATA: Seamaster <$300 = BUY, Constellation <$500 = BUY
+        "pie pan": 600,        # Special Constellation dial - BUY under $600
+        "piepan": 600,         # Alternate spelling
+        "constellation": 500,  # BUY under $500, even for parts
+        "seamaster": 300,      # BUY under $300, even for parts/not working
         "speedmaster": 2500,   # Moonwatch sold $6,500 with 145 bids
         "de ville": 350,       # $417 sale with 78 bids
         "omega geneve": 300,   # Strong demand at $300-400
@@ -111,9 +113,15 @@ class WatchAgent(BaseAgent):
     ]
 
     # Vintage chronograph floor prices - these are collectible regardless of brand
-    # Even "entry" brands like Benrus have valuable vintage chronographs
+    # OWNER DATA: 2-subdial = $100-300 (no brand), $300-700 (designer)
+    #             3-subdial (triple) = minimum $800, up to $3000+
     # Floors are MINIMUM values (for parts/non-working) - working worth 50-100% more
     VINTAGE_CHRONOGRAPH_FLOORS = {
+        # Triple chronographs (3 sub-dials) - VERY valuable, often mispriced as double
+        "tri-compax": 3000,     # Universal Geneve triple chrono
+        "tricompax": 3000,      # Alternate spelling
+        "triple calendar": 2000, # Triple complication
+        "triple date": 1500,    # Day/date/month
         # Specific collectible chronographs
         "sky chief": 1200,      # Benrus Sky Chief - $1200-1500 parts, $2000+ working
         "ultra deep": 600,      # Benrus Ultra Deep
@@ -122,22 +130,34 @@ class WatchAgent(BaseAgent):
         "dato compax": 3000,    # Universal Geneve
         "compax": 1500,         # Universal Geneve chronos
         "carrera": 1500,        # Heuer Carrera
-        "autavia": 2000,        # Heuer Autavia
+        "autavia": 2000,        # Heuer Autavia - owner bought one, very profitable
         "monaco": 3000,         # Heuer Monaco
         "el primero": 2000,     # Zenith
         "navitimer": 1500,      # Breitling
         "valjoux": 400,         # Any Valjoux movement chrono
         "landeron": 300,        # Landeron movement chrono
         "venus": 300,           # Venus movement chrono
-        # Generic vintage chrono floor (if none of the above match)
-        "chronograph": 300,
+        # Generic floors - 2-subdial chrono
+        "chronograph": 300,     # 2-subdial, no brand = $100-300
         "chrono": 300,
+    }
+
+    # Expected gold weights by watch type (for melt calculations when weight not stated)
+    # OWNER DATA: Real weights from purchases
+    GOLD_WEIGHT_ESTIMATES = {
+        "ladies_small": (3, 4),           # 3-4 grams
+        "mens_vintage_34_36mm": (7, 10),  # 7-10 grams
+        "bulova_accutron": (16, 18),      # 16-18 grams 14K
+        "ladies_with_band_small": (10, 15),  # 10-15 grams
+        "ladies_with_band_large_18k": (30, 40),  # 30-40 grams
+        "mens_with_band": (35, 50),       # 35-50 grams
     }
 
     MID_BRANDS = [
         "longines", "tag heuer", "heuer", "oris", "hamilton",
         "tissot", "mido", "rado", "movado", "bulova", "wittnauer",
-        "zodiac", "glycine", "eterna", "girard perregaux", "universal geneve"
+        "zodiac", "glycine", "eterna", "girard perregaux", "universal geneve",
+        "leonidas",  # Undervalued chronograph brand per owner
     ]
 
     ENTRY_BRANDS = [
@@ -214,7 +234,9 @@ class WatchAgent(BaseAgent):
         fashion_brands = ["michael kors", "mk ", "fossil", "guess", "armani exchange",
                          "dkny", "diesel", "nixon", "mvmt", "daniel wellington",
                          "invicta", "stuhrling", "akribos", "geneva", "timex",
-                         "anne klein", "relic", "peugeot", "armitron", "casio g-shock"]
+                         "anne klein", "relic", "peugeot", "armitron", "casio g-shock",
+                         "lacoste", "nautica", "tommy hilfiger", "hugo boss", "coach",
+                         "emporio armani", "kenneth cole", "geoffrey beene", "perry ellis"]
         for brand in fashion_brands:
             if brand in title:
                 return (f"FASHION WATCH - has minimal resale value", "PASS")
@@ -267,9 +289,21 @@ class WatchAgent(BaseAgent):
 
         # === VINTAGE CHRONOGRAPH FLOOR CHECK ===
         # Vintage chronographs are collectible regardless of brand
-        # Even "entry" brands like Benrus have valuable chronographs
+        # OWNER DATA: 2-subdial = $100-700, Triple (3-subdial) = $800-3000+
+        # Triple chronos are often mispriced as double chronos!
         is_chrono = any(kw in title for kw in ["chronograph", "chrono"])
         if is_chrono:
+            # Detect triple chronograph (3 sub-dials) - much more valuable
+            triple_indicators = ["tri-compax", "tricompax", "triple", "3 register",
+                                "three register", "triple calendar", "triple date",
+                                "day date month", "full calendar"]
+            is_triple = any(ind in title for ind in triple_indicators)
+
+            # Also check for premium chrono brand indicators
+            premium_chrono_brands = ["heuer", "breitling", "omega", "zenith",
+                                    "universal geneve", "leonidas", "hamilton"]
+            is_premium_chrono = any(b in title for b in premium_chrono_brands)
+
             chrono_floor = 0
             matched_chrono = None
             # Check specific chronograph models (more specific = higher priority)
@@ -278,6 +312,16 @@ class WatchAgent(BaseAgent):
                     chrono_floor = floor
                     matched_chrono = model
                     break
+
+            # Triple chronos have minimum $800 floor regardless of brand
+            if is_triple and chrono_floor < 800:
+                chrono_floor = 800
+                matched_chrono = "TRIPLE CHRONO"
+
+            # Premium chrono brands get boosted floor
+            if is_premium_chrono and chrono_floor < 500:
+                chrono_floor = 500
+                matched_chrono = matched_chrono or "PREMIUM BRAND CHRONO"
 
             if chrono_floor > 0 and price < chrono_floor * 0.6:
                 return (f"UNDERPRICED VINTAGE CHRONOGRAPH: {matched_chrono} floor ${chrono_floor}, listed ${price:.0f} ({price/chrono_floor*100:.0f}% of floor) = BUY", "BUY")
@@ -523,17 +567,39 @@ CRITICAL - NO HALLUCINATED VALUES:
         is_mid_tier = any(mb in brand for mb in self.MID_BRANDS) or any(mb in title for mb in self.MID_BRANDS)
         is_valuable_brand = is_premium or is_mid_tier
 
-        # === OMEGA PENALTY ===
-        # Historical data shows -56% ROI on Omega watches (5 items, -$2,086 total loss)
-        # Primary loss: "57 GR OF 14K GOLD" Omega at $3,013 sold for $228 (gold-filled mislabeled)
-        # Force ALL Omega watches to RESEARCH - never auto-BUY
+        # === OMEGA RULES (OWNER DATA) ===
+        # Omega Seamaster under $300 = BUY, Constellation under $500 = BUY, Pie Pan under $600 = BUY
+        # For parts/not working holds similar value to working depending on condition
+        # Only block high-priced Omega that claim gold content (gold-filled mislabeling risk)
         is_omega = "omega" in title or "omega" in brand
         if is_omega and rec == "BUY":
-            response["Recommendation"] = "RESEARCH"
-            response["confidence"] = min(response.get("confidence", 50), 60)  # Cap confidence at 60
-            response["reasoning"] = response.get("reasoning", "") + " | HISTORICAL DATA: Omega watches have -56% ROI in our data. Manual verification required - watch for gold-filled mislabeled as solid gold."
-            rec = "RESEARCH"
-            print(f"[WATCH] OMEGA PENALTY: BUY -> RESEARCH (historical -56% ROI)")
+            is_seamaster = "seamaster" in title
+            is_constellation = "constellation" in title
+            is_pie_pan = "pie pan" in title or "piepan" in title
+            is_for_parts = any(kw in title for kw in ["for parts", "for repair", "not working", "as is"])
+
+            # Allow BUY if meets owner's thresholds
+            omega_buy_ok = False
+            if is_seamaster and listing_price < 300:
+                omega_buy_ok = True
+                response["reasoning"] = response.get("reasoning", "") + " | OWNER RULE: Seamaster under $300 = BUY"
+            elif is_constellation and listing_price < 500:
+                omega_buy_ok = True
+                response["reasoning"] = response.get("reasoning", "") + " | OWNER RULE: Constellation under $500 = BUY"
+            elif is_pie_pan and listing_price < 600:
+                omega_buy_ok = True
+                response["reasoning"] = response.get("reasoning", "") + " | OWNER RULE: Pie Pan under $600 = BUY"
+            elif is_for_parts and listing_price < 400:
+                omega_buy_ok = True
+                response["reasoning"] = response.get("reasoning", "") + " | OWNER RULE: Omega for parts under $400 = BUY"
+
+            if not omega_buy_ok:
+                # High-priced Omega - verify not gold-filled mislabeled
+                response["Recommendation"] = "RESEARCH"
+                response["confidence"] = min(response.get("confidence", 50), 70)
+                response["reasoning"] = response.get("reasoning", "") + f" | CAUTION: Omega at ${listing_price:.0f} needs verification (gold-filled risk on expensive pieces)"
+                rec = "RESEARCH"
+                print(f"[WATCH] OMEGA: BUY -> RESEARCH at ${listing_price:.0f} (above threshold)")
 
         # === TAG HEUER / ROLEX BOOSTS ===
         # Historical data shows excellent performance:

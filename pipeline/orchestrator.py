@@ -420,10 +420,8 @@ async def run_analysis(request: Request):
         if user_price_result:
             result, html = user_price_result
             result['html'] = html
-            if response_type == "json":
-                return JSONResponse(content=result)
-            else:
-                return HTMLResponse(content=html)
+            # Always return JSON with html field for uBuyFirst columns + display
+            return JSONResponse(content=result)
 
         # ============================================================
         # INSTANT PASS CHECK (Rule-based, no AI)
@@ -498,9 +496,8 @@ async def run_analysis(request: Request):
                 except Exception as e:
                     logger.error(f"[DISCORD] Instant BUY alert error: {e}")
 
-            if response_type == "json":
-                return JSONResponse(content=result)
-            return HTMLResponse(content=html)
+            # Always return JSON with html field for uBuyFirst columns + display
+            return JSONResponse(content=result)
 
         # ============================================================
         # OLLAMA FALLBACK (if instant_pass didn't find weight for gold/silver)
@@ -541,9 +538,8 @@ async def run_analysis(request: Request):
                             result['html'] = html
                             _cache.set(title, total_price, result, html, rec)
                             _STATS["pass_count" if not is_buy else "buy_count"] += 1
-                            if response_type == "json":
-                                return JSONResponse(content=result)
-                            return HTMLResponse(content=html)
+                            # Always return JSON with html field for uBuyFirst columns + display
+                            return JSONResponse(content=result)
                 except Exception as e:
                     logger.debug(f"[OLLAMA] Fallback error: {e}")
 
@@ -643,6 +639,55 @@ async def run_analysis(request: Request):
             _render_result_html, _cache, _STATS, response_type
         )
         if agent_qp_response:
+            # Send Discord alert for agent quick pass BUY
+            try:
+                import json as _json
+                result_body = agent_qp_response.body
+                if isinstance(result_body, bytes):
+                    qp_result = _json.loads(result_body.decode('utf-8'))
+                else:
+                    qp_result = result_body
+
+                qp_rec = qp_result.get('Recommendation', '')
+                if qp_rec == 'BUY' and _send_discord_alert:
+                    price_float = float(str(total_price).replace('$', '').replace(',', ''))
+                    profit_val = qp_result.get('Profit', 0)
+                    if isinstance(profit_val, str):
+                        profit_val = float(profit_val.replace('$', '').replace('+', '').replace(',', '') or 0)
+
+                    # Get first image
+                    first_image = None
+                    raw_imgs = data.get('images', data.get('PictureURL', []))
+                    if isinstance(raw_imgs, str):
+                        raw_imgs = [raw_imgs]
+                    for img in (raw_imgs or []):
+                        if isinstance(img, str) and img.startswith('http'):
+                            first_image = img
+                            break
+                        elif isinstance(img, dict):
+                            url = img.get('url', img.get('URL', ''))
+                            if url.startswith('http'):
+                                first_image = url
+                                break
+
+                    ebay_url = data.get('ViewUrl', data.get('CheckoutUrl', ''))
+                    if not ebay_url and _get_ebay_search_url:
+                        ebay_url = _get_ebay_search_url(title)
+
+                    logger.info(f"[DISCORD] Agent quick pass {qp_rec}: {title[:40]}...")
+                    asyncio.create_task(_send_discord_alert(
+                        title=title, price=price_float,
+                        recommendation=qp_rec, category=category,
+                        profit=profit_val,
+                        reasoning=qp_result.get('reasoning', ''),
+                        ebay_url=ebay_url,
+                        image_url=first_image,
+                        confidence=str(qp_result.get('confidence', 85)),
+                        extra_data={"source": "agent-quick-pass"},
+                    ))
+            except Exception as e:
+                logger.error(f"[DISCORD] Agent quick pass alert error: {e}")
+
             return agent_qp_response
         textbook_response = await check_textbook(
             category, data, total_price, title, _get_agent,
@@ -803,9 +848,8 @@ async def run_analysis(request: Request):
                 _STATS["pass_count"] += 1
                 _timing['total'] = _time.time() - _start_time
                 logger.info(f"[LAZY] Saved {2 + 4:.0f}+ seconds (no images, no AI) - PASS in {_timing['total']*1000:.0f}ms")
-                if response_type == 'json':
-                    return JSONResponse(content=quick_result)
-                return HTMLResponse(content=html)
+                # Always return JSON with html field for uBuyFirst columns + display
+                return JSONResponse(content=quick_result)
             else:
                 needs_images_for_tier1 = True
                 logger.info(f"[LAZY] Need images: price ${price_float:.0f} near maxBuy ${fast_result.max_buy:.0f}, need AI verification")
@@ -952,12 +996,35 @@ async def run_analysis(request: Request):
                 openai_messages = [{"role": "user", "content": user_message}]
 
             try:
+                # === NO-WEIGHT ANALYSIS PATH ===
+                # For gold/silver without stated weight, use specialized prompt
+                system_prompt = _get_agent_prompt(category)
+                is_no_weight_analysis = False
+
+                if category in ('gold', 'silver') and fast_result:
+                    has_weight = fast_result.weight_grams and fast_result.weight_grams > 0
+                    if not has_weight:
+                        # No weight stated - use specialized no-weight prompt
+                        agent = _get_agent(category) if _get_agent else None
+                        if agent and hasattr(agent, 'get_no_weight_prompt'):
+                            system_prompt = agent.get_no_weight_prompt()
+                            is_no_weight_analysis = True
+                            logger.info(f"[NO-WEIGHT] Using visual estimation prompt for {category}")
+
+                            # Also run visual analysis for context
+                            if hasattr(agent, 'analyze_no_weight_indicators'):
+                                no_weight_analysis = agent.analyze_no_weight_indicators(data, price_float)
+                                if no_weight_analysis.get('green_flags'):
+                                    logger.info(f"[NO-WEIGHT] Green flags: {no_weight_analysis['green_flags']}")
+                                if no_weight_analysis.get('weight_estimate_low'):
+                                    logger.info(f"[NO-WEIGHT] Est. weight: {no_weight_analysis['weight_estimate_low']:.1f}-{no_weight_analysis['weight_estimate_high']:.1f}g")
+
                 response = await _openai_client.chat.completions.create(
                     model=tier1_model,
                     max_tokens=max_tokens,
                     response_format={"type": "json_object"},
                     messages=[
-                        {"role": "system", "content": _get_agent_prompt(category)},
+                        {"role": "system", "content": system_prompt},
                         *openai_messages
                     ]
                 )
@@ -972,11 +1039,11 @@ async def run_analysis(request: Request):
                 tier1_model_used = tier1_model.upper()
             except Exception as e:
                 logger.error(f"[TIER1] {tier1_model} failed, falling back to Haiku: {e}")
-                # Fallback to Haiku
+                # Fallback to Haiku - use same prompt (system_prompt already set above)
                 response = await _client.messages.create(
                     model=_MODEL_FAST,
                     max_tokens=500,
-                    system=_get_agent_prompt(category),
+                    system=system_prompt,
                     messages=[{"role": "user", "content": message_content}]
                 )
                 raw_response = response.content[0].text.strip()
@@ -984,11 +1051,21 @@ async def run_analysis(request: Request):
                 tier1_model_used = "Haiku (fallback)"
         else:
             # Fallback to Haiku if OpenAI client not available
+            # Check for no-weight analysis path
+            system_prompt = _get_agent_prompt(category)
+            if category in ('gold', 'silver') and fast_result:
+                has_weight = fast_result.weight_grams and fast_result.weight_grams > 0
+                if not has_weight:
+                    agent = _get_agent(category) if _get_agent else None
+                    if agent and hasattr(agent, 'get_no_weight_prompt'):
+                        system_prompt = agent.get_no_weight_prompt()
+                        logger.info(f"[NO-WEIGHT] Using visual estimation prompt for {category}")
+
             logger.info(f"[TIER1] Calling Haiku for {category} (OpenAI not configured)...")
             response = await _client.messages.create(
                 model=_MODEL_FAST,
                 max_tokens=500,
-                system=_get_agent_prompt(category),
+                system=system_prompt,
                 messages=[{"role": "user", "content": message_content}]
             )
             raw_response = response.content[0].text.strip()

@@ -329,6 +329,16 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
         price_float = 0
 
     # ============================================================
+    # NEW WITH TAGS FILTER (Gold/Silver should never be "new with tags")
+    # Items with this condition are typically retail costume jewelry, not genuine
+    # ============================================================
+    if category in ['gold', 'silver']:
+        condition = str(data.get('Condition', data.get('condition', ''))).lower()
+        if 'new with tags' in condition:
+            logger.info(f"[INSTANT PASS] 'New with tags' condition - not genuine {category}")
+            return (f"'New with tags' items are retail, not genuine {category}", "PASS")
+
+    # ============================================================
     # HIGH-VALUE PATTERN EXCEPTIONS (Skip adaptive rules for known winners)
     # These patterns have proven historical win rates and should go to agent quick_pass
     # ============================================================

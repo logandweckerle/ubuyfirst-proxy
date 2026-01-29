@@ -182,26 +182,19 @@ def check_cache(title: str, total_price: str, response_type: str,
                 else:
                     stats["cache_hits"] += 1
                     logger.info(f"[CACHE HIT] Returning cached {result.get('Recommendation', 'UNKNOWN')} (PC verified)")
-                    if response_type == 'json':
-                        return JSONResponse(content=result)
-                    else:
-                        return HTMLResponse(content=html)
+                    # Always return JSON with html field for uBuyFirst columns + display
+                    return JSONResponse(content=result)
             except:
                 stats["cache_hits"] += 1
                 logger.info(f"[CACHE HIT] Returning cached {result.get('Recommendation', 'UNKNOWN')} (PC verified)")
-                if response_type == 'json':
-                    return JSONResponse(content=result)
-                else:
-                    return HTMLResponse(content=html)
+                # Always return JSON with html field for uBuyFirst columns + display
+                return JSONResponse(content=result)
     else:
         stats["cache_hits"] += 1
         logger.info(f"[CACHE HIT] Returning cached {result.get('Recommendation', 'UNKNOWN')}")
-        if response_type == 'json':
-            logger.info("[CACHE HIT] Returning JSON (response_type=json)")
-            return JSONResponse(content=result)
-        else:
-            logger.info("[CACHE HIT] Returning HTML (response_type=html)")
-            return HTMLResponse(content=html)
+        # Always return JSON with html field for uBuyFirst columns + display
+        logger.info("[CACHE HIT] Returning JSON with html field")
+        return JSONResponse(content=result)
 
 
 async def check_in_flight(title: str, total_price: str, response_type: str,
@@ -236,10 +229,8 @@ async def check_in_flight(title: str, total_price: str, response_type: str,
             if request_key in in_flight_results and in_flight_results[request_key]:
                 result, html = in_flight_results[request_key]
                 logger.info(f"[IN-FLIGHT] Got result: {result.get('Recommendation', 'UNKNOWN')}")
-                if response_type == 'json':
-                    return False, JSONResponse(content=result)
-                else:
-                    return False, HTMLResponse(content=html)
+                # Always return JSON with html field for uBuyFirst columns + display
+                return False, JSONResponse(content=result)
         except asyncio.TimeoutError:
             logger.warning(f"[IN-FLIGHT] Timeout - processing independently")
 

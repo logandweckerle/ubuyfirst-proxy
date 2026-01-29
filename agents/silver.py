@@ -1,7 +1,12 @@
 """
 Silver Agent - Handles sterling silver/scrap analysis
+
+Two analysis paths:
+1. STATED WEIGHT: Weight in title/description/scale photo -> calculate melt directly
+2. NO WEIGHT: Visual estimation required -> more photos, different prompt
 """
 
+import re
 from .base import BaseAgent, Tier1Model, Tier2Model
 from config import SPOT_PRICES
 
@@ -15,10 +20,259 @@ class SilverAgent(BaseAgent):
     default_tier1_model = Tier1Model.GPT4O_MINI
     default_tier2_model = Tier2Model.GPT4O
 
+    # ============================================================
+    # QUALITY MARKERS - Indicate genuine sterling vs plated
+    # ============================================================
+    QUALITY_GOOD = {
+        "925": 15,             # Sterling hallmark
+        "sterling": 10,        # Stated sterling
+        "mexico": 10,          # Mexican silver often heavy
+        "taxco": 15,           # Taxco Mexico - known for quality
+        "danish": 10,          # Danish silver well-made
+        "georg jensen": 20,    # Premium maker
+        "native american": 15, # Often heavy sterling
+        "navajo": 15,
+        "zuni": 15,
+    }
+
+    QUALITY_BAD = {
+        "thin": -10,
+        "lightweight": -10,
+        "light weight": -10,
+        "hollow": -15,
+    }
+
+    # ============================================================
+    # WEIGHT ESTIMATES BY ITEM TYPE (grams)
+    # Sterling is typically heavier than gold items
+    # ============================================================
+    WEIGHT_ESTIMATES = {
+        # Chains
+        "chain_thin": (10, 20),
+        "chain_medium": (25, 50),
+        "chain_thick": (60, 120),
+
+        # Bracelets
+        "bracelet_thin": (15, 30),
+        "bracelet_medium": (35, 60),
+        "bracelet_thick": (70, 120),
+        "cuff_bracelet": (30, 80),
+        "bangle": (20, 50),
+
+        # Rings
+        "ring_thin": (3, 6),
+        "ring_medium": (6, 12),
+        "ring_thick": (12, 25),
+
+        # Native American
+        "squash_blossom": (150, 300),
+        "concho_belt": (200, 500),
+        "cuff_na": (50, 150),
+
+        # Flatware (per piece)
+        "fork": (30, 50),
+        "knife": (40, 70),
+        "spoon": (25, 45),
+        "tablespoon": (50, 80),
+        "serving_piece": (60, 120),
+    }
+
     def get_sterling_rate(self) -> float:
         """Get current sterling silver rate per gram"""
         silver_oz = SPOT_PRICES.get("silver_oz", 30)
         return silver_oz / 31.1035 * 0.925
+
+    def has_stated_weight(self, data: dict) -> tuple:
+        """
+        Check if weight is explicitly stated in title or description.
+        Returns (has_weight: bool, weight_grams: float or None, source: str)
+        """
+        title = data.get("Title", "").lower()
+        description = data.get("Description", data.get("description", "")).lower()
+        combined = f"{title} {description}"
+
+        # Weight patterns
+        weight_patterns = [
+            r'(\d+\.?\d*)\s*(?:g(?:ram)?s?)\b',
+            r'(\d+\.?\d*)\s*(?:oz|ounce)',
+            r'(\d+\.?\d*)\s*dwt\b',
+        ]
+
+        for pattern in weight_patterns:
+            match = re.search(pattern, combined, re.IGNORECASE)
+            if match:
+                weight = float(match.group(1))
+                if 'oz' in match.group(0).lower():
+                    weight = weight * 31.1035
+                elif 'dwt' in match.group(0).lower():
+                    weight = weight * 1.555
+
+                if re.search(pattern, title, re.IGNORECASE):
+                    return (True, weight, "title")
+                else:
+                    return (True, weight, "description")
+
+        return (False, None, None)
+
+    def analyze_no_weight_indicators(self, data: dict, price: float) -> dict:
+        """
+        Analyze listings without stated weight for visual indicators.
+        """
+        title = data.get("Title", "").lower()
+        description = data.get("Description", data.get("description", "")).lower()
+        combined = f"{title} {description}"
+
+        analysis = {
+            "quality_score": 50,
+            "quality_notes": [],
+            "weight_estimate_low": 0,
+            "weight_estimate_high": 0,
+            "item_type": None,
+            "green_flags": [],
+            "red_flags": [],
+            "confidence_boost": 0,
+            "requires_photos": True,
+            "recommended_images": 6,
+        }
+
+        # === QUALITY MARKERS ===
+        for marker, score in self.QUALITY_GOOD.items():
+            if marker in combined:
+                analysis["quality_score"] += score
+                analysis["quality_notes"].append(f"+{score}: {marker}")
+                if marker in ["taxco", "georg jensen", "navajo"]:
+                    analysis["green_flags"].append(f"Premium maker: {marker}")
+
+        for marker, score in self.QUALITY_BAD.items():
+            if marker in combined:
+                analysis["quality_score"] += score
+                analysis["quality_notes"].append(f"{score}: {marker}")
+
+        # === ITEM TYPE DETECTION ===
+        if "squash blossom" in combined:
+            analysis["item_type"] = "squash_blossom"
+            analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 150, 300
+        elif "concho belt" in combined:
+            analysis["item_type"] = "concho_belt"
+            analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 200, 500
+        elif "cuff" in combined:
+            if any(kw in combined for kw in ["navajo", "native", "zuni", "turquoise"]):
+                analysis["item_type"] = "cuff_na"
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 50, 150
+            else:
+                analysis["item_type"] = "cuff_bracelet"
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 30, 80
+        elif "bracelet" in combined or "bangle" in combined:
+            analysis["item_type"] = "bracelet"
+            analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 25, 60
+        elif "chain" in combined or "necklace" in combined:
+            if "thick" in combined or "heavy" in combined:
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 60, 120
+            else:
+                analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 20, 50
+            analysis["item_type"] = "chain"
+        elif "ring" in combined:
+            analysis["item_type"] = "ring"
+            analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 5, 15
+        elif any(kw in combined for kw in ["fork", "spoon", "knife", "flatware"]):
+            analysis["item_type"] = "flatware"
+            analysis["weight_estimate_low"], analysis["weight_estimate_high"] = 30, 60
+
+        # === GREEN FLAGS ===
+        has_sterling = "sterling" in combined or "925" in combined
+        has_weight, _, _ = self.has_stated_weight(data)
+        if has_sterling and not has_weight:
+            analysis["green_flags"].append("Sterling stated but NO WEIGHT = opportunity")
+            analysis["confidence_boost"] += 10
+
+        # === CALCULATE POTENTIAL VALUE ===
+        if analysis["weight_estimate_low"] > 0:
+            rate = self.get_sterling_rate()
+            analysis["melt_estimate_low"] = analysis["weight_estimate_low"] * rate
+            analysis["melt_estimate_high"] = analysis["weight_estimate_high"] * rate
+            analysis["max_buy_conservative"] = analysis["melt_estimate_low"] * 0.75
+
+            if price < analysis["max_buy_conservative"]:
+                analysis["green_flags"].append(
+                    f"Price ${price:.0f} < conservative maxBuy ${analysis['max_buy_conservative']:.0f}"
+                )
+                analysis["confidence_boost"] += 15
+
+        return analysis
+
+    def get_no_weight_prompt(self) -> str:
+        """Specialized prompt for listings WITHOUT stated weight."""
+        silver_oz = SPOT_PRICES.get("silver_oz", 30)
+        sterling_gram = silver_oz / 31.1035 * 0.925
+
+        return f"""
+=== SILVER VISUAL WEIGHT ESTIMATION ===
+
+This listing has NO STATED WEIGHT. You must ESTIMATE weight from photos.
+
+=== PHOTO ANALYSIS ===
+1. Check ALL images for a scale photo first
+2. If no scale, estimate by:
+   - Item thickness and size
+   - Comparison to hand/wrist if shown
+   - Construction (solid vs hollow)
+
+=== WEIGHT ESTIMATION GUIDE ===
+JEWELRY:
+| Item | Weight Range |
+|------|-------------|
+| Thin chain | 10-25g |
+| Medium chain | 30-60g |
+| Heavy chain | 70-150g |
+| Thin bracelet | 15-30g |
+| Medium bracelet | 35-60g |
+| Cuff bracelet | 40-100g |
+
+NATIVE AMERICAN:
+| Item | Weight Range |
+|------|-------------|
+| Squash blossom | 150-300g |
+| Concho belt | 200-500g |
+| Heavy cuff | 50-150g |
+
+FLATWARE (per piece):
+| Item | Weight |
+|------|--------|
+| Fork | 30-50g |
+| Knife | 40-70g |
+| Spoon | 25-45g |
+
+=== CURRENT PRICING ===
+Sterling (925): ${sterling_gram:.2f}/gram
+
+=== CONSERVATIVE PRICING ===
+1. Use LOW weight estimate
+2. meltValue = lowEstimate × ${sterling_gram:.2f}
+3. maxBuy = meltValue × 0.75 (conservative for estimates)
+4. Profit = maxBuy - listingPrice
+
+=== OUTPUT FORMAT ===
+{{
+  "Qualify": "Yes"/"No",
+  "Recommendation": "BUY"/"RESEARCH"/"PASS",
+  "verified": "No",
+  "purity": "Sterling 925",
+  "itemtype": item type,
+  "weightSource": "estimate",
+  "weightEstimateLow": number,
+  "weightEstimateHigh": number,
+  "weight": "~X-Yg (estimated)",
+  "silverweight": use low estimate,
+  "meltvalue": calculated,
+  "maxBuy": meltvalue × 0.75,
+  "Profit": maxBuy - listingPrice,
+  "confidence": 40-60 MAX,
+  "visualAnalysis": "What you observed",
+  "reasoning": "VISUAL: [observations] | EST: ~Xg | CALC | DECISION"
+}}
+
+Confidence CANNOT exceed 60 for estimates.
+"""
 
     def quick_pass(self, data: dict, price: float) -> tuple:
         """
@@ -461,7 +715,18 @@ OUTPUT ONLY VALID JSON. NO OTHER TEXT.
         # - Bracelets: 114% ROI (18 items, $2,523 profit)
         current_confidence = response.get("confidence", 50)
         if isinstance(current_confidence, str):
-            current_confidence = int(current_confidence.replace('%', '') or 50)
+            conf_lower = current_confidence.lower().replace('%', '').strip()
+            if conf_lower in ('high', 'very high'):
+                current_confidence = 85
+            elif conf_lower in ('medium', 'moderate'):
+                current_confidence = 60
+            elif conf_lower in ('low', 'very low'):
+                current_confidence = 35
+            else:
+                try:
+                    current_confidence = int(conf_lower or 50)
+                except ValueError:
+                    current_confidence = 50
 
         if "cuff" in title:
             response["confidence"] = min(current_confidence + 10, 95)
