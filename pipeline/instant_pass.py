@@ -536,6 +536,30 @@ def check_instant_pass(title: str, price: any, category: str, data: dict) -> tup
                 return (f"LARGE STERLING LOT: {weight}g at ${price_float:.0f} - Historical 25% win rate on 200-500g lots. Often overvalued.", "PASS")
 
     # ============================================================
+    # PEARL NECKLACE/STRAND - Only clasp has gold (2-4g max)
+    # Not worth AI analysis unless extremely cheap
+    # ============================================================
+    if category == 'gold':
+        is_pearl_necklace = ('pearl' in title_lower and
+                            any(kw in title_lower for kw in ['necklace', 'strand', 'string', 'cultured']))
+        is_clasp_only = 'clasp' in title_lower
+
+        if is_pearl_necklace or is_clasp_only:
+            # Pearl necklaces: clasp is only 2-4g of gold
+            # 10K clasp ~2.5g = ~$75 melt, 14K clasp ~3g = ~$160 melt
+            # Only worth it if price is very low
+            if '18k' in title_lower or '18kt' in title_lower:
+                max_clasp_value = 200  # 18K clasp worth more
+            elif '14k' in title_lower or '14kt' in title_lower:
+                max_clasp_value = 130
+            else:
+                max_clasp_value = 75  # 10K or unknown
+
+            if price_float > max_clasp_value * 0.8:
+                logger.info(f"[INSTANT] PASS - Pearl necklace/clasp @ ${price_float:.0f} (clasp only worth ~${max_clasp_value})")
+                return (f"PEARL NECKLACE/CLASP: Only clasp has gold (~2-4g = ${max_clasp_value} max). Price ${price_float:.0f} too high.", "PASS")
+
+    # ============================================================
     # DIAMOND/STONE JEWELRY FILTERS (Gold category)
     # Items priced for stone value, not gold melt value
     # Based on learning_patterns PASS data analysis

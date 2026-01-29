@@ -233,6 +233,10 @@ The Keywords CSV has searches for TWO different computers:
 - Added gold watch weight estimates from owner's real purchases
 - Added Leonidas to mid-tier watch brands
 - Fixed `import json` shadowing bug in orchestrator.py
+- Added pearl necklace instant pass (clasp only has 2-4g gold)
+- **Fixed Discord notification timing** - now sends AFTER all validation (server score, high-value gold, etc.)
+  - Previously: Discord sent before server score could force BUY→RESEARCH
+  - Now: Discord only fires for items that remain BUY after ALL checks
 
 ### 2026-01-07
 - Implemented seller spam detection (auto-block after 2 listings in 30s)

@@ -1453,122 +1453,7 @@ async def run_analysis(request: Request):
             logger.info(f"Result: {recommendation}")
             logger.info(f"[RESPONSE] Keys: {list(result.keys())}")
 
-            # ============================================================
-            # DISCORD ALERT FOR BUY ONLY
-            # ============================================================
-
-            is_parallel_pending = result.get('tier2_status') == 'PENDING'
-            is_from_api = data.get('source') == 'ebay_api'
-            if is_parallel_pending:
-                logger.info(f"[DISCORD] Skipping immediate alert - Sonnet verifying in background")
-                logger.info(f"[DISCORD] Tier1 said {recommendation} but waiting for Sonnet confirmation")
-            elif is_from_api:
-                logger.info(f"[DISCORD] Skipping - API listing has its own Discord handler")
-            elif recommendation == "BUY":
-                logger.info(f"[DISCORD] Post-Tier2 recommendation: {recommendation} (Tier1 was: {tier1_original_rec})")
-                try:
-                    item_price_str = data.get('ItemPrice', data.get('TotalPrice', '0'))
-                    list_price = float(str(item_price_str).replace('$', '').replace(',', ''))
-
-                    # Use ViewUrl from uBuyFirst data first
-                    ebay_item_url = data.get('ViewUrl', data.get('CheckoutUrl', ''))
-                    if ebay_item_url:
-                        from urllib.parse import unquote
-                        ebay_item_url = unquote(ebay_item_url.replace('+', ' '))
-                        logger.info(f"[EBAY] Using ViewUrl from data: {ebay_item_url[:80]}...")
-
-                    # Fallback: Try seller-based eBay API lookup
-                    if not ebay_item_url:
-                        seller_name_lookup = data.get('SellerName', data.get('SellerUserID', ''))
-                        if seller_name_lookup:
-                            logger.info(f"[EBAY] Attempting seller-based lookup for '{seller_name_lookup}'...")
-                            ebay_item_url = await _lookup_ebay_item_by_seller(title, seller_name_lookup, list_price)
-
-                    # Fallback: Try title-only eBay API lookup
-                    if not ebay_item_url:
-                        ebay_item_url = await _lookup_ebay_item(title, list_price)
-
-                    # Final fallback to search URL
-                    if not ebay_item_url:
-                        ebay_item_url = _get_ebay_search_url(title)
-                        logger.info(f"[EBAY] Using search fallback: {ebay_item_url[:60]}...")
-
-                    # Get first image URL from RAW data
-                    first_image = None
-                    raw_images = data.get('images', [])
-                    if raw_images:
-                        for img in raw_images:
-                            if isinstance(img, str) and img.startswith('http'):
-                                first_image = img
-                                break
-                            elif isinstance(img, dict):
-                                url = img.get('url', img.get('URL', img.get('src', '')))
-                                if url and url.startswith('http'):
-                                    first_image = url
-                                    break
-
-                    if first_image:
-                        logger.info(f"[DISCORD] Thumbnail URL: {first_image[:60]}...")
-
-                    # Extract profit from result
-                    profit_val = result.get('Profit', result.get('profit', result.get('estimatedProfit', 0)))
-                    try:
-                        if isinstance(profit_val, str):
-                            profit_val = float(profit_val.replace('$', '').replace(',', '').replace('%', '').replace('+', ''))
-                        else:
-                            profit_val = float(profit_val) if profit_val else 0
-                    except:
-                        profit_val = 0
-
-                    margin_str = result.get('margin', result.get('Margin', ''))
-
-                    # Build extra data for category-specific fields
-                    extra_data = {}
-                    if category == 'gold':
-                        extra_data['karat'] = result.get('karat', '')
-                        extra_data['weight'] = result.get('goldweight', result.get('weight', ''))
-                        extra_data['melt'] = result.get('meltvalue', '')
-                    elif category == 'silver':
-                        extra_data['weight'] = result.get('weight', '')
-                        extra_data['melt'] = result.get('meltvalue', '')
-                    elif category in ['lego', 'tcg', 'videogames']:
-                        extra_data['market_price'] = result.get('marketprice', result.get('market_price', ''))
-                        extra_data['set_number'] = result.get('SetNumber', result.get('set_number', ''))
-
-                    # Build seller info for purchase logging
-                    seller_info = {
-                        'seller_id': data.get('SellerUserID', '') or data.get('Seller', ''),
-                        'feedback_score': data.get('SellerFeedback', ''),
-                        'feedback_percent': data.get('FeedbackRating', ''),
-                        'seller_type': data.get('SellerType', ''),
-                    }
-
-                    # Build listing info for purchase logging
-                    listing_info = {
-                        'item_id': item_id,
-                        'condition': data.get('Condition', ''),
-                        'posted_time': data.get('PostedTime', '') or data.get('StartTime', ''),
-                    }
-
-                    # Send Discord alert (non-blocking)
-                    asyncio.create_task(_send_discord_alert(
-                        title=title,
-                        price=price_float,
-                        recommendation=recommendation,
-                        category=category,
-                        profit=profit_val,
-                        margin=str(margin_str),
-                        reasoning=result.get('reasoning', ''),
-                        ebay_url=ebay_item_url,
-                        image_url=first_image,
-                        confidence=result.get('confidence', ''),
-                        extra_data=extra_data,
-                        seller_info=seller_info,
-                        listing_info=listing_info
-                    ))
-
-                except Exception as e:
-                    logger.error(f"[DISCORD] Alert error: {e}")
+            # Discord notification moved to after all validation checks (see below)
 
             # Use saved response_type
             logger.info(f"[RESPONSE] response_type: {response_type}")
@@ -1747,6 +1632,125 @@ async def run_analysis(request: Request):
                 except Exception as e:
                     logger.error(f"[EXPENSIVE MIXED LOT] Check error: {e}")
             logger.info(f"[RESPONSE] FINAL Recommendation: {result.get('Recommendation')} (this should be post-Tier2)")
+
+            # ============================================================
+            # DISCORD ALERT FOR BUY ONLY (after all validation checks)
+            # ============================================================
+            final_recommendation = result.get('Recommendation')
+            is_parallel_pending = result.get('tier2_status') == 'PENDING'
+            is_from_api = data.get('source') == 'ebay_api'
+
+            if is_parallel_pending:
+                logger.info(f"[DISCORD] Skipping immediate alert - Sonnet verifying in background")
+            elif is_from_api:
+                logger.info(f"[DISCORD] Skipping - API listing has its own Discord handler")
+            elif final_recommendation == "BUY":
+                logger.info(f"[DISCORD] FINAL BUY confirmed after all validation - sending alert")
+                try:
+                    item_price_str = data.get('ItemPrice', data.get('TotalPrice', '0'))
+                    list_price = float(str(item_price_str).replace('$', '').replace(',', ''))
+
+                    # Use ViewUrl from uBuyFirst data first
+                    ebay_item_url = data.get('ViewUrl', data.get('CheckoutUrl', ''))
+                    if ebay_item_url:
+                        from urllib.parse import unquote
+                        ebay_item_url = unquote(ebay_item_url.replace('+', ' '))
+                        logger.info(f"[EBAY] Using ViewUrl from data: {ebay_item_url[:80]}...")
+
+                    # Fallback: Try seller-based eBay API lookup
+                    if not ebay_item_url:
+                        seller_name_lookup = data.get('SellerName', data.get('SellerUserID', ''))
+                        if seller_name_lookup:
+                            logger.info(f"[EBAY] Attempting seller-based lookup for '{seller_name_lookup}'...")
+                            ebay_item_url = await _lookup_ebay_item_by_seller(title, seller_name_lookup, list_price)
+
+                    # Fallback: Try title-only eBay API lookup
+                    if not ebay_item_url:
+                        ebay_item_url = await _lookup_ebay_item(title, list_price)
+
+                    # Final fallback to search URL
+                    if not ebay_item_url:
+                        ebay_item_url = _get_ebay_search_url(title)
+                        logger.info(f"[EBAY] Using search fallback: {ebay_item_url[:60]}...")
+
+                    # Get first image URL from RAW data
+                    first_image = None
+                    raw_images = data.get('images', [])
+                    if raw_images:
+                        for img in raw_images:
+                            if isinstance(img, str) and img.startswith('http'):
+                                first_image = img
+                                break
+                            elif isinstance(img, dict):
+                                url = img.get('url', img.get('URL', img.get('src', '')))
+                                if url and url.startswith('http'):
+                                    first_image = url
+                                    break
+
+                    if first_image:
+                        logger.info(f"[DISCORD] Thumbnail URL: {first_image[:60]}...")
+
+                    # Extract profit from result
+                    profit_val = result.get('Profit', result.get('profit', result.get('estimatedProfit', 0)))
+                    try:
+                        if isinstance(profit_val, str):
+                            profit_val = float(profit_val.replace('$', '').replace(',', '').replace('%', '').replace('+', ''))
+                        else:
+                            profit_val = float(profit_val) if profit_val else 0
+                    except:
+                        profit_val = 0
+
+                    margin_str = result.get('margin', result.get('Margin', ''))
+
+                    # Build extra data for category-specific fields
+                    extra_data = {}
+                    if category == 'gold':
+                        extra_data['karat'] = result.get('karat', '')
+                        extra_data['weight'] = result.get('goldweight', result.get('weight', ''))
+                        extra_data['melt'] = result.get('meltvalue', '')
+                    elif category == 'silver':
+                        extra_data['weight'] = result.get('weight', '')
+                        extra_data['melt'] = result.get('meltvalue', '')
+                    elif category in ['lego', 'tcg', 'videogames']:
+                        extra_data['market_price'] = result.get('marketprice', result.get('market_price', ''))
+                        extra_data['set_number'] = result.get('SetNumber', result.get('set_number', ''))
+
+                    # Build seller info for purchase logging
+                    seller_info = {
+                        'seller_id': data.get('SellerUserID', '') or data.get('Seller', ''),
+                        'feedback_score': data.get('SellerFeedback', ''),
+                        'feedback_percent': data.get('FeedbackRating', ''),
+                        'seller_type': data.get('SellerType', ''),
+                    }
+
+                    # Build listing info for purchase logging
+                    listing_info = {
+                        'item_id': item_id,
+                        'condition': data.get('Condition', ''),
+                        'posted_time': data.get('PostedTime', '') or data.get('StartTime', ''),
+                    }
+
+                    # Send Discord alert (non-blocking)
+                    asyncio.create_task(_send_discord_alert(
+                        title=title,
+                        price=price_float,
+                        recommendation=final_recommendation,
+                        category=category,
+                        profit=profit_val,
+                        margin=str(margin_str),
+                        reasoning=result.get('reasoning', ''),
+                        ebay_url=ebay_item_url,
+                        image_url=first_image,
+                        confidence=result.get('confidence', ''),
+                        extra_data=extra_data,
+                        seller_info=seller_info,
+                        listing_info=listing_info
+                    ))
+
+                except Exception as e:
+                    logger.error(f"[DISCORD] Alert error: {e}")
+            else:
+                logger.info(f"[DISCORD] Skipping - final recommendation is {final_recommendation}, not BUY")
 
             # Build final response
             return finalize_result(
