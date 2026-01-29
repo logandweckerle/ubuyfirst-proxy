@@ -47,3 +47,6 @@ pipeline/instant_pass_extracted.txt
 
 # Archives
 archive/
+
+# RAG vector database
+rag_vectors/
